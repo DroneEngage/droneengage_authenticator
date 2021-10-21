@@ -29,8 +29,10 @@
     "express-favicon": "^2.0.1",
     "express-response": "^1.0.3",
     "helmet": "^3.21.2",
-    "mysql2": "^2.2.5",
+    "inherits": "^2.0.4",
+    "mysql2": "^2.3.2",
     "randomstring": "^1.1.5",
+    "uuid": "^8.3.2",
     "uuidv4": "^6.0.6",
     "validator": "^9.4.1",
     "ws": "^7.2.3"

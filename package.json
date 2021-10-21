@@ -1,0 +1,38 @@
+{
+  "name": "ANDRUAVAUTH",
+  "version": "2.9.0",
+  "author": {
+    "name": "Mohammad Said Hefny",
+    "email": "mohammad.hefny@gmail.com"
+  },
+  "keywords": [
+    "uav",
+    "pixhawk",
+    "drone"
+  ],
+  "description": "Andruav Authentication Server",
+  "main": "andruav_auth.js",
+  "scripts": {
+    "start": "node ./server.js"
+  },
+  "bin": {
+    "andruavauth": "server.js"
+  },
+  "dependencies": {
+    "commander": "^2.11.0",
+    "cookie-parser": "^1.3.5",
+    "cors": "^2.8.5",
+    "ejs": "^2.4.2",
+    "emailjs": "^2.2.0",
+    "express": "^4.17.1",
+    "express-ejs-layouts": "^2.5.0",
+    "express-favicon": "^2.0.1",
+    "express-response": "^1.0.3",
+    "helmet": "^3.21.2",
+    "mysql2": "^2.2.5",
+    "randomstring": "^1.1.5",
+    "uuidv4": "^6.0.6",
+    "validator": "^9.4.1",
+    "ws": "^7.2.3"
+  }
+}

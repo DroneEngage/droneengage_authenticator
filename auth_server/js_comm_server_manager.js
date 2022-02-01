@@ -6,7 +6,7 @@
  * This module handles communication logic but physical communication is done in comm_server_manager_server.
  */
 "use strict";
-const c_uuidv4 = require('uuidv4');
+const c_uuidv4 = require('uuid');
 const CONST_LOGIN_REQUEST_TIMEOUT = 15000;
 const m_communicationServersList  = {};
 const m_waitingForServerLogin = {};
@@ -50,17 +50,17 @@ function fn_getServerCurrentlyServerAccountID (p_loginCard)
     for (let i=0; i< c_len; ++i)
     {
        const c_serverCard = m_communicationServersList[c_keys[i]];
-       const c_acc_len = c_serverCard.m_attachedAccounts.length;
+       const c_acc_len = c_serverCard.m_server.m_accounts.length; 
        for (let j=0;j<c_acc_len;++j)
        {
-            if (c_serverCard.m_attachedAccounts[j] == p_loginCard.m_partyInfo.m_accountID)
+            if (c_serverCard.m_server.m_accounts[j] == p_loginCard.m_acc_id_hashed)
             {
-                if (c_serverInfo.m_isOnline === false)
+                if (c_serverCard.m_server.m_isOnline === false)
                 {
                     return null;
                 }
             
-                return c_serverInfo;
+                return c_serverCard;
             }
        }
     }
@@ -90,23 +90,6 @@ function fn_onAccountConflicts (p_server1, p_server2, p_accountOfConflict)
 function fn_onServerAdded (p_serverInfo)
 {
     console.log (global.Colors.Log +  "[INFO] Communication Server [%s] has been added" + global.Colors.Reset, p_serverInfo.m_server.m_serverId);
-    /*
-    var len = p_serverInfo.m_attachedAccounts.length
-    for (var i =0; i<len;++i)
-    {
-        var accountId = p_serverInfo.m_attachedAccounts[i];
-        if ((m_communicationServersList.hasOwnProperty(accountId) == true) && (m_communicationServersList[accountId].serverInfo != null))
-        {   
-            if (m_communicationServersList[accountId].serverInfo.server.serverId != p_serverInfo.server.serverId)
-            { // account already attached to a different server !!!!
-                fn_onAccountConflicts (m_communicationServersList[accountId].serverInfo.server.serverId,p_serverInfo,accountId)
-            }
-        }
-        else
-        {   // tell Authenticator to attach account to this server.
-            m_communicationServersList[accountId] = {'serverInfo':p_serverInfo};
-        }
-    }*/
 }
 
 
@@ -164,7 +147,7 @@ function fn_SelectBestServer ()
             }
             else
             {
-                if (v_serverInfo.m_attachedAccounts.length < m_bestServer.m_attachedAccounts.length)
+                if (v_serverInfo.m_server.m_accounts.length < m_bestServer.m_server.m_accounts.length)
                 {
                     // this is a less used server;
                     if (m_bestServer !== v_serverInfo)
@@ -215,11 +198,11 @@ function fn_handleServerInfo (p_cmd)
             var v_srvInfo = m_communicationServersList[p_server.m_commServerGUID];
             
 
-            if (v_srvInfo.m_server.m_isOnline != p_server.m_isOnline)
+            if (v_srvInfo.m_server.m_isOnline != v_msg.m_isOnline)
             {   // isOnline Changed
 
                 v_srvInfo.m_server = p_server;
-                if (p_server.m_isOnline == true)
+                if (v_msg.m_isOnline == true)
                 {  // server is online again
                     fn_onServerRestored(v_srvInfo);
                 }
@@ -240,7 +223,6 @@ function fn_handleServerInfo (p_cmd)
             // Define a new server
             m_communicationServersList[p_server.m_commServerGUID] = {
                 m_server : v_msg,
-                m_attachedAccounts : []
             };
 
             fn_onServerAdded (m_communicationServersList[p_server.m_commServerGUID]);
@@ -294,7 +276,7 @@ function fn_handleLoginResponses (p_cmd)
     
     c_sessionRequest.m_client_conn_feedback (c_sessionRequest.m_loginCard);
 
-    delete m_waitingForServerLogin[p_cmd.d[global.c_CONSTANTS.CONST_CS_SENDER_ID]];
+    delete m_waitingForServerLogin[c_RequestID];
 }
 
 
@@ -383,7 +365,7 @@ function fn_requestCommunicationLogin (p_loginCard, p_server, fn_success, fn_err
         return ;
     }
 
-    c_requestId =   c_uuidv4.uuid(); // p_loginCard.m_acc_id_hashed; //m_senderID;
+    c_requestId =   c_uuidv4.v4(); // p_loginCard.m_acc_id_hashed; //m_senderID;
     m_waitingForServerLogin [c_requestId] = 
         {
             'm_loginCard': p_loginCard,
@@ -401,7 +383,8 @@ function fn_requestCommunicationLogin (p_loginCard, p_server, fn_success, fn_err
     c_reply.d [global.c_CONSTANTS.CONST_CS_ACCOUNT_ID.toString()]  =  p_loginCard.m_acc_id_hashed; // account sid needed as it is the parent of room chat.
     c_reply.d [global.c_CONSTANTS.CONST_CS_GROUP_ID.toString()]    =  p_loginCard[global.c_CONSTANTS.CONST_CS_GROUP_ID.toString()]; // group ID as it is the room chat id
     c_reply.d [global.c_CONSTANTS.CONST_ACTOR_TYPE.toString()]     =  p_loginCard.m_actorType;
-            
+    c_reply.d [global.c_CONSTANTS.CONST_INSTANCE_LIMIT.toString()] =  p_loginCard.m_data.m_instance_limit;
+    
 
     Me.fn_sendMessage (p_server.m_server.m_commServerGUID, JSON.stringify(c_reply));
     }

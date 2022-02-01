@@ -8,7 +8,7 @@
 
 
 "use strict";
-const c_uuidv4 = require('uuidv4');
+const c_uuidv4 = require('uuid');
 const hlp_string = require("../helpers/hlp_string.js");
 const v_database_manager = require("./js_database_manager");
 
@@ -53,7 +53,7 @@ function fn_isGCS (p_loginCard)
  */
 function fn_generateSessionID() {
 
-    return c_uuidv4.uuid().replaceAll("-", "") + process.hrtime()[1].toString();  //use process.hrtime.bigint() in node10+
+    return c_uuidv4.v4().replaceAll("-", "") + process.hrtime()[1].toString();  //use process.hrtime.bigint() in node10+
 }
 
 /**

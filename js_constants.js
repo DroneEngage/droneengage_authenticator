@@ -56,6 +56,7 @@ exports.CONST_COMM_SERVER_PORT                  ='pr';   // verified
 exports.CONST_COMM_SERVER_AUTH_KEY              ='sak';  // verified
 exports.CONST_ERROR                             ='e';    // verified
 exports.CONST_ERROR_MSG                         ='em';   // verified
+exports.CONST_INSTANCE_LIMIT                    ='il';    
 /////////////EO-Reply Fields
 
 
@@ -97,6 +98,7 @@ exports.CONST_ERROR_SERVER_NOT_AVAILABLE        = 5;
 exports.CONST_ERROR_NO_PERMISSION               = 6;  
 exports.CONST_ERROR_SESSION_NOT_FOUND           = 7;  // a relogin might be required.
 exports.CONST_ERROR_HARDWARE_NOT_FOUND          = 8;  
+exports.CONST_ERROR_ACCOUNT_DISABLED            = 9;  
 exports.CONST_ERROR_DATA_UNKNOWN_ERROR          = 999;  
 
 

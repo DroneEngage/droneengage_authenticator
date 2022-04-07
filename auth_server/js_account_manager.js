@@ -1,5 +1,5 @@
 "use strict";
-const uuid = require('uuid');
+const uuidv4 = require('uuid');
 const hlp_string = require("../helpers/hlp_string.js");
 const v_database_manager = require("./js_database_manager");
 var email = require("emailjs/email");
@@ -12,7 +12,7 @@ var email_server;
  * generates random string
  */
 function fn_generateAccessCode() {
-    return uuid.v4().replaceAll('-','').substr(0, 12);
+    return uuidv4.v4().replaceAll('-','').substr(0, 12);
 }
 
 function fn_initialize ()

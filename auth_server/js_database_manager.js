@@ -17,7 +17,7 @@ function fn_initialize()
         const c_mysql = require('mysql2');
         m_dbPool = c_mysql.createPool(
             {
-                acquireTimeout: 10000, // 3s
+                connectTimeout: 10000, // 3s
                 connectionLimit: 18, //important
                 queueLimit: 19,
                 host: m_serverconfig.m_configuration.dbIP,
@@ -81,7 +81,7 @@ function fn_do_loginAccount (p_accountName, p_accessCode, fn_callback)
         return ;
     }
     
-    const c_sql = "select account.Account_SID, account_details.Permission from account_details, account WHERE account_details.PWD=? and account.Account_SID = account_details.Account_SID and account.Name=?";
+    const c_sql = "select account.Account_SID, account.Enabled, account.Instance_Limit, account_details.Permission from account_details, account WHERE account_details.PWD=? and account.Account_SID = account_details.Account_SID and account.Name=?";
     
     hlp_db.fn_genericSelect_w_Params (m_dbPool, c_sql,[p_accessCode.fn_protectedFromInjection(), p_accountName.fn_protectedFromInjection()],
     function (rows) {
@@ -107,8 +107,17 @@ function fn_do_loginAccount (p_accountName, p_accessCode, fn_callback)
                 c_reply.m_data = {};
                 c_reply.m_data.m_sid = rows[0]['Account_SID'];
                 c_reply.m_data.m_permission = rows[0]['Permission'];
-                c_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_NON;
-
+                c_reply.m_data.m_enabled = rows[0]['Enabled'];
+                c_reply.m_data.m_instance_limit = rows[0]['Instance_Limit'];
+                if (c_reply.m_data.m_enabled==0)
+                {
+                    c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_ACCOUNT_DISABLED;
+                    c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Account is Disabled.";
+                }
+                else
+                {
+                    c_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_NON;
+                }
             }
             
             fn_callback (c_reply);
@@ -275,7 +284,7 @@ function fn_createNewAccessCode (p_accountName, p_newAccessCode, fn_callback)
         return ;
     }
     
-    const c_sql = "INSERT INTO `account` (`Account_SID`, `Name`, `PWD`)  VALUES (NULL,?,?)";
+    const c_sql = "INSERT INTO `account` (`Account_SID`, `Name`)  VALUES (NULL,?)";
     
     hlp_db.fn_genericInsert_w_Params (m_dbPool,c_sql, [p_accountName.fn_protectedFromInjection(), p_newAccessCode.fn_protectedFromInjection()],
 		function () 

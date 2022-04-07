@@ -20,12 +20,13 @@ function fn_initialize ()
 }
 
 /**
- * This function is used to generated correspondant number for SID that is used with AndruavServer and other modues that needs to identify account_sid
+ * This function is used to generated correspondant number for SID 
+ * that is used with AndruavServer and other modues that needs to identify account_sid
  * without revealing true SID in database.
  * @param {*} p_SID_TRUE 
  */
 function fn_generateSenderID(p_SID_TRUE) {
-    return p_SID_TRUE;
+    return p_SID_TRUE+"xx";
     //return c_uuidv4.uuid().split('-')[0].substr(0, 8);
 }
 

@@ -7,7 +7,7 @@
  * However this module is not responsible for parsing and processing this traffic.
  */
 
-const uuid = require('uuid');
+const uuidv4 = require('uuid');
 
 var Me;
 const m_ws = {};
@@ -21,7 +21,7 @@ const m_ws = {};
 function fn_onConnect_Handler(v_webSocket,p_request)
 {
     v_webSocket.upgradeReq = p_request;
-    v_webSocket.m_guid = uuid.v4();
+    v_webSocket.m_guid = uuidv4.v4();
 
     m_ws[v_webSocket.m_guid] = v_webSocket;
 

@@ -51,7 +51,7 @@ function fn_sendSubscriptionEmail (p_accountName, p_accessCode, fn_callback)
                 alternative: true
             }
         ],
-        from: "Andruav <no-reply@andruav.com>",
+        from: "Andruav <no-reply@cloud.ardupilot.org>",
         to: p_accountName + "<" + p_accountName + ">",
         subject: "Andruav Account Account Created"
     }, function(p_error, message)

@@ -19,9 +19,13 @@ function fn_initialize ()
 {
     email_server = email.server.connect(
         {
-            host: "localhost",
-            ssl: false
+                host:global.m_serverconfig.m_configuration.smtp_host, //"smtp.privateemail.com",
+                port:global.m_serverconfig.m_configuration.smtp_port, //465,
+                user:global.m_serverconfig.m_configuration.smtp_user, // "info@droneengage.com",
+                password:global.m_serverconfig.m_configuration.smtp_password, // "Month15",
+                ssl: global.m_serverconfig.m_configuration.smtp_ssl //true
         });
+
 }
 
 
@@ -36,7 +40,7 @@ function fn_sendSubscriptionEmail (p_accountName, p_accessCode, fn_callback)
     var v_msg = "Welcome to <span color='#0066FF'><strong>Ardupilot-Cloud</strong></span><p>&nbsp;</p>\
 												You are receiving this email because you activated your ArdupilotCloud account, please use the code below and enter it in the app<p>\
 												&nbsp;</p>The Code is: <span color=#003366><strong>" + p_accessCode + "</strong></span><span color=#FF0000><br><br><b>Did you know you can now view your live video stream online and manage your account at <a href='https://cloud.ardupilot.org:8001/webclient.html'>ArdupilotCloud Web Client</a>..</span>\
-												<span color=#FF0000><br><br><b>IMPORTANT NOTICE:</b>&nbsp;Because flying regulations differ by country/state/region plan your flights in GlobalARC before you start using <a href='www.andruav.com'>andruav.com</a>.</span>";
+												";
 
     var v_msgText = "Welcome to CloudArdupilot.org.\r\nA unique way to communicate with your drones to unlimited distances.\r\nYou are receiving this email because you have just subscribed in CloudArdupilot.org\r\nYou are receiving this email because you activated your Anduav account, please use the code below and enter it in the app.\r\nThe Code is: " + p_accessCode + "\r\nDid you know you can now view your live video stream online and manage your account at www.andruav.com?"; + "\r\nIMPORTANT NOTICE: Because flying regulations differ by country/state/region plan your flights before you start using CloudArdupilot.org";
 
@@ -51,9 +55,9 @@ function fn_sendSubscriptionEmail (p_accountName, p_accessCode, fn_callback)
                 alternative: true
             }
         ],
-        from: "Andruav <no-reply@cloud.ardupilot.org>",
+        from: "info@droneengage.com<info@droneengage.com>",
         to: p_accountName + "<" + p_accountName + ">",
-        subject: "Andruav Account Account Created"
+        subject: "ArdupilotCloud Account Created"
     }, function(p_error, message)
        {
            const c_reply = {};

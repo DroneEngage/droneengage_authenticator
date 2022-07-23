@@ -17,7 +17,8 @@ function fn_generateAccessCode() {
 
 function fn_initialize ()
 {
-    if (global.m_serverconfig.m_configuration.ignoreEmail === false)
+    if ((global.m_serverconfig.m_configuration.hasOwnProperty('ignoreEmail') === true )
+        && (global.m_serverconfig.m_configuration.ignoreEmail === false))
     {
                             
         email_server = email.server.connect(
@@ -42,7 +43,10 @@ function fn_initialize ()
 function fn_sendSubscriptionEmail (p_accountName, p_accessCode, fn_callback)
 {
     //sanity check
-    if (global.m_serverconfig.m_configuration.ignoreEmail === true) return ;
+    if ((global.m_serverconfig.m_configuration.hasOwnProperty('ignoreEmail') === true )
+        && (global.m_serverconfig.m_configuration.ignoreEmail === true)) {
+            return ;
+        }
     
     var v_msg = "Welcome to <span color='#0066FF'><strong>Ardupilot-Cloud</strong></span><p>&nbsp;</p>\
 												You are receiving this email because you activated your ArdupilotCloud account, please use the code below and enter it in the app<p>\
@@ -116,7 +120,8 @@ function fn_createAccessCode (p_accountName, fn_callback)
                         }
                         else
                         {
-                            if (global.m_serverconfig.m_configuration.ignoreEmail === false)
+                            if ((global.m_serverconfig.m_configuration.hasOwnProperty('ignoreEmail') === true )
+                                && (global.m_serverconfig.m_configuration.ignoreEmail === false))
                             {   
                                 // send email with access code.
                                 fn_sendSubscriptionEmail (p_accountName, v_accessCode,
@@ -172,7 +177,8 @@ function fn_regenerateAccessCode (p_accountName, fn_callback)
                         }
                         else
                         {
-                            if (global.m_serverconfig.m_configuration.ignoreEmail === false)
+                            if ((global.m_serverconfig.m_configuration.hasOwnProperty('ignoreEmail') === true )
+                                && (global.m_serverconfig.m_configuration.ignoreEmail === false))
                             {   
                                 // send email with access code.
                                 fn_sendSubscriptionEmail (p_accountName, v_accessCode,

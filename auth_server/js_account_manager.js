@@ -17,14 +17,18 @@ function fn_generateAccessCode() {
 
 function fn_initialize ()
 {
-    email_server = email.server.connect(
-        {
-                host:global.m_serverconfig.m_configuration.smtp_host, //"smtp.privateemail.com",
-                port:global.m_serverconfig.m_configuration.smtp_port, //465,
-                user:global.m_serverconfig.m_configuration.smtp_user, // "info@droneengage.com",
-                password:global.m_serverconfig.m_configuration.smtp_password, // "Month15",
-                ssl: global.m_serverconfig.m_configuration.smtp_ssl //true
-        });
+    if (global.m_serverconfig.m_configuration.ignoreEmail === false)
+    {
+                            
+        email_server = email.server.connect(
+            {
+                    host:global.m_serverconfig.m_configuration.smtp_host, //"smtp.privateemail.com",
+                    port:global.m_serverconfig.m_configuration.smtp_port, //465,
+                    user:global.m_serverconfig.m_configuration.smtp_user, // "info@droneengage.com",
+                    password:global.m_serverconfig.m_configuration.smtp_password, // "Month15",
+                    ssl: global.m_serverconfig.m_configuration.smtp_ssl //true
+            });
+    }
 
 }
 
@@ -37,6 +41,9 @@ function fn_initialize ()
  */
 function fn_sendSubscriptionEmail (p_accountName, p_accessCode, fn_callback)
 {
+    //sanity check
+    if (global.m_serverconfig.m_configuration.ignoreEmail === true) return ;
+    
     var v_msg = "Welcome to <span color='#0066FF'><strong>Ardupilot-Cloud</strong></span><p>&nbsp;</p>\
 												You are receiving this email because you activated your ArdupilotCloud account, please use the code below and enter it in the app<p>\
 												&nbsp;</p>The Code is: <span color=#003366><strong>" + p_accessCode + "</strong></span><span color=#FF0000><br><br><b>Did you know you can now view your live video stream online and manage your account at <a href='https://cloud.ardupilot.org:8001/webclient.html'>ArdupilotCloud Web Client</a>..</span>\

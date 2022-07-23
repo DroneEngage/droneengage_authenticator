@@ -208,6 +208,33 @@ function fn_regenerateAccessCode (p_accountName, fn_callback)
  */
 function fn_getAccountNameByAccessCode (p_accessCode, fn_callback)
 {
+    if ((m_serverconfig.m_configuration.hasOwnProperty('use_single_account_mode') === true)
+    && (m_serverconfig.m_configuration.use_single_account_mode === true)) {
+        // use single logic account
+        if ((m_serverconfig.m_configuration.hasOwnProperty('single_account_user_name') === true)    
+        && (m_serverconfig.m_configuration.hasOwnProperty('single_account_access_code') === true))
+        {
+            const p_reply = {};
+            
+            if ((m_serverconfig.m_configuration.single_account_access_code != p_accessCode))
+            {
+                p_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Account Not Found.";
+                p_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
+                fn_callback (p_reply);
+                return ;
+            }
+
+            p_reply[global.c_CONSTANTS.CONST_ACCOUNT_NAME_PARAMETER.toString()] = m_serverconfig.m_configuration.single_account_user_name;
+            p_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_NON;
+            fn_callback (p_reply);
+            
+            return ;
+        }    
+        
+        return ;
+    } 
+    
+    // login via database
     v_database_manager.fn_do_getAccountNameByAccessCode (p_accessCode,
         function (p_reply)
         {

@@ -12,6 +12,11 @@ var m_dbPool;
  */
 function fn_initialize()
 {
+    if ((m_serverconfig.m_configuration.hasOwnProperty('use_single_account_mode') === true)
+    && (m_serverconfig.m_configuration.use_single_account_mode === true)) {
+        return ;
+    } 
+
     try
     {
         const c_mysql = require('mysql2');

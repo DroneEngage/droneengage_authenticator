@@ -15,6 +15,7 @@
         {
             "type": "node",
             "request": "launch",
+            "runtimeExecutable": "/home/you/.nvm/versions/node/v16.16.0/bin/node",
             "name": "Production Program",
             "program": "${workspaceRoot}/server.js",
             "args": ["--config=server.config"]

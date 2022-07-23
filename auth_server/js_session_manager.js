@@ -74,6 +74,16 @@ function fn_createLoginCard (p_accountName, p_accessCode, p_actorType, p_group, 
         && (m_serverconfig.m_configuration.hasOwnProperty('single_account_access_code') === true))
         {
             var p_reply = {};
+            
+            if ((m_serverconfig.m_configuration.single_account_user_name != p_accountName)
+            || (m_serverconfig.m_configuration.single_account_access_code != p_accessCode))
+            {
+                p_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Account Not Found.";
+                p_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
+                fn_callback (p_reply);
+                return ;
+            }
+
             p_reply.m_data ={};
             p_reply.m_timestamp = new Date();
             p_reply.m_data.m_permission ='D1G1T3R4V5C6';
@@ -84,6 +94,7 @@ function fn_createLoginCard (p_accountName, p_accessCode, p_actorType, p_group, 
             p_reply.m_acc_id_hashed  = fn_generateSenderID('1');
             m_loginCardList[p_reply.m_session_id] = p_reply;
             fn_callback (p_reply);
+            
             return ;
         }    
         

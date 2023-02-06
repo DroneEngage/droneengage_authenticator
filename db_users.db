@@ -1,0 +1,22 @@
+{
+    "mhefny@andruav.com": {
+        "sid": 1,
+        "pwd": "1234",
+        "isadmin": true
+    },
+    "single@airgap.droneengae.com": {
+        "sid": 1,
+        "pwd": "test",
+        "isadmin": false
+    },
+    "test@email.com": {
+        "pwd": "0000",
+        "isadmin": false,
+        "sid": 2
+    },
+    "e1ad99466998": {
+        "acc": "test@email.com",
+        "isadmin": false,
+        "sid": 1
+    }
+}

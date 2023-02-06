@@ -127,7 +127,8 @@ v_router.m_Router.post(global.c_CONSTANTS.CONST_WEB_FUNCTION + global.c_CONSTANT
             function ()
             {
                 v_router.fn_errorPage (v_response);
-            }
+            },
+            v_req.body[global.c_CONSTANTS.CONST_SESSION_ID]
         );
     }
     catch (ex)

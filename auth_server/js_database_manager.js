@@ -1,6 +1,7 @@
 "use strict";
 const hlp_db = require("../helpers/hlp_db.js");
 const hlp_string = require("../helpers/hlp_string.js");
+const v_users = require('../database/db_users');
 
 
 
@@ -12,6 +13,18 @@ var m_dbPool;
  */
 function fn_initialize()
 {
+    const fs = require('fs');
+
+    if (m_serverconfig.m_configuration.hasOwnProperty('db_users') === true) {
+        // users database
+        global.db_users = new v_users.db_user(global.m_serverconfig.m_configuration.db_users);
+        console.log ("Users Database File  " + global.Colors.BSuccess + global.m_serverconfig.m_configuration.db_users + global.Colors.Reset);
+        if (!fs.existsSync(global.m_serverconfig.m_configuration.db_users)) { 
+            console.log (global.Colors.Error +  "File Not Found"  + global.Colors.Reset);
+        }
+        return;
+    }
+
     if ((m_serverconfig.m_configuration.hasOwnProperty('use_single_account_mode') === true)
     && (m_serverconfig.m_configuration.use_single_account_mode === true)) {
         return ;
@@ -260,7 +273,7 @@ function fn_createSubLogin(p_accountName, p_newAccessCode, p_permission, fn_call
  * @param {*} p_accountName 
  * @param {*} fn_callback 
  */
-function fn_createNewAccessCode (p_accountName, p_newAccessCode, fn_callback)
+function fn_createNewAccessCode (p_accountName, p_newAccessCode, fn_callback, p_loginCard)
 {
     const c_reply = {};
     
@@ -289,6 +302,23 @@ function fn_createNewAccessCode (p_accountName, p_newAccessCode, fn_callback)
         return ;
     }
     
+    // local database is active only when there is a valid login.
+    // cannot access local database from Global Account page.
+    if ((p_loginCard!=null) && (m_serverconfig.m_configuration.hasOwnProperty('db_users') === true)) {
+     
+        var p_reply = {};
+        var user_data = {
+            'acc':p_accountName,
+            'isadmin': false,
+            'sid': 1
+        };
+        global.db_users.fn_add_record(p_newAccessCode,user_data);
+        p_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_NON;
+        fn_callback (c_reply);
+            
+        return ;
+
+    }
     const c_sql = "INSERT INTO `account` (`Account_SID`, `Name`)  VALUES (NULL,?)";
     
     hlp_db.fn_genericInsert_w_Params (m_dbPool,c_sql, [p_accountName.fn_protectedFromInjection(), p_newAccessCode.fn_protectedFromInjection()],

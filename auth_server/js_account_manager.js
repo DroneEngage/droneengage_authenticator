@@ -94,7 +94,7 @@ function fn_sendSubscriptionEmail (p_accountName, p_accessCode, fn_callback)
  * @param {*} p_accountName 
  * @param {*} fn_callback 
  */
-function fn_createAccessCode (p_accountName, fn_callback)
+function fn_createAccessCode (p_accountName, fn_callback, p_loginCard)
 {
 
     var v_accessCode = fn_generateAccessCode();
@@ -142,7 +142,7 @@ function fn_createAccessCode (p_accountName, fn_callback)
                         }
                     });
             }
-        });
+        }, p_loginCard);
 }
 
 
@@ -210,6 +210,26 @@ function fn_regenerateAccessCode (p_accountName, fn_callback)
  */
 function fn_getAccountNameByAccessCode (p_accessCode, fn_callback)
 {
+
+    if (m_serverconfig.m_configuration.hasOwnProperty('db_users') === true) {
+     
+        var account_record = global.db_users.fn_get_record(p_accessCode);
+        if (account_record==null) {
+
+            p_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Account Not Found.";
+            p_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
+            fn_callback (p_reply);
+            return ;
+        }
+
+        p_reply[global.c_CONSTANTS.CONST_ACCOUNT_NAME_PARAMETER.toString()] = account_record.acc;
+        p_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_NON;
+        fn_callback (p_reply);
+            
+        return ;
+
+    }
+
     if ((m_serverconfig.m_configuration.hasOwnProperty('use_single_account_mode') === true)
     && (m_serverconfig.m_configuration.use_single_account_mode === true)) {
         // use single logic account

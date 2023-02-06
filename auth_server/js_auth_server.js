@@ -256,7 +256,7 @@ function fn_newLoginCard (p_accountName, p_accessCode, p_actorType, p_group, p_a
  * @param {*} fn_callback return data to app could be valid or error code
  * @param {*} fn_error result in 404 page error. This is mainly because of fake or invalid input mainly because of hacking.
  */
-function fn_accountOperation (p_subCommand, p_accountName, p_accessCode, fn_callback, fn_error)
+function fn_accountOperation (p_subCommand, p_accountName, p_accessCode, fn_callback, fn_error, p_sessionID)
 {
     if ((p_subCommand == null) || (p_subCommand.length > 3))
     {
@@ -306,7 +306,7 @@ function fn_accountOperation (p_subCommand, p_accountName, p_accessCode, fn_call
         return ;
     }
     
-
+    var p_loginCard = v_sessionManager.fn_getLoginCardBySessionID(p_sessionID);
     switch (p_subCommand)
     {
         case global.c_CONSTANTS.CONST_CMD_CREATE_ACCESSCODE:
@@ -315,7 +315,8 @@ function fn_accountOperation (p_subCommand, p_accountName, p_accessCode, fn_call
                 p_reply[global.c_CONSTANTS.CONST_SUB_COMMAND] =global.c_CONSTANTS.CONST_CMD_CREATE_ACCESSCODE;
 
                 fn_callback (p_reply);
-            });
+            },
+            p_loginCard);
             break;
         case global.c_CONSTANTS.CONST_CMD_REGENERATE_ACCESSCODE:
             v_account_manager.fn_regenerateAccessCode(p_accountName, function (p_reply)
@@ -323,7 +324,8 @@ function fn_accountOperation (p_subCommand, p_accountName, p_accessCode, fn_call
                 p_reply[global.c_CONSTANTS.CONST_SUB_COMMAND] =global.c_CONSTANTS.CONST_CMD_REGENERATE_ACCESSCODE;
 
                 fn_callback (p_reply);
-            });
+            },
+            p_loginCard);
             break;
         case global.c_CONSTANTS.CONST_CMD_GET_ACCOUNT_NAME:
             v_account_manager.fn_getAccountNameByAccessCode(p_accessCode, function (p_reply)
@@ -331,7 +333,8 @@ function fn_accountOperation (p_subCommand, p_accountName, p_accessCode, fn_call
                 p_reply[global.c_CONSTANTS.CONST_SUB_COMMAND] =global.c_CONSTANTS.CONST_CMD_GET_ACCOUNT_NAME;
 
                 fn_callback (p_reply);
-            });
+            },
+            p_loginCard);
             break;
     }
 

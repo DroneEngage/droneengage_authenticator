@@ -296,7 +296,7 @@ function fn_accountOperation (p_subCommand, p_accountName, p_accessCode, fn_call
         p_accessCode = p_accessCode.trim();
     }
     
-    if ((p_accessCode != null) && (!p_accessCode.trim().fn_isAlphanumeric()))
+    if ((p_accessCode != null) && (!p_accessCode.fn_isAlphanumeric()))
     {
         // null or not alphanumeric
         if (fn_error != null)

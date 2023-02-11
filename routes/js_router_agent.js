@@ -14,6 +14,8 @@ v_router.m_Router.post(global.c_CONSTANTS.CONST_AGENT_FUNCTION + global.c_CONSTA
         //https://github.com/expressjs/express/issues/3264
         Object.setPrototypeOf(v_req.body, {});
         
+        if (global.m_logger) global.m_logger.Info(global.c_CONSTANTS.CONST_AGENT_LOGIN_COMMAND,null,null,v_req.body);
+        
         // extract parameter values from header... no verification check here.
         if (v_req.body.hasOwnProperty (global.c_CONSTANTS.CONST_ACCOUNT_NAME_PARAMETER) === false)
         {
@@ -102,6 +104,9 @@ v_router.m_Router.post(global.c_CONSTANTS.CONST_AGENT_FUNCTION + global.c_CONSTA
         //https://github.com/expressjs/express/issues/3264
         Object.setPrototypeOf(v_req.body, {});
 
+        if (global.m_logger) global.m_logger.Info(global.c_CONSTANTS.CONST_AGENT_ACCOUNT_MANAGMENT,null,null,v_req.body);
+        
+        
         if (v_req.body.hasOwnProperty (global.c_CONSTANTS.CONST_SUB_COMMAND) === false)
         {
             v_router.fn_errorPage (v_response);
@@ -172,6 +177,9 @@ v_router.m_Router.post(global.c_CONSTANTS.CONST_AGENT_FUNCTION + global.c_CONSTA
         //https://github.com/expressjs/express/issues/3264
         Object.setPrototypeOf(v_req.body, {});
 
+        if (global.m_logger) global.m_logger.Info(global.c_CONSTANTS.CONST_AGENT_HARDWARE_MANAGMENT,null,null,v_req.body);
+        
+        
         if (v_req.body.hasOwnProperty (global.c_CONSTANTS.CONST_SUB_COMMAND) === false)
         {
             v_router.fn_errorPage (v_response);

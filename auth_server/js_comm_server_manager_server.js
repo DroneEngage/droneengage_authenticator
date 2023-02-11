@@ -25,8 +25,11 @@ function fn_onConnect_Handler(v_webSocket,p_request)
 
     m_ws[v_webSocket.m_guid] = v_webSocket;
 
+    if (global.m_logger) global.m_logger.Info('Communication server connecting...','fn_onConnect_Handler',null,null);
+
     function fn_onWsMessage (p_msg)
     {
+        if (global.m_logger) global.m_logger.Debug('WS Msg','fn_onWsMessage',null,p_msg);
         Me.fn_onMessageReceived(this.m_guid, p_msg);
     }
 
@@ -34,6 +37,8 @@ function fn_onConnect_Handler(v_webSocket,p_request)
     function fn_onWsClose (p_code)
     {
         console.log (global.Colors.Error + "[ATTENTION!!] Closed with Communication Server"  + global.Colors.Reset);
+        if (global.m_logger) global.m_logger.Warn('WS Closing','fn_onWsClose',null,null);
+        
         Me.fn_onServerClosed (v_webSocket.m_guid,p_code);
         if (m_ws.hasOwnProperty(v_webSocket.m_guid) === true)
         {
@@ -45,6 +50,7 @@ function fn_onConnect_Handler(v_webSocket,p_request)
     function fn_onWsError (p_err)
     {
         console.log (global.Colors.Error + "[ATTENTION!!] Closed with Communication Server"  + global.Colors.Reset + p_err);
+        if (global.m_logger) global.m_logger.Error('WS Error','fn_onWsError',null,p_err);
 
     }
 

@@ -184,6 +184,7 @@ function fn_regenerateAccessCode (p_accountName, fn_callback)
                                 fn_sendSubscriptionEmail (p_accountName, v_accessCode,
                                     function (p_reply)
                                     {
+                                        p_reply [global.c_CONSTANTS.CONST_ACCESS_CODE_PARAMETER.toString()] = v_accessCode;
                                         fn_callback (p_reply);
                                     });
                                     return ;
@@ -191,6 +192,7 @@ function fn_regenerateAccessCode (p_accountName, fn_callback)
                             }
                             else
                             {
+                                p_reply [global.c_CONSTANTS.CONST_ACCESS_CODE_PARAMETER.toString()] = v_accessCode;
                                 fn_callback (p_reply);
                             }
                         }

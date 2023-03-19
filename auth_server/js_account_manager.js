@@ -213,7 +213,10 @@ function fn_getAccountNameByAccessCode (p_accessCode, fn_callback)
 
     if (m_serverconfig.m_configuration.hasOwnProperty('db_users') === true) {
      
-        var account_record = global.db_users.fn_get_record(p_accessCode);
+        var account_record = global.db_users.fn_get_user_by_accesscode(p_accessCode);
+
+        const p_reply = {};
+
         if (account_record==null) {
 
             p_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Account Not Found.";
@@ -222,7 +225,7 @@ function fn_getAccountNameByAccessCode (p_accessCode, fn_callback)
             return ;
         }
 
-        p_reply[global.c_CONSTANTS.CONST_ACCOUNT_NAME_PARAMETER.toString()] = account_record.acc;
+        p_reply[global.c_CONSTANTS.CONST_ACCOUNT_NAME_PARAMETER.toString()] = account_record;
         p_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_NON;
         fn_callback (p_reply);
             

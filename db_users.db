@@ -14,9 +14,17 @@
         "isadmin": false,
         "sid": 2
     },
+    "team@ardupilot.org": {
+        "pwd": "1234",
+        "isadmin": false,
+        "sid": 2
+    },
     "e1ad99466998": {
         "acc": "test@email.com",
         "isadmin": false,
         "sid": 1
+    },
+    "db_info": {
+        "SID": 0
     }
 }

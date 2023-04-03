@@ -28,7 +28,7 @@ String.prototype.replacebyIndex = function (index,replaceBy)
  */
 String.prototype.fn_isAlphanumeric = function ()
 {
-    return (this.match(/^[a-z0-9]+$/i) != null);
+    return (this.match(/^[_a-z0-9]+$/i) != null);
 }
 
 

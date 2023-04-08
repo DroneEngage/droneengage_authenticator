@@ -15,6 +15,11 @@ function fn_initialize()
 {
     const fs = require('fs');
 
+    if ((m_serverconfig.m_configuration.hasOwnProperty('use_single_account_mode') === true)
+    && (m_serverconfig.m_configuration.use_single_account_mode === true)) {
+        return ;
+    } 
+
     if (m_serverconfig.m_configuration.hasOwnProperty('db_users') === true) {
         // users database
         global.db_users = new v_users.db_user(global.m_serverconfig.m_configuration.db_users);
@@ -25,11 +30,7 @@ function fn_initialize()
         return;
     }
 
-    if ((m_serverconfig.m_configuration.hasOwnProperty('use_single_account_mode') === true)
-    && (m_serverconfig.m_configuration.use_single_account_mode === true)) {
-        return ;
-    } 
-
+    
     try
     {
         const c_mysql = require('mysql2');

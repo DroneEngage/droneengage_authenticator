@@ -210,14 +210,14 @@ function fn_regenerateAccessCode (p_accountName, fn_callback)
  */
 function fn_getAccountNameByAccessCode (p_accessCode, fn_callback)
 {
-
+    const p_reply = {};
+            
     if ((m_serverconfig.m_configuration.hasOwnProperty('use_single_account_mode') === true)
     && (m_serverconfig.m_configuration.use_single_account_mode === true)) {
         // use single logic account
         if ((m_serverconfig.m_configuration.hasOwnProperty('single_account_user_name') === true)    
         && (m_serverconfig.m_configuration.hasOwnProperty('single_account_access_code') === true))
         {
-            const p_reply = {};
             
             if ((m_serverconfig.m_configuration.single_account_access_code != p_accessCode))
             {
@@ -239,7 +239,7 @@ function fn_getAccountNameByAccessCode (p_accessCode, fn_callback)
     
     if (m_serverconfig.m_configuration.hasOwnProperty('db_users') === true) {
      
-        var account_record = global.db_users.fn_get_record(p_accessCode);
+        var account_record = global.db_users.fn_get_user_by_accesscode(p_accessCode);
         if (account_record==null) {
 
             p_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Account Not Found.";

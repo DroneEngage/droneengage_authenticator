@@ -78,7 +78,8 @@ class db_user {
             const rec = this.db.get(keys[i]);
             if (( rec != null) &&(rec.pwd == accesscode))
             {
-                return keys[i];
+                rec.acc = keys[i];
+                return rec;
             }
         }
 

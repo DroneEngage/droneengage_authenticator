@@ -43,6 +43,16 @@ function fn_isGCS (p_loginCard)
     return c_permission.fn_validatePermission(p_loginCard.m_data.m_prm, c_permission.AndruavMessageTypes.CONST_ALLOW_GCS);
 }
 
+/**
+ * returns true if permission allows Agents(Units) are allowed.
+ * @param {*} p_permission 
+ */
+function fn_isAGN (p_loginCard)
+{
+    if ((p_loginCard == null) || ((p_loginCard.m_data == null))) return 0;
+
+    return c_permission.fn_validatePermission(p_loginCard.m_data.m_prm, c_permission.AndruavMessageTypes.CONST_ALLOW_UNIT);
+}
 
 /**
  * SessionID used to communicate with Authentication server .
@@ -187,5 +197,6 @@ module.exports =
     fn_createLoginCard: fn_createLoginCard,
     fn_generateLoginReplyToParty: fn_generateLoginReplyToParty,
     fn_isGCS: fn_isGCS,
+    fn_isAGN: fn_isAGN,
     fn_getLoginCardBySessionID: fn_getLoginCardBySessionID,
 }

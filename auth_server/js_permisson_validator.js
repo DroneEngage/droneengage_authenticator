@@ -48,7 +48,7 @@ function fn_validatePermission (p_permission, p_flags)
         per_value = p_permission;
     }
 
-    return  ((per_value & p_flags) === AndruavMessageTypes.CONST_ALLOW_GCS)
+    return  ((per_value & p_flags) === p_flags)
 }
 
 

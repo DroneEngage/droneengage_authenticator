@@ -213,6 +213,15 @@ function fn_newLoginCard (p_accountName, p_accessCode, p_actorType, p_group, p_a
                 fn_callback(ret);
                 return ;
             }
+
+            if ((p_mustGCS===false) && (!v_sessionManager.fn_isAGN(p_loginCard)))
+            {
+                var ret = {};
+                ret[global.c_CONSTANTS.CONST_ERROR.toString()]         = global.c_CONSTANTS.CONST_ERROR_NO_PERMISSION;
+                ret[global.c_CONSTANTS.CONST_ERROR_MSG.toString()]     = "No enough permission. This is not a GCS account.";
+                fn_callback(ret);
+                return ;
+            }
             
             // get candidate server that should this party should connect to.
             const c_selectedServer = v_commServerManager.fn_selectServerforAccount (p_loginCard);

@@ -48,6 +48,7 @@ exports.CONST_HARDWARE_TYPE                     ='ht';
 exports.CONST_ACTOR_TYPE                        ='at';    // isGCS
 exports.CONST_SESSION_ID                        ='sid';   // verified 
 exports.CONST_PERMISSION                        ='per';   // verified 
+exports.CONST_PERMISSION2                       ='prm';   // verified 
 exports.CONST_TURN_SERVER_IP                    ='tip';   
 exports.CONST_STUN_SERVER_IP                    ='tp';  
 exports.CONST_COMM_SERVER                       ='cs';   // verified

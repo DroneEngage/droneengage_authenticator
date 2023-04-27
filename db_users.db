@@ -2,27 +2,37 @@
     "mhefny@andruav.com": {
         "sid": 1,
         "pwd": "1234",
+        "prm": "0xffffffff",
         "isadmin": true
     },
     "single@airgap.droneengae.com": {
         "sid": 1,
-        "pwd": "test",
-        "isadmin": false
+        "isadmin": false,
+        "pwd": "test"
     },
-    "test@email.com": {
+    "testc@email.com": {
+        "sid": 1,
         "pwd": "0000",
         "isadmin": false,
-        "sid": 2
+        "prm": "0xfffff0ff"
     },
-    "team@ardupilot.org": {
-        "pwd": "1234",
+    "testc1@email.com": {
+        "sid": 1,
+        "pwd": "0001",
         "isadmin": false,
-        "sid": 2
+        "prm": "0xfffff1ff"
     },
-    "e1ad99466998": {
-        "acc": "test@email.com",
+    "testc2@email.com": {
+        "sid": 1,
+        "pwd": "0002",
         "isadmin": false,
-        "sid": 1
+        "prm": "0xfffff2ff"
+    },
+    "testv@email.com": {
+        "sid": 1,
+        "pwd": "0001",
+        "isadmin": false,
+        "prm": "0xffff0fff"
     },
     "db_info": {
         "SID": 0

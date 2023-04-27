@@ -125,7 +125,12 @@ function fn_do_loginAccount (p_accountName, p_accessCode, fn_callback)
             {
                 c_reply.m_data = {};
                 c_reply.m_data.m_sid = rows[0]['Account_SID'];
-                c_reply.m_data.m_permission = rows[0]['Permission'];
+                c_reply.m_data.m_permission = 'D1G1T3R4V5C6';
+                c_reply.m_data.m_prm = rows[0]['Permission'];
+                if (c_reply.m_data.m_prm == 'D1G1T3R4V5C6')
+                { // backward compatibility to be deleted in the next version.
+                    c_reply.m_data.m_prm ='0xffffffff'; 
+                }
                 c_reply.m_data.m_enabled = rows[0]['Enabled'];
                 c_reply.m_data.m_instance_limit = rows[0]['Instance_Limit'];
                 if (c_reply.m_data.m_enabled==0)

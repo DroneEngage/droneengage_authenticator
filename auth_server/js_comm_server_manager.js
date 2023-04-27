@@ -266,6 +266,7 @@ function fn_handleLoginResponses (p_cmd)
     c_rep[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_NON;
     c_rep[global.c_CONSTANTS.CONST_SESSION_ID.toString()] = c_sessionRequest.m_loginCard.m_session_id;
     c_rep[global.c_CONSTANTS.CONST_PERMISSION.toString()] = c_sessionRequest.m_loginCard.m_data.m_permission;
+    c_rep[global.c_CONSTANTS.CONST_PERMISSION2.toString()] = c_sessionRequest.m_loginCard.m_data.m_prm;
     
     const c_commServer = {};
     c_commServer[global.c_CONSTANTS.CONST_CS_LOGIN_TEMP_KEY.toString()] = p_cmd.d[global.c_CONSTANTS.CONST_CS_LOGIN_TEMP_KEY];
@@ -384,6 +385,7 @@ function fn_requestCommunicationLogin (p_loginCard, p_server, fn_success, fn_err
     c_reply.d [global.c_CONSTANTS.CONST_CS_GROUP_ID.toString()]    =  p_loginCard[global.c_CONSTANTS.CONST_CS_GROUP_ID.toString()]; // group ID as it is the room chat id
     c_reply.d [global.c_CONSTANTS.CONST_ACTOR_TYPE.toString()]     =  p_loginCard.m_actorType;
     c_reply.d [global.c_CONSTANTS.CONST_INSTANCE_LIMIT.toString()] =  p_loginCard.m_data.m_instance_limit;
+    c_reply.d [global.c_CONSTANTS.CONST_PERMISSION2.toString()]    =  p_loginCard.m_data.m_prm;
     
 
     Me.fn_sendMessage (p_server.m_server.m_commServerGUID, JSON.stringify(c_reply));

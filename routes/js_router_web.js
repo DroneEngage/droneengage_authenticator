@@ -69,7 +69,7 @@ v_router.m_Router.post(global.c_CONSTANTS.CONST_WEB_FUNCTION + global.c_CONSTANT
                 //    v_router.fn_errorPage (v_response);
                 //}
                 // MHEFNY LATER
-                if (v_response.finished === true) return;
+                if (v_response.writableEnded === true) return;
                 p_data[global.c_CONSTANTS.CONST_COMMAND.toString()] = global.c_CONSTANTS.CONST_WEB_LOGIN_COMMAND;
                 v_response.write(JSON.stringify(p_data), function(err) { v_response.end(); });
                 v_response.end();
@@ -117,7 +117,7 @@ v_router.m_Router.post(global.c_CONSTANTS.CONST_WEB_FUNCTION + global.c_CONSTANT
             v_req.body[global.c_CONSTANTS.CONST_ACCESS_CODE_PARAMETER],
             function (p_data)
             {
-                if (v_response.finished === true) return;
+                if (v_response.writableEnded === true) return;
                 
                 p_data[global.c_CONSTANTS.CONST_COMMAND.toString()]   = global.c_CONSTANTS.CONST_ACCOUNT_MANAGMENT;
                 v_response.write(JSON.stringify(p_data), function(err) { v_response.end(); });

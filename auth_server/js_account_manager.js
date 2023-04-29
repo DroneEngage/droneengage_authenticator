@@ -212,8 +212,7 @@ function fn_getAccountNameByAccessCode (p_accessCode, fn_callback)
 {
     const p_reply = {};
             
-    if ((m_serverconfig.m_configuration.hasOwnProperty('use_single_account_mode') === true)
-    && (m_serverconfig.m_configuration.use_single_account_mode === true)) {
+    if (m_serverconfig.m_configuration.account_storage_type.toLowerCase() === 'single') {
         // use single logic account
         if ((m_serverconfig.m_configuration.hasOwnProperty('single_account_user_name') === true)    
         && (m_serverconfig.m_configuration.hasOwnProperty('single_account_access_code') === true))
@@ -237,26 +236,30 @@ function fn_getAccountNameByAccessCode (p_accessCode, fn_callback)
         return ;
     }
     
-    if (m_serverconfig.m_configuration.hasOwnProperty('db_users') === true) {
-     
-        var account_record = global.db_users.fn_get_user_by_accesscode(p_accessCode);
-        if (account_record==null) {
+    if(m_serverconfig.m_configuration.account_storage_type.toLowerCase() === 'file') {
+        if (m_serverconfig.m_configuration.hasOwnProperty('db_users') === true) {
+        
+            var account_record = global.db_users.fn_get_user_by_accesscode(p_accessCode);
+            if (account_record==null) {
 
-            p_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Account Not Found.";
-            p_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
+                p_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Account Not Found.";
+                p_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
+                fn_callback (p_reply);
+                return ;
+            }
+
+            p_reply[global.c_CONSTANTS.CONST_ACCOUNT_NAME_PARAMETER.toString()] = account_record.acc;
+            p_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_NON;
             fn_callback (p_reply);
-            return ;
-        }
-
-        p_reply[global.c_CONSTANTS.CONST_ACCOUNT_NAME_PARAMETER.toString()] = account_record.acc;
-        p_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_NON;
-        fn_callback (p_reply);
             
-        return ;
+            return ;
 
+        }
     }
 
-    // login via database
+    if(m_serverconfig.m_configuration.account_storage_type.toLowerCase() === 'db') {
+    
+        // login via database
     v_database_manager.fn_do_getAccountNameByAccessCode (p_accessCode,
         function (p_reply)
         {
@@ -274,6 +277,11 @@ function fn_getAccountNameByAccessCode (p_accessCode, fn_callback)
                 fn_callback (c_reply);
             }
         });
+
+        return ;
+    }
+
+    console.log (global.Colors.BError + "FATAL ERROR:" + global.Colors.FgYellow + " account_storage_type or db_users or db connection" +  global.Colors.Reset + " are not specified in config file. ");
 }
 
 

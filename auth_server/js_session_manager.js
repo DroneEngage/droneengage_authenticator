@@ -72,8 +72,7 @@ function fn_generateSessionID() {
 function fn_createLoginCard (p_accountName, p_accessCode, p_actorType, p_group, fn_callback)
 {
     
-    if ((m_serverconfig.m_configuration.hasOwnProperty('use_single_account_mode') === true)
-    && (m_serverconfig.m_configuration.use_single_account_mode === true)) {
+    if (m_serverconfig.m_configuration.account_storage_type.toLowerCase() === 'single') {
         // use single logic account
         if ((m_serverconfig.m_configuration.hasOwnProperty('single_account_user_name') === true)    
         && (m_serverconfig.m_configuration.hasOwnProperty('single_account_access_code') === true))
@@ -104,61 +103,69 @@ function fn_createLoginCard (p_accountName, p_accessCode, p_actorType, p_group, 
             return ;
         }    
         
-        return ;
     } 
 
-    if (m_serverconfig.m_configuration.hasOwnProperty('db_users') === true) {
+    if (m_serverconfig.m_configuration.account_storage_type.toLowerCase() === 'file') {
+        if (m_serverconfig.m_configuration.hasOwnProperty('db_users') === true) {
      
-        var p_reply = {};
-        
-        var account_record = global.db_users.fn_get_record(p_accountName);
-        if ((account_record==null)
-        ||  (account_record.hasOwnProperty('pwd')===false) 
-        ||  (account_record.pwd != p_accessCode)){
-
-            p_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Account Not Found.";
-            p_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
-            fn_callback (p_reply);
-            return ;
-        }
-
-        p_reply.m_data ={};
-        p_reply.m_timestamp = new Date();
-        p_reply.m_data.m_prm = c_permission.fn_convertPermissiontoInt(account_record.prm); 
-        p_reply.m_data.m_permission ='D1G1T3R4V5C6';
-        p_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_NON;
-        p_reply[global.c_CONSTANTS.CONST_CS_GROUP_ID.toString()] = p_group;
-        p_reply.m_actorType = p_actorType;
-        p_reply.m_session_id     = fn_generateSessionID();
-        p_reply.m_acc_id_hashed  = fn_generateSenderID(account_record.sid);
-        m_loginCardList[p_reply.m_session_id] = p_reply;
-        fn_callback (p_reply);
+            var p_reply = {};
             
-        return ;
+            var account_record = global.db_users.fn_get_record(p_accountName);
+            if ((account_record==null)
+            ||  (account_record.hasOwnProperty('pwd')===false) 
+            ||  (account_record.pwd != p_accessCode)){
 
+                p_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Account Not Found.";
+                p_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
+                fn_callback (p_reply);
+                return ;
+            }
+
+            p_reply.m_data ={};
+            p_reply.m_timestamp = new Date();
+            p_reply.m_data.m_prm = c_permission.fn_convertPermissiontoInt(account_record.prm); 
+            p_reply.m_data.m_permission ='D1G1T3R4V5C6';
+            p_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_NON;
+            p_reply[global.c_CONSTANTS.CONST_CS_GROUP_ID.toString()] = p_group;
+            p_reply.m_actorType = p_actorType;
+            p_reply.m_session_id     = fn_generateSessionID();
+            p_reply.m_acc_id_hashed  = fn_generateSenderID(account_record.sid);
+            m_loginCardList[p_reply.m_session_id] = p_reply;
+            fn_callback (p_reply);
+                
+            return ;
+
+        }
     }
 
+    if (m_serverconfig.m_configuration.account_storage_type.toLowerCase() === 'db') {
     
-    // login via database
-    v_database_manager.fn_do_loginAccount (p_accountName, p_accessCode, 
-        function (p_reply)
-        {
-            if (p_reply [global.c_CONSTANTS.CONST_ERROR.toString()] != global.c_CONSTANTS.CONST_ERROR_NON)
+        // login via database
+        v_database_manager.fn_do_loginAccount (p_accountName, p_accessCode, 
+            function (p_reply)
             {
-                fn_callback (p_reply);
-            }
-            else
-            {
-                p_reply.m_data.m_prm = c_permission.fn_convertPermissiontoInt(p_reply.m_data.m_prm); // backward compatibility
-                p_reply.m_timestamp = new Date();
-                p_reply[global.c_CONSTANTS.CONST_CS_GROUP_ID.toString()] = p_group;
-                p_reply.m_actorType = p_actorType;
-                p_reply.m_session_id     = fn_generateSessionID();
-                p_reply.m_acc_id_hashed  = fn_generateSenderID(p_reply.m_data.m_sid);
-                m_loginCardList[p_reply.m_session_id] = p_reply;
-                fn_callback (p_reply);
-            }
-        });
+                if (p_reply [global.c_CONSTANTS.CONST_ERROR.toString()] != global.c_CONSTANTS.CONST_ERROR_NON)
+                {
+                    fn_callback (p_reply);
+                }
+                else
+                {
+                    p_reply.m_data.m_prm = c_permission.fn_convertPermissiontoInt(p_reply.m_data.m_prm); // backward compatibility
+                    p_reply.m_timestamp = new Date();
+                    p_reply[global.c_CONSTANTS.CONST_CS_GROUP_ID.toString()] = p_group;
+                    p_reply.m_actorType = p_actorType;
+                    p_reply.m_session_id     = fn_generateSessionID();
+                    p_reply.m_acc_id_hashed  = fn_generateSenderID(p_reply.m_data.m_sid);
+                    m_loginCardList[p_reply.m_session_id] = p_reply;
+                    fn_callback (p_reply);
+                }
+            });
+        
+        return ;
+    }
+
+    console.log (global.Colors.BError + "FATAL ERROR:" + global.Colors.FgYellow + " account_storage_type or db_users or db connection" +  global.Colors.Reset + " are not specified in config file. ");
+
 }
 
 

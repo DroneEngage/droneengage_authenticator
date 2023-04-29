@@ -14,7 +14,7 @@ function fn_convertPermissiontoInt (p_permission)
     var per_value;
     try
     {
-        if (p_permission == null) return 0xffffffff; // backward compatibility
+        if (p_permission == null) return 0xffffffff; // backward compatibility and for simplicity
 
         if (typeof p_permission === 'string')
         {

@@ -143,6 +143,16 @@ function fn_displayInfo ()
     }
     console.log ("Datetime: %s", new Date());
     console.log ("==============================================");
+    if ((m_serverconfig.m_configuration.account_storage_type!=null) && (typeof(m_serverconfig.m_configuration.account_storage_type) == 'string'))
+    {
+        
+        console.log (" account_storage_type is " + global.Colors.FgYellow + m_serverconfig.m_configuration.account_storage_type.toLowerCase() + global.Colors.Reset);
+    }
+    else
+    {
+        console.log (global.Colors.BError + "FATAL ERROR:" + global.Colors.FgYellow + " account_storage_type " +  global.Colors.Reset + " is not specified in config file. ");
+        process.exit(0);
+    }
 
     if (global.m_logger) global.m_logger.Info('System Started.');
 }

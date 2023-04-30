@@ -99,21 +99,24 @@ v_router.m_Router.post(global.c_CONSTANTS.CONST_WEB_FUNCTION + global.c_CONSTANT
         //https://github.com/expressjs/express/issues/3264
         Object.setPrototypeOf(v_req.body, {});
 
-        if (v_req.body.hasOwnProperty (global.c_CONSTANTS.CONST_SUB_COMMAND) === false)
+        if (v_req.body[global.c_CONSTANTS.CONST_SUB_COMMAND.toString()] ==null)
         {
             v_router.fn_errorPage (v_response);
             return;
         }
-        if ((v_req.body.hasOwnProperty (global.c_CONSTANTS.CONST_ACCOUNT_NAME_PARAMETER) === false)
-        && (v_req.body.hasOwnProperty (global.c_CONSTANTS.CONST_ACCESS_CODE_PARAMETER) === false))
+        if (v_req.body[global.c_CONSTANTS.CONST_ACCOUNT_NAME_PARAMETER.toString()] ==null)
         {
             v_router.fn_errorPage (v_response);
             return;
         }
 
-        
+        if (v_req.body[global.c_CONSTANTS.CONST_PERMISSION_PARAMETER.toString()] ==null)
+        {
+            v_req.body[global.c_CONSTANTS.CONST_PERMISSION_PARAMETER] = '0xffffffff';
+        }
         global.m_authServer.fn_accountOperation(v_req.body[global.c_CONSTANTS.CONST_SUB_COMMAND],
             v_req.body[global.c_CONSTANTS.CONST_ACCOUNT_NAME_PARAMETER],
+            v_req.body[global.c_CONSTANTS.CONST_PERMISSION_PARAMETER],
             v_req.body[global.c_CONSTANTS.CONST_ACCESS_CODE_PARAMETER],
             function (p_data)
             {

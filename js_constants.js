@@ -32,6 +32,7 @@ exports.CONST_UPLOADER_FUNCTION             =   '/up';
 
 
 exports.CONST_ACCOUNT_NAME_PARAMETER                = 'acc';   // verified
+exports.CONST_PERMISSION_PARAMETER                  = 'prm';   // verified
 exports.CONST_ACCESS_CODE_PARAMETER                 = 'pwd';   // verified
 exports.CONST_APP_NAME_PARAMETER                    = 'app';   // verified
 exports.CONST_APP_GROUP_PARAMETER                   = 'gr';    // verified

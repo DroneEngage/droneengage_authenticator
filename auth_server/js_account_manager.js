@@ -92,9 +92,10 @@ function fn_sendSubscriptionEmail (p_accountName, p_accessCode, fn_callback)
 /**
  * 
  * @param {*} p_accountName 
+ * @param {*} p_permission 
  * @param {*} fn_callback 
  */
-function fn_createAccessCode (p_accountName, fn_callback, p_loginCard)
+function fn_createAccessCode (p_accountName, p_permission, fn_callback, p_loginCard)
 {
 
     var v_accessCode = fn_generateAccessCode();
@@ -111,7 +112,8 @@ function fn_createAccessCode (p_accountName, fn_callback, p_loginCard)
             else
             {
                 // Create sub login account that is used by andruav for actual login. 
-                v_database_manager.fn_createSubLogin (p_accountName, v_accessCode, 'D1G1T3R4V5C6',
+                if (p_permission == null) p_permission = '0xffffffff';
+                v_database_manager.fn_createSubLogin (p_accountName, v_accessCode, p_permission,
                     function (p_reply)
                     {
                         if (p_reply [global.c_CONSTANTS.CONST_ERROR.toString()] != global.c_CONSTANTS.CONST_ERROR_NON)
@@ -150,14 +152,15 @@ function fn_createAccessCode (p_accountName, fn_callback, p_loginCard)
  * Generates new access code.
  * This deletes all accout sub-logins, and create a new one.
  * @param {*} p_accountName 
+ * @param {*} p_permission
  * @param {*} fn_callback 
  */
-function fn_regenerateAccessCode (p_accountName, fn_callback)
+function fn_regenerateAccessCode (p_accountName, p_permission, fn_callback)
 {
     const v_accessCode = fn_generateAccessCode();
     
     // Define a new account.
-    v_database_manager.fn_deleteSubLogins (p_accountName,
+    v_database_manager.fn_deleteSubLogins (p_accountName, p_permission,
         function (p_reply)
         {
             
@@ -168,7 +171,8 @@ function fn_regenerateAccessCode (p_accountName, fn_callback)
             else
             {
                 // Create sub login account that is used by andruav for actual login. 
-                v_database_manager.fn_createSubLogin (p_accountName, v_accessCode, 'D1G1T3R4V5C6',
+                if (p_permission == null) p_permission = '0xffffffff';
+                v_database_manager.fn_createSubLogin (p_accountName, v_accessCode, p_permission,
                     function (p_reply)
                     {
                         if (p_reply [global.c_CONSTANTS.CONST_ERROR.toString()] != global.c_CONSTANTS.CONST_ERROR_NON)

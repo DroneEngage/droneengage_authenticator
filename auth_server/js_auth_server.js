@@ -261,11 +261,12 @@ function fn_newLoginCard (p_accountName, p_accessCode, p_actorType, p_group, p_a
  * Enterance to all operations with @var v_account_manager .
  * @param {*} p_subCommand 
  * @param {*} p_accountName 
+ * @param {*} p_permission 
  * @param {*} p_accessCode 
  * @param {*} fn_callback return data to app could be valid or error code
  * @param {*} fn_error result in 404 page error. This is mainly because of fake or invalid input mainly because of hacking.
  */
-function fn_accountOperation (p_subCommand, p_accountName, p_accessCode, fn_callback, fn_error, p_sessionID)
+function fn_accountOperation (p_subCommand, p_accountName, p_permission, p_accessCode, fn_callback, fn_error, p_sessionID)
 {
     if ((p_subCommand == null) || (p_subCommand.length > 3))
     {
@@ -300,6 +301,20 @@ function fn_accountOperation (p_subCommand, p_accountName, p_accessCode, fn_call
         return ;
     }
 
+    if ((p_permission != null) && (typeof(p_permission) == 'string'))
+    {
+        p_permission = p_permission.trim();
+    }
+    else
+    {
+        // null or not alphanumeric
+        if (fn_error != null)
+        {
+            fn_error();
+        }
+        return ;
+    }
+    
     if (p_accessCode != null)
     {   // avoid typo happens in android autocomplete
         p_accessCode = p_accessCode.trim();
@@ -319,7 +334,7 @@ function fn_accountOperation (p_subCommand, p_accountName, p_accessCode, fn_call
     switch (p_subCommand)
     {
         case global.c_CONSTANTS.CONST_CMD_CREATE_ACCESSCODE:
-            v_account_manager.fn_createAccessCode(p_accountName, function (p_reply)
+            v_account_manager.fn_createAccessCode(p_accountName, p_permission, function (p_reply)
             {
                 p_reply[global.c_CONSTANTS.CONST_SUB_COMMAND] =global.c_CONSTANTS.CONST_CMD_CREATE_ACCESSCODE;
 
@@ -328,7 +343,7 @@ function fn_accountOperation (p_subCommand, p_accountName, p_accessCode, fn_call
             p_loginCard);
             break;
         case global.c_CONSTANTS.CONST_CMD_REGENERATE_ACCESSCODE:
-            v_account_manager.fn_regenerateAccessCode(p_accountName, function (p_reply)
+            v_account_manager.fn_regenerateAccessCode(p_accountName, p_permission, function (p_reply)
             {
                 p_reply[global.c_CONSTANTS.CONST_SUB_COMMAND] =global.c_CONSTANTS.CONST_CMD_REGENERATE_ACCESSCODE;
 

@@ -269,11 +269,20 @@ function fn_createSubLogin(p_accountName, p_newAccessCode, p_permission, fn_call
     
     
     hlp_db.fn_genericInsert_w_Params (m_dbPool,c_sql, [p_newAccessCode.fn_protectedFromInjection(), p_permission.fn_protectedFromInjection(), p_accountName.fn_protectedFromInjection()],
-		function () 
+		function (err,res) 
 		{
             var c_reply = {};
-                
-            c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_NON;
+         
+            if (res.affectedRows == 0)
+            {
+                // account not found
+                c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Database Error.";
+                c_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
+            }
+            else
+            {
+                c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_NON;
+            }
             fn_callback (c_reply);
         },
         function (p_err)
@@ -361,7 +370,7 @@ function fn_createNewAccessCode (p_accountName, p_newAccessCode, fn_callback, p_
 }
 
 
-function fn_deleteSubLogins (p_accountName, fn_callback)
+function fn_deleteSubLogins (p_accountName, p_permission, fn_callback)
 {
     const c_reply = {};
     
@@ -376,22 +385,22 @@ function fn_deleteSubLogins (p_accountName, fn_callback)
         }
         return ;
     }
-    const c_sql = "DELETE FROM `account_details` WHERE `Account_SID` in ( select `Account_SID` FROM `account` WHERE `Name` LIKE ?)";
+    const c_sql = "DELETE FROM `account_details` WHERE `Account_SID` in ( select `Account_SID` FROM `account` WHERE `Name` LIKE ?) and `Permission` LIKE ?";
     
-    hlp_db.fn_genericInsert_w_Params (m_dbPool,c_sql, [p_accountName.fn_protectedFromInjection()],
+    hlp_db.fn_genericInsert_w_Params (m_dbPool,c_sql, [p_accountName.fn_protectedFromInjection(), p_permission.fn_protectedFromInjection()],
 		function (err,res) 
 		{
-            if (res.affectedRows == 0)
-            {
-                // account not found
-                c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Database Error.";
-                c_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
-            }
-            else
-            {
-                c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_NON;
-            }
-
+            // if (res.affectedRows == 0)
+            // {
+            //     // account not found
+            //     c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Database Error.";
+            //     c_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
+            // }
+            // else
+            // {
+            //     c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_NON;
+            // }
+            c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_NON;
             fn_callback (c_reply);
 		},
 		function (err,res)

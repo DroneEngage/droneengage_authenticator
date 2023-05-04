@@ -416,7 +416,7 @@ function fn_accountOperationFromAgent (p_subCommand, p_accountName, p_accessCode
         return ;
     }
 
-    fn_accountOperation (p_subCommand, p_accountName, p_accessCode, fn_callback, fn_error);
+    fn_accountOperation (p_subCommand, p_accountName, "0xffffffff", p_accessCode, fn_callback, fn_error);
 }
 
 

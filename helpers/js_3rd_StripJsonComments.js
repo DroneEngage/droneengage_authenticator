@@ -5,7 +5,7 @@
 const singleComment = 1;
 const multiComment = 2;
 const stripWithoutWhitespace = () => '';
-const stripWithWhitespace = (str, start, end) => str.slice(start, end).replace(/\S/g, ' ');
+const stripWithWhitespace = (str, start, end) => str.slice(start, end).replace(/[\t\S]/g, ' ');
 
 module.exports = (str, opts) => {
 	opts = opts || {};
@@ -59,6 +59,9 @@ module.exports = (str, opts) => {
 			ret += strip(str, offset, i + 1);
 			offset = i + 1;
 			continue;
+		} else if (!insideComment && !insideString && (currentChar === ',' || currentChar === ':' || currentChar === '[' || currentChar === ']' || currentChar === '{' || currentChar === '}')) {
+			ret += str.slice(offset, i + 1);
+			offset = i + 1;
 		}
 	}
 

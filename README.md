@@ -14,4 +14,14 @@ Please refer to [Cloud.Ardupilot.org](https://cloud.ardupilot.org/ "Cloud.Ardupi
 [![Ardupilot Cloud EcoSystem](https://cloud.ardupilot.org/_static/ardupilot_logo.png "Ardupilot Cloud EcoSystem")](https://cloud.ardupilot.org "Ardupilot Cloud EcoSystem") **Drone Engage** is part of Ardupilot Cloud Eco System
 
 
+## Sequence Diagram
+
+```seq
+DE_Communicator->Authenticator: Auth_request
+Authenticator->Authenticator:Retrieve Data
+Authenticator->Server: Allocate-Chat-Room
+Server-->Authenticator: Chat-Room-Information
+Authenticator->DE_Communicator: Connection Information
+```
+
 

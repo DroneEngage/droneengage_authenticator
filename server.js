@@ -7,7 +7,7 @@ global.m_authServer     = require ('./auth_server/js_auth_server');
 
 var v_configFileName = global.m_serverconfig.getFileName();
 
-process.on('SIGINT', function(err) {
+process.once('SIGINT', function(err) {
     if (global.m_logger) global.m_logger.Warn('SIGINT.');
     process.exit(err ? 1 : 0);
  });

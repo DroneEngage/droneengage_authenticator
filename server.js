@@ -1,4 +1,5 @@
 const v_pjson = require('./package.json');
+const publisher = require('./plugins/js_zeromq_publisher')
 
 global.c_CONSTANTS      = require ("./js_constants");
 global.Colors           = require ("./helpers/js_colors.js").Colors;
@@ -203,7 +204,8 @@ function fn_start ()
     // display info
     fn_displayInfo();
 
-
+    publisher.bind();
+    
     // start auth server 
     global.m_authServer.fn_startServer ();
 

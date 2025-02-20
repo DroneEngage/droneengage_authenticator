@@ -9,10 +9,9 @@
 
 "use strict";
 const c_uuidv4 = require('uuid');
-const hlp_string = require("../helpers/hlp_string.js");
 const v_database_manager = require("./js_database_manager");
 const c_permission = require ("./js_permisson_validator.js");
-const v_user = require ("../database/db_users");
+
 
 const m_loginCardList = {};
 

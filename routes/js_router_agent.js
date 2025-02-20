@@ -1,6 +1,5 @@
 "use strict";
 const v_router = require('./js_router');
-const publisher = require('../plugins/js_zeromq_publisher');
 
 const C = global.c_CONSTANTS;
         
@@ -81,7 +80,6 @@ v_router.m_Router.post(C.CONST_AGENT_FUNCTION + C.CONST_AGENT_LOGIN_COMMAND, fun
 
                 console.log ("debug ... fn_newLoginCard: " + JSON.stringify(p_data));
                 
-                publisher.send("login", {text:"🎉 An agent has successfully logined."});
             },
             function ()
             {

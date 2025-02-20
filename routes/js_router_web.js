@@ -2,8 +2,6 @@
 
 
 var v_router = require('./js_router');
-const hlp_string = require("../helpers/hlp_string.js");
-const publisher = require('../plugins/js_zeromq_publisher');
 const C = global.c_CONSTANTS;
 
 v_router.m_Router.post(C.CONST_WEB_FUNCTION + C.CONST_WEB_LOGIN_COMMAND, function (v_req, v_response, v_next) {
@@ -74,8 +72,6 @@ v_router.m_Router.post(C.CONST_WEB_FUNCTION + C.CONST_WEB_LOGIN_COMMAND, functio
 
                 console.log ("debug ... fn_newLoginCard: " + JSON.stringify(p_data));
                 
-                publisher.send("login", {text:"🎉 A GCS has successfully logined."});
-            
             },
             function ()
             {

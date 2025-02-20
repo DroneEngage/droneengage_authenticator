@@ -4,3 +4,4 @@ doxygen_docs
 ssl/
 *.ignore
 logs/
+.vscode

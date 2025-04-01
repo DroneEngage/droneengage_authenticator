@@ -183,7 +183,6 @@ function fn_handleServerInfo (p_cmd)
                 v_msg.m_serverId            = p_server.serverId;
                 v_msg.m_serverPublicIP      = p_server.public_host;
                 v_msg.m_serverPort          = p_server.serverPort;
-                //v_msg.m_wsauthkey           = p_server.wsauthkey;
                 v_msg.m_accounts            = p_server.accounts;
                 v_msg.m_commServerGUID      = p_cmd.m_commServerGUID;
 
@@ -252,8 +251,7 @@ function fn_handleLoginResponses (p_cmd)
 
     if ((c_sessionRequest == null) || (p_cmd.d[global.c_CONSTANTS.CONST_CS_ERROR.toString()] !== global.c_CONSTANTS.CONST_ERROR_NON))
     {
-        // c_sessionRequest == null if CONST_LOGIN_REQUEST_TIMEOUT triggered
-
+        
         // send failure to client
         c_rep[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_SERVER_NOT_AVAILABLE;
         c_sessionRequest.m_client_conn_feedback (c_rep);
@@ -273,7 +271,6 @@ function fn_handleLoginResponses (p_cmd)
     c_commServer[global.c_CONSTANTS.CONST_CS_SERVER_PUBLIC_HOST.toString()] = p_cmd.d[global.c_CONSTANTS.CONST_CS_SERVER_PUBLIC_HOST.toString()];
     c_commServer[global.c_CONSTANTS.CONST_CS_SERVER_PORT.toString()] = p_cmd.d[global.c_CONSTANTS.CONST_CS_SERVER_PORT.toString()];
     c_sessionRequest.m_loginCard.m_serverInfo = c_commServer;
-    //c_rep[global.c_CONSTANTS.CONST_COMM_SERVER.toString()] = c_commServer;
     
     c_sessionRequest.m_client_conn_feedback (c_sessionRequest.m_loginCard);
 
@@ -355,7 +352,7 @@ function fn_selectServerforAccount (p_loginCard)
 function fn_requestCommunicationLogin (p_loginCard, p_server, fn_success, fn_error)
 {
 
-    var c_requestId=null;
+    let c_requestId=null;
     try
     {
     const c_fn_success = fn_success; 
@@ -366,7 +363,7 @@ function fn_requestCommunicationLogin (p_loginCard, p_server, fn_success, fn_err
         return ;
     }
 
-    c_requestId =   c_uuidv4.v4(); // p_loginCard.m_acc_id_hashed; //m_senderID;
+    c_requestId =   c_uuidv4.v4(); 
     m_waitingForServerLogin [c_requestId] = 
         {
             'm_loginCard': p_loginCard,
@@ -423,8 +420,7 @@ function fn_removePartyCommunicationSession (p_loginCard)
         return ; 
     }
 
-    //const c_serverInfo = c_sessionRequest.m_loginCard.m_commServerGUID;
-
+    
     const c_req = {
         'c':global.c_CONSTANTS.CONST_CS_CMD_LOGOUT_REQUEST, // request party remove        
         'd': {}

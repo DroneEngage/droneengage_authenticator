@@ -107,9 +107,9 @@ function fn_createLoginCard (p_accountName, p_accessCode, p_actorType, p_group, 
     if (m_serverconfig.m_configuration.account_storage_type.toLowerCase() === 'file') {
         if (m_serverconfig.m_configuration.hasOwnProperty('db_users') === true) {
      
-            var p_reply = {};
+            let p_reply = {};
             
-            var account_record = global.db_users.fn_get_record(p_accountName);
+            let account_record = global.db_users.fn_get_record(p_accountName);
             if ((account_record==null)
             ||  (account_record.hasOwnProperty('pwd')===false) 
             ||  (account_record.pwd != p_accessCode)){

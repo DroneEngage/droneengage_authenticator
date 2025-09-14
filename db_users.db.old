@@ -1,0 +1,44 @@
+{
+    "mhefny@andruav.com": {
+        "sid": 1,
+        "pwd": "mhefny",
+        "prm": "0xffffffff",
+        "isadmin": true
+    },
+    "single@airgap.droneengae.com": {
+        "sid": 1,
+        "isadmin": true,
+        "prm": "0xffffffff",
+        "pwd": "test"
+    },
+    "testc@email.com": {
+        "sid": 1,
+        "pwd": "0000",
+        "isadmin": false,
+        "prm": "0xfffff0ff"
+    },
+    "testc1@email.com": {
+        "sid": 1,
+        "pwd": "0001",
+        "isadmin": false,
+        "prm": "0xfffff1ff"
+    },
+    "testc2@email.com": {
+        "sid": 1,
+        "pwd": "0002",
+        "isadmin": false,
+        "prm": "0xfffff2ff"
+    },
+    "testv@email.com": {
+        "sid": 1,
+        "pwd": "0001",
+        "isadmin": false,
+        "prm": "0xffff0fff"
+    },
+    "drone@email.com": {
+        "sid": 1,
+        "pwd": "drone",
+        "isadmin": false,
+        "prm": "0x000000f0"
+    }
+}

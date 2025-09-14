@@ -30,6 +30,7 @@
     "express-response": "^1.0.3",
     "helmet": "^3.21.2",
     "inherits": "^2.0.4",
+    "lowdb": "^7.0.1",
     "mysql2": "^2.3.2",
     "node-file-logger": "^0.9.5",
     "randomstring": "^1.1.5",

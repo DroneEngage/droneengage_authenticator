@@ -11,49 +11,38 @@
  */
 
 
-const c_commentStripper = require("./helpers/js_3rd_StripJsonComments.js");
-const c_dumpError 		= require ("./dumperror.js");
-const c_configFileName_default = "server.config";
+const stripJsonComments = require("./helpers/js_3rd_StripJsonComments.js");
+const dumpError = require("./dumperror.js");
+const fs = require('fs');
+const path = require('path');
 
+const DEFAULT_CONFIG_FILENAME = "server.config";
+let configFileName = DEFAULT_CONFIG_FILENAME;
+let configuration = null;
 
-var Me = this;
-exports.m_configuration = null;
-var m_configFileName = c_configFileName_default;
-exports.getFileName = function ()
-{
-		return m_configFileName;
+function getFileName() {
+    return configFileName;
 }
 
-exports.init = function init (p_configFileName)
-{
-
-    const  path = require('path');
-    const fs = require('fs');
-
-	if (p_configFileName != null)
-	{
-		m_configFileName = p_configFileName;
-	}
-		
-    try
-    {
-        var v_filestring = fs.readFileSync(path.join(__dirname,m_configFileName)).toString();			
-    }
-    catch (err)
-    {
-        console.log ('FATAL: could not find ' + m_configFileName);
-        c_dumpError.dumperror(err);
-        process.exit(1);
+function init(configFileNameParam) {
+    if (configFileNameParam) {
+        configFileName = configFileNameParam;
     }
 
-    try
-    {
-        Me.m_configuration = JSON.parse(c_commentStripper(v_filestring));
-    }
-    catch (err)
-    {
-        console.log ('FATAL: Bad File Format ' + m_configFileName);
-        c_dumpError.dumperror(err);
+    try {
+        const fileContent = fs.readFileSync(path.join(__dirname, configFileName), 'utf8');
+        configuration = JSON.parse(stripJsonComments(fileContent));
+    } catch (err) {
+        console.error(`FATAL: Error processing configuration file '${configFileName}':`, err.message);
+        dumpError.dumperror(err);
         process.exit(1);
     }
 }
+
+module.exports = {
+    getFileName,
+    init,
+    get m_configuration() {
+        return configuration;
+    }
+};

@@ -181,7 +181,7 @@ class db_user {
      * @param {string} accesscode - The password to match
      * @returns {Promise<object|null>} - User record with email as acc property or null
      */
-    async fn_get_user_by_accesscode(accesscode) {
+    fn_get_user_by_accesscode(accesscode) {
         for (const [email, user] of Object.entries(this.db.data.users)) {
             // Optional: Uncomment for bcrypt comparison
             // if (await bcrypt.compare(accesscode, user.pwd)) {

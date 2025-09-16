@@ -11,7 +11,7 @@ const AndruavMessageTypes = {
 
 function fn_convertPermissiontoInt (p_permission)
 {
-    var per_value;
+    let per_value;
     try
     {
         if (p_permission == null) return 0xffffffff; // backward compatibility and for simplicity
@@ -35,7 +35,7 @@ function fn_convertPermissiontoInt (p_permission)
 
 function fn_validatePermission (p_permission, p_flags)
 {
-    var per_value;
+    let per_value;
     
     if (p_permission == null) return false; // no permisisons
 

@@ -79,7 +79,7 @@ const CONST_TYPE_AndruavSystem_DisableTasks         = 9004;
 const CONST_TYPE_AndruavSystem_LogoutCommServer     = 9006;
 const CONST_TYPE_AndruavSystem_ConnectedCommServer  = 9007;
 
-var message_names = {
+let message_names = {
     1002: "GPS",
     1003: "POW",
     1004: "ID",

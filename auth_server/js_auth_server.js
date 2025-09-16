@@ -75,7 +75,7 @@ function fn_checkAppVersion (p_app, p_version, p_extra)
         // unknown app !!!!
         console.log('unknown app ' + p_app);
 
-        var v_reply = {};
+        let v_reply = {};
         v_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_OLD_APP_VERSION;
         v_reply[global.c_CONSTANTS.CONST_ERROR_MSG.toString()] = "Please upgrade your Mobile App to latest version.";
         v_reply[global.c_CONSTANTS.CONST_COMMAND.toString()] = 'v';
@@ -86,7 +86,7 @@ function fn_checkAppVersion (p_app, p_version, p_extra)
 
     if (p_version < v_apps[p_app])
     {
-        var v_reply = {};
+        let v_reply = {};
         v_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_OLD_APP_VERSION;
         v_reply[global.c_CONSTANTS.CONST_ERROR_MSG.toString()] = "Please upgrade your Mobile App to latest version.";
         v_reply[global.c_CONSTANTS.CONST_COMMAND.toString()] = 'v';
@@ -207,7 +207,7 @@ function fn_newLoginCard (p_accountName, p_accessCode, p_actorType, p_group, p_a
             // for example web should be GCS.
             if ((p_mustGCS===true) && (!v_sessionManager.fn_isGCS(p_loginCard)))
             {
-                var ret = {};
+                let ret = {};
                 ret[global.c_CONSTANTS.CONST_ERROR.toString()]         = global.c_CONSTANTS.CONST_ERROR_NO_PERMISSION;
                 ret[global.c_CONSTANTS.CONST_ERROR_MSG.toString()]     = "No enough permission. This is not a GCS account.";
                 fn_callback(ret);
@@ -216,7 +216,7 @@ function fn_newLoginCard (p_accountName, p_accessCode, p_actorType, p_group, p_a
 
             if ((p_mustGCS===false) && (!v_sessionManager.fn_isAGN(p_loginCard)))
             {
-                var ret = {};
+                let ret = {};
                 ret[global.c_CONSTANTS.CONST_ERROR.toString()]         = global.c_CONSTANTS.CONST_ERROR_NO_PERMISSION;
                 ret[global.c_CONSTANTS.CONST_ERROR_MSG.toString()]     = "No enough permission. This is not a GCS account.";
                 fn_callback(ret);
@@ -228,7 +228,7 @@ function fn_newLoginCard (p_accountName, p_accessCode, p_actorType, p_group, p_a
             if (c_selectedServer == null)
             {
                 // Report Error to Client
-                var ret = {};
+                let ret = {};
                 ret[global.c_CONSTANTS.CONST_ERROR.toString()]         = global.c_CONSTANTS.CONST_ERROR_SERVER_NOT_AVAILABLE;
                 ret[global.c_CONSTANTS.CONST_ERROR_MSG.toString()]     = "No available Server";
                 fn_callback(ret);
@@ -247,7 +247,7 @@ function fn_newLoginCard (p_accountName, p_accessCode, p_actorType, p_group, p_a
                 function (err)
                 {
                     // Report Error to Client
-                    var c_ret = {};
+                    let c_ret = {};
                     c_ret[c_CONSTANTS.CONST_ERROR.toString()]     = c_CONSTANTS.CONST_ERROR_SERVER_NOT_AVAILABLE;
                     fn_callback (c_ret);
                     return ;

@@ -66,13 +66,13 @@ function fn_startExpressServer ()
     //router
     c_router.fn_create(c_app);
 
-    var v_https = require('https');
-    var v_fs = require('fs');
+    let v_https = require('https');
+    let v_fs = require('fs');
     console.log (global.Colors.Log + "READING " + global.m_serverconfig.m_configuration.ssl_key_file + global.Colors.Reset);
-    var v_keyFile = v_fs.readFileSync(v_path.join(__dirname, global.m_serverconfig.m_configuration.ssl_key_file));
+    let v_keyFile = v_fs.readFileSync(v_path.join(__dirname, global.m_serverconfig.m_configuration.ssl_key_file));
     console.log (global.Colors.Log + "READING " + global.m_serverconfig.m_configuration.ssl_cert_file + global.Colors.Reset);
-    var v_certFile = v_fs.readFileSync(v_path.join(__dirname, global.m_serverconfig.m_configuration.ssl_cert_file));
-    var v_options = {
+    let v_certFile = v_fs.readFileSync(v_path.join(__dirname, global.m_serverconfig.m_configuration.ssl_cert_file));
+    let v_options = {
         key: v_keyFile,
         cert: v_certFile
     };
@@ -160,7 +160,7 @@ function fn_displayInfo ()
 function fn_parseArgs()
 {
     const c_args = require ('./helpers/hlp_args.js');
-    var cmds = c_args.getArgs();
+    let cmds = c_args.getArgs();
     if (cmds.hasOwnProperty('h') || cmds.hasOwnProperty('help'))
     {
 

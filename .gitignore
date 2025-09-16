@@ -5,3 +5,6 @@ ssl/
 *.ignore
 logs/
 .vscode
+checks.json
+
+

@@ -134,7 +134,7 @@ function fn_SelectBestServer ()
     const c_count = c_servers.length;
     
     let v_serverInfo;
-	for (var i = 0 ; i< c_count; ++i )
+	for (let i = 0 ; i< c_count; ++i )
 	{
 		v_serverInfo = m_communicationServersList[c_servers[i]];
 		
@@ -176,7 +176,7 @@ function fn_handleServerInfo (p_cmd)
     try
     {
         const p_server = p_cmd.d;
-        var v_msg = {};
+        let v_msg = {};
                 // used for obfuscation
                 v_msg.m_isOnline            = p_server.isOnline;
                 v_msg.m_version             = p_server.version;
@@ -194,7 +194,7 @@ function fn_handleServerInfo (p_cmd)
         if (m_communicationServersList.hasOwnProperty(p_server.m_commServerGUID))
         {
             // Server is already defined.
-            var v_srvInfo = m_communicationServersList[p_server.m_commServerGUID];
+            let v_srvInfo = m_communicationServersList[p_server.m_commServerGUID];
             
 
             if (v_srvInfo.m_server.m_isOnline != v_msg.m_isOnline)
@@ -320,7 +320,7 @@ function fn_commServerMessageHandler (p_conn_GUID,p_msg)
 function fn_selectServerforAccount (p_loginCard)
 {
     
-    var selectedServer = fn_getServerCurrentlyServerAccountID (p_loginCard);
+    let selectedServer = fn_getServerCurrentlyServerAccountID (p_loginCard);
     if (selectedServer != null)
     {
         // there is a server already serving this account.

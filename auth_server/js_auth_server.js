@@ -533,7 +533,7 @@ function fn_logout (p_sessionID, fn_Success, fn_error)
     }
 
 
-    const c_loginCard = v_sessionManager.fn_getLoginCard (p_sessionID);
+    const c_loginCard = v_sessionManager.fn_getLoginCardBySessionID (p_sessionID);
 
     if (c_loginCard == null)
     {   // FAKE Session could be a hack
@@ -542,7 +542,7 @@ function fn_logout (p_sessionID, fn_Success, fn_error)
     }
 
     v_commServerManager.fn_removePartyCommunicationSession (c_loginCard);
-    v_sessionManager.fn_deleteOldCard (c_loginCard);
+    v_sessionManager.fn_deleteOldCard (c_loginCard.m_session_id);
 
     if (fn_Success != null)
     {

@@ -197,6 +197,14 @@ function fn_getLoginCardBySessionID (p_sessionID)
     return m_loginCardList[p_sessionID];
 }
 
+function fn_deleteOldCard (p_sessionID)
+{
+    if (p_sessionID in m_loginCardList) {
+        return delete m_loginCardList[p_sessionID];
+    }
+    
+}
+
 module.exports =
 {
     fn_initialize: fn_initialize,
@@ -205,4 +213,5 @@ module.exports =
     fn_isGCS: fn_isGCS,
     fn_isAGN: fn_isAGN,
     fn_getLoginCardBySessionID: fn_getLoginCardBySessionID,
+    fn_deleteOldCard: fn_deleteOldCard,
 }

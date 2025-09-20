@@ -6,5 +6,7 @@ ssl/
 logs/
 .vscode
 checks.json
+server.home.config
+
 
 

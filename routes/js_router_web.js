@@ -59,8 +59,7 @@ v_router.m_Router.post(C.CONST_WEB_FUNCTION + C.CONST_WEB_LOGIN_COMMAND, functio
                 // MHEFNY LATER
                 if (v_response.writableEnded === true) return;
                 p_data[C.CONST_COMMAND.toString()] = C.CONST_WEB_LOGIN_COMMAND;
-                v_response.write(JSON.stringify(p_data), function (err) { v_response.end(); });
-                v_response.end();
+                v_response.json(p_data);
 
                 console.log("debug ... fn_newLoginCard: " + JSON.stringify(p_data));
 
@@ -105,8 +104,7 @@ v_router.m_Router.post(C.CONST_WEB_FUNCTION + C.CONST_ACCOUNT_MANAGMENT, functio
                 if (v_response.writableEnded === true) return;
 
                 p_data[C.CONST_COMMAND.toString()] = C.CONST_ACCOUNT_MANAGMENT;
-                v_response.write(JSON.stringify(p_data), function (err) { v_response.end(); });
-                v_response.end();
+                v_response.json(p_data);
 
             },
             function () {

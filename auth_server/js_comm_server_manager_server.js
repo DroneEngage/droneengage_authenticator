@@ -13,6 +13,7 @@ const fs = require('fs');
 const path = require('path');
 const WebSocketServer = require('ws').Server;
 const https = require('https');
+const c_s2s_auth = require('./js_s2s_auth.js');
 
 let Me;
 const m_ws = {}; // Stores connected WebSocket clients
@@ -32,11 +33,53 @@ function fn_onConnect_Handler(v_webSocket, p_request) {
         global.m_logger.Info('Communication server connecting...', 'fn_onConnect_Handler');
     }
 
+    // S2S authentication: a Communication Server must prove ownership of the private key
+    // before any of its traffic is trusted. Until then the connection is unauthenticated.
+    v_webSocket.m_s2s_authed = false;
+    let v_authTimer = null;
+    if (c_s2s_auth.fn_isEnabled() === true) {
+        const c_nonce = c_s2s_auth.fn_generateNonce();
+        v_webSocket.m_s2s_nonce = c_nonce;
+        v_webSocket.send(c_s2s_auth.fn_buildChallenge(c_nonce));
+
+        v_authTimer = setTimeout(function () {
+            if (v_webSocket.m_s2s_authed !== true) {
+                console.log(global.Colors.Error + "[ATTENTION!!] Communication Server failed S2S handshake (timeout)" + global.Colors.Reset);
+                if (global.m_logger) global.m_logger.Warn('S2S handshake timeout', 'fn_onConnect_Handler');
+                v_webSocket.terminate();
+            }
+        }, c_s2s_auth.CONST_S2S_AUTH_HANDSHAKE_TIMEOUT);
+    }
+    else {
+        v_webSocket.m_s2s_authed = true;
+    }
+
     /**
      * Handles incoming WebSocket messages.
      * @param {string} p_msg - The message received from the WebSocket.
      */
     function fn_onWsMessage(p_msg) {
+        // Handshake gate: ignore all traffic until the peer is authenticated.
+        if (this.m_s2s_authed !== true) {
+            const c_env = c_s2s_auth.fn_parseEnvelope(p_msg);
+            if ((c_env != null)
+                && (c_env.s2s_auth === c_s2s_auth.CONST_S2S_AUTH_RESPONSE)
+                && (c_env.id != null)
+                && (c_s2s_auth.fn_verify(this.m_s2s_nonce, c_env.sig, c_env.id) === true)) {
+                this.m_s2s_authed = true;
+                this.m_s2s_server_id = c_env.id;
+                if (v_authTimer != null) clearTimeout(v_authTimer);
+                console.log(global.Colors.Success + "[OK] Communication Server passed S2S handshake [" + c_env.id + "]" + global.Colors.Reset);
+                if (global.m_logger) global.m_logger.Info('S2S handshake OK', 'fn_onWsMessage', null, c_env.id);
+            }
+            else {
+                console.log(global.Colors.Error + "[ATTENTION!!] Communication Server failed S2S handshake (bad signature or missing id)" + global.Colors.Reset);
+                if (global.m_logger) global.m_logger.Warn('S2S handshake rejected', 'fn_onWsMessage');
+                this.terminate();
+            }
+            return;
+        }
+
         if (global.m_logger) {
             global.m_logger.Debug('WS Msg', 'fn_onWsMessage', null, p_msg);
         }

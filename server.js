@@ -33,19 +33,20 @@ function fn_startExpressServer ()
 
     //setup
     const c_app      = v_express();
-    c_app.use(c_helmet())
-
+    
     // Please check this for more details:
     // https://www.html5rocks.com/en/tutorials/security/content-security-policy/
-    c_app.use(c_helmet.contentSecurityPolicy({
-        directives: {
-          defaultSrc: ["'self'"],
-          styleSrc: ["'none'"],
-          scriptSrc: ["'none'"],
-          upgradeInsecureRequests: true,
-          workerSrc: false
+    c_app.use(c_helmet({
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+                styleSrc: ["'none'"],
+                scriptSrc: ["'none'"],
+                upgradeInsecureRequests: [],
+                workerSrc: []
+            }
         }
-      }))
+    }))
 
 
     //settings

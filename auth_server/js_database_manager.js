@@ -89,7 +89,7 @@ function fn_do_loginAccount (p_accountName, p_accessCode, fn_callback)
     c_reply[global.c_CONSTANTS.CONST_ERROR_MSG.toString()] = "Database Error";
                 
             
-    if ((p_accountName == null) || (!p_accountName.fn_isEmail()))
+    if ((p_accountName == null) || (!hlp_string.fn_isEmail(p_accountName)))
     {
         // null or not alphanumeric
         if (fn_callback != null)
@@ -98,7 +98,7 @@ function fn_do_loginAccount (p_accountName, p_accessCode, fn_callback)
         }
         return ;
     }
-    if ((p_accessCode == null) || (!p_accessCode.fn_isAlphanumeric()))
+    if ((p_accessCode == null) || (!hlp_string.fn_isAlphanumeric(p_accessCode)))
     {
         // null or not alphanumeric
         if (fn_callback != null)
@@ -110,7 +110,7 @@ function fn_do_loginAccount (p_accountName, p_accessCode, fn_callback)
     
     const c_sql = "select account.Account_SID, account.Enabled, account.Instance_Limit, account_details.Permission from account_details, account WHERE account_details.PWD=? and account.Account_SID = account_details.Account_SID and account.Name=?";
     
-    hlp_db.fn_genericSelect_w_Params (m_dbPool, c_sql,[p_accessCode.fn_protectedFromInjection(), p_accountName.fn_protectedFromInjection()],
+    hlp_db.fn_genericSelect_w_Params (m_dbPool, c_sql,[hlp_string.fn_protectedFromInjection(p_accessCode), hlp_string.fn_protectedFromInjection(p_accountName)],
     function (rows) {
         if ((rows == null) || (rows.length != 1))
         {  
@@ -179,7 +179,7 @@ function fn_do_getAccountNameByAccessCode (p_accessCode, fn_callback)
     c_reply[global.c_CONSTANTS.CONST_ERROR_MSG.toString()] = "Database Error";
                 
             
-    if ((p_accessCode == null) || (!p_accessCode.fn_isAlphanumeric()))
+    if ((p_accessCode == null) || (!hlp_string.fn_isAlphanumeric(p_accessCode)))
     {
         // null or not alphanumeric
         if (fn_callback != null)
@@ -191,7 +191,7 @@ function fn_do_getAccountNameByAccessCode (p_accessCode, fn_callback)
     
     const c_sql = "select account.Name from account_details, account WHERE account_details.PWD=? and account.Account_SID = account_details.Account_SID ";
     console.log (c_sql);
-    hlp_db.fn_genericSelect_w_Params (m_dbPool, c_sql,[p_accessCode.fn_protectedFromInjection()],
+    hlp_db.fn_genericSelect_w_Params (m_dbPool, c_sql,[hlp_string.fn_protectedFromInjection(p_accessCode)],
     function (rows) {
         if ((rows == null) || (rows.length != 1))
         {  
@@ -238,7 +238,7 @@ function fn_createSubLogin(p_accountName, p_newAccessCode, p_permission, fn_call
 
     const c_reply = {};
     
-    if ((p_accountName == null) || (!p_accountName.fn_isEmail()))
+    if ((p_accountName == null) || (!hlp_string.fn_isEmail(p_accountName)))
     {
         // null or not alphanumeric
         if (fn_callback != null)
@@ -250,7 +250,7 @@ function fn_createSubLogin(p_accountName, p_newAccessCode, p_permission, fn_call
         return ;
     }
     
-    if ((p_newAccessCode == null) || (!p_newAccessCode.fn_isAlphanumeric()))
+    if ((p_newAccessCode == null) || (!hlp_string.fn_isAlphanumeric(p_newAccessCode)))
     {
         // null or not alphanumeric
         if (fn_callback != null)
@@ -268,7 +268,7 @@ function fn_createSubLogin(p_accountName, p_newAccessCode, p_permission, fn_call
     console.log ("prv_do_createSubLogin: " + c_sql);
     
     
-    hlp_db.fn_genericInsert_w_Params (m_dbPool,c_sql, [p_newAccessCode.fn_protectedFromInjection(), p_permission.fn_protectedFromInjection(), p_accountName.fn_protectedFromInjection()],
+    hlp_db.fn_genericInsert_w_Params (m_dbPool,c_sql, [hlp_string.fn_protectedFromInjection(p_newAccessCode), hlp_string.fn_protectedFromInjection(p_permission), hlp_string.fn_protectedFromInjection(p_accountName)],
 		function (err,res) 
 		{
             var c_reply = {};
@@ -300,7 +300,7 @@ function fn_createNewAccessCode (p_accountName, p_newAccessCode, fn_callback, p_
 {
     const c_reply = {};
     
-    if ((p_accountName == null) || (!p_accountName.fn_isEmail()))
+    if ((p_accountName == null) || (!hlp_string.fn_isEmail(p_accountName)))
     {
         // null or not alphanumeric
         if (fn_callback != null)
@@ -312,7 +312,7 @@ function fn_createNewAccessCode (p_accountName, p_newAccessCode, fn_callback, p_
         return ;
     }
     
-    if ((p_newAccessCode == null) || (!p_newAccessCode.fn_isAlphanumeric()))
+    if ((p_newAccessCode == null) || (!hlp_string.fn_isAlphanumeric(p_newAccessCode)))
     {
         // null or not alphanumeric
         if (fn_callback != null)
@@ -344,7 +344,7 @@ function fn_createNewAccessCode (p_accountName, p_newAccessCode, fn_callback, p_
     }
     const c_sql = "INSERT INTO `account` (`Account_SID`, `Name`)  VALUES (NULL,?)";
     
-    hlp_db.fn_genericInsert_w_Params (m_dbPool,c_sql, [p_accountName.fn_protectedFromInjection(), p_newAccessCode.fn_protectedFromInjection()],
+    hlp_db.fn_genericInsert_w_Params (m_dbPool,c_sql, [hlp_string.fn_protectedFromInjection(p_accountName), hlp_string.fn_protectedFromInjection(p_newAccessCode)],
 		function () 
 		{
 			
@@ -374,7 +374,7 @@ function fn_deleteSubLogins (p_accountName, p_permission, fn_callback)
 {
     const c_reply = {};
     
-    if ((p_accountName == null) || (!p_accountName.fn_isEmail()))
+    if ((p_accountName == null) || (!hlp_string.fn_isEmail(p_accountName)))
     {
         // null or not alphanumeric
         if (fn_callback != null)
@@ -387,7 +387,7 @@ function fn_deleteSubLogins (p_accountName, p_permission, fn_callback)
     }
     const c_sql = "DELETE FROM `account_details` WHERE `Account_SID` in ( select `Account_SID` FROM `account` WHERE `Name` LIKE ?) and `Permission` LIKE ?";
     
-    hlp_db.fn_genericInsert_w_Params (m_dbPool,c_sql, [p_accountName.fn_protectedFromInjection(), p_permission.fn_protectedFromInjection()],
+    hlp_db.fn_genericInsert_w_Params (m_dbPool,c_sql, [hlp_string.fn_protectedFromInjection(p_accountName), hlp_string.fn_protectedFromInjection(p_permission)],
 		function (err,res) 
 		{
             // if (res.affectedRows == 0)

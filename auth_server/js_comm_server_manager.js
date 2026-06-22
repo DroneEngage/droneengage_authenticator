@@ -5,7 +5,6 @@
  * Also handles access request to communication servers by parties.
  * This module handles communication logic but physical communication is done in comm_server_manager_server.
  */
-"use strict";
 const c_uuidv4 = require('uuid');
 const CONST_LOGIN_REQUEST_TIMEOUT = 15000;
 const m_communicationServersList  = {};

@@ -31,6 +31,7 @@ const v_commServerManager = require ("./js_comm_server_manager");
 const v_sessionManager = require ("./js_session_manager");
 const v_account_manager = require ("./js_account_manager");
 const v_database_manager = require ("./js_database_manager");
+const hlp_string = require ("../helpers/hlp_string.js");
 
 
 
@@ -131,7 +132,7 @@ function fn_newLoginCard (p_accountName, p_accessCode, p_actorType, p_group, p_a
         return ;
     }
     
-    if ((p_accountName == null) || (!p_accountName.fn_isEmail()))
+    if ((p_accountName == null) || (!hlp_string.fn_isEmail(p_accountName)))
     {
         // null or not alphanumeric
         if (fn_error != null)
@@ -140,7 +141,7 @@ function fn_newLoginCard (p_accountName, p_accessCode, p_actorType, p_group, p_a
         }
         return ;
     }
-    if ((p_accessCode == null) || (!p_accessCode.fn_isAlphanumeric()) || (!p_accessCode.length>global.c_CONSTANTS.CONST_ACCESSCODE_MAX_LENGTH))
+    if ((p_accessCode == null) || (!hlp_string.fn_isAlphanumeric(p_accessCode)) || (!p_accessCode.length>global.c_CONSTANTS.CONST_ACCESSCODE_MAX_LENGTH))
     {
         // null or not alphanumeric
         if (fn_error != null)
@@ -149,7 +150,7 @@ function fn_newLoginCard (p_accountName, p_accessCode, p_actorType, p_group, p_a
         }
         return ;
     }
-    if ((p_group == null) || (!p_group.fn_isAlphanumeric()) || (!p_group.length>global.c_CONSTANTS.CONST_ACCESSCODE_MAX_LENGTH))
+    if ((p_group == null) || (!hlp_string.fn_isAlphanumeric(p_group)) || (!p_group.length>global.c_CONSTANTS.CONST_ACCESSCODE_MAX_LENGTH))
     {
         // null or not alphanumeric
         if (fn_error != null)
@@ -158,7 +159,7 @@ function fn_newLoginCard (p_accountName, p_accessCode, p_actorType, p_group, p_a
         }
         return ;
     }
-    if ((p_app == null) || (!p_app.fn_isAlphanumeric()) || (!p_app.length>global.c_CONSTANTS.CONST_ACCESSCODE_MAX_LENGTH))
+    if ((p_app == null) || (!hlp_string.fn_isAlphanumeric(p_app)) || (!p_app.length>global.c_CONSTANTS.CONST_ACCESSCODE_MAX_LENGTH))
     {
         // null or not alphanumeric
         if (fn_error != null)
@@ -167,7 +168,7 @@ function fn_newLoginCard (p_accountName, p_accessCode, p_actorType, p_group, p_a
         }
         return ;
     }
-    if ((p_version == null) || (!p_version.fn_isVersionFormat()))
+    if ((p_version == null) || (!hlp_string.fn_isVersionFormat(p_version)))
     {
         // null or not alphanumeric
         if (fn_error != null)
@@ -176,7 +177,7 @@ function fn_newLoginCard (p_accountName, p_accessCode, p_actorType, p_group, p_a
         }
         return ;
     }
-    if ((p_extra == null) || (!p_extra.fn_isAlphanumericSentence()))
+    if ((p_extra == null) || (!hlp_string.fn_isAlphanumericSentence(p_extra)))
     {
         // null or not alphanumeric
         if (fn_error != null)
@@ -291,7 +292,7 @@ function fn_accountOperation (p_subCommand, p_accountName, p_permission, p_acces
         p_accountName = p_accountName.trim();
     }
     
-    if ((p_accountName != null) && (!p_accountName.fn_isEmail()))
+    if ((p_accountName != null) && (!hlp_string.fn_isEmail(p_accountName)))
     {
         // null or not alphanumeric
         if (fn_error != null)
@@ -320,7 +321,7 @@ function fn_accountOperation (p_subCommand, p_accountName, p_permission, p_acces
         p_accessCode = p_accessCode.trim();
     }
     
-    if ((p_accessCode != null) && (!p_accessCode.fn_isAlphanumeric()))
+    if ((p_accessCode != null) && (!hlp_string.fn_isAlphanumeric(p_accessCode)))
     {
         // null or not alphanumeric
         if (fn_error != null)
@@ -378,7 +379,7 @@ function fn_accountOperation (p_subCommand, p_accountName, p_permission, p_acces
 function fn_accountOperationFromAgent (p_subCommand, p_accountName, p_accessCode, p_app, p_version, p_extra, fn_callback, fn_error)
 {
 
-    if ((p_app == null) || (typeof p_app != 'string') || (!p_app.fn_isAlphanumeric()))
+    if ((p_app == null) || (typeof p_app != 'string') || (!hlp_string.fn_isAlphanumeric(p_app)))
     {
         // null or not alphanumeric
         if (fn_error != null)
@@ -387,7 +388,7 @@ function fn_accountOperationFromAgent (p_subCommand, p_accountName, p_accessCode
         }
         return ;
     }
-    if ((p_version == null) || (!p_version.fn_isVersionFormat()))
+    if ((p_version == null) || (!hlp_string.fn_isVersionFormat(p_version)))
     {
         // null or not alphanumeric
         if (fn_error != null)
@@ -396,7 +397,7 @@ function fn_accountOperationFromAgent (p_subCommand, p_accountName, p_accessCode
         }
         return ;
     }
-    if ((p_extra == null) || (!p_extra.fn_isAlphanumericSentence()))
+    if ((p_extra == null) || (!hlp_string.fn_isAlphanumericSentence(p_extra)))
     {
         // null or not alphanumeric
         if (fn_error != null)
@@ -430,7 +431,7 @@ function fn_accountOperationFromAgent (p_subCommand, p_accountName, p_accessCode
  */
 function fn_hardwareOperationFromAgent (p_subCommand, p_sessionID, p_hardwareID, p_hardwareType, fn_callback, fn_error)
 {
-    if ((p_sessionID == null) || (typeof p_sessionID != 'string') || (!p_sessionID.fn_isAlphanumeric()))
+    if ((p_sessionID == null) || (typeof p_sessionID != 'string') || (!hlp_string.fn_isAlphanumeric(p_sessionID)))
     {
         // null or not alphanumeric
         if (fn_error != null)
@@ -440,7 +441,7 @@ function fn_hardwareOperationFromAgent (p_subCommand, p_sessionID, p_hardwareID,
         return ;
     }
 
-    if ((p_subCommand == null) || (typeof p_subCommand != 'string') || (!p_subCommand.fn_isAlphanumeric()))
+    if ((p_subCommand == null) || (typeof p_subCommand != 'string') || (!hlp_string.fn_isAlphanumeric(p_subCommand)))
     {
         // null or not alphanumeric
         if (fn_error != null)
@@ -450,7 +451,7 @@ function fn_hardwareOperationFromAgent (p_subCommand, p_sessionID, p_hardwareID,
         return ;
     }
 
-    if ((p_hardwareID == null) || (typeof p_hardwareID != 'string') || (!p_hardwareID.fn_isAlphanumeric()))
+    if ((p_hardwareID == null) || (typeof p_hardwareID != 'string') || (!hlp_string.fn_isAlphanumeric(p_hardwareID)))
     {
         // null or not alphanumeric
         if (fn_error != null)
@@ -460,7 +461,7 @@ function fn_hardwareOperationFromAgent (p_subCommand, p_sessionID, p_hardwareID,
         return ;
     }
 
-    if ((p_hardwareType == null) || (typeof p_hardwareType != 'string') || (!p_hardwareType.fn_isAlphanumeric()))
+    if ((p_hardwareType == null) || (typeof p_hardwareType != 'string') || (!hlp_string.fn_isAlphanumeric(p_hardwareType)))
     {
         // null or not alphanumeric
         if (fn_error != null)
@@ -522,7 +523,7 @@ function fn_hardwareOperationFromAgent (p_subCommand, p_sessionID, p_hardwareID,
  */
 function fn_logout (p_sessionID, fn_Success, fn_error)
 {
-    if ((p_sessionID == null) || (!p_sessionID.fn_isAlphanumeric()==null) || (!p_sessionID.length > global.c_CONSTANTS.CONST_SESSION_MAX_LENGTH))
+    if ((p_sessionID == null) || (!hlp_string.fn_isAlphanumeric(p_sessionID)==null) || (!p_sessionID.length > global.c_CONSTANTS.CONST_SESSION_MAX_LENGTH))
     {
         if (fn_error != null)
         {

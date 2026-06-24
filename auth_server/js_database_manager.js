@@ -5,7 +5,7 @@ const v_users = require('../database/db_users');
 
 
 
-var m_dbPool;
+let m_dbPool;
 
 
 /**
@@ -114,7 +114,7 @@ function fn_do_loginAccount (p_accountName, p_accessCode, fn_callback)
     function (rows) {
         if ((rows == null) || (rows.length != 1))
         {  
-            var c_reply = {};
+            const c_reply = {};
             c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Account Not Found.";
             c_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
             fn_callback (c_reply);
@@ -122,7 +122,7 @@ function fn_do_loginAccount (p_accountName, p_accessCode, fn_callback)
         else
         {
             console.log (rows);
-            var c_reply = {};
+            const c_reply = {};
             if (rows.length == 0)
             {
                 c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Account Not Found.";
@@ -195,7 +195,7 @@ function fn_do_getAccountNameByAccessCode (p_accessCode, fn_callback)
     function (rows) {
         if ((rows == null) || (rows.length != 1))
         {  
-            var c_reply = {};
+            const c_reply = {};
             c_reply[global.c_CONSTANTS.CONST_ERROR_MSG.toString()] =  "Account Not Found.";
             c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] =  global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
             fn_callback (c_reply);
@@ -203,7 +203,7 @@ function fn_do_getAccountNameByAccessCode (p_accessCode, fn_callback)
         else
         {
             console.log (rows);
-            var c_reply = {};
+            const c_reply = {};
             if (rows.length == 0)
             {
                 c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Account Not Found.";
@@ -271,7 +271,7 @@ function fn_createSubLogin(p_accountName, p_newAccessCode, p_permission, fn_call
     hlp_db.fn_genericInsert_w_Params (m_dbPool,c_sql, [hlp_string.fn_protectedFromInjection(p_newAccessCode), hlp_string.fn_protectedFromInjection(p_permission), hlp_string.fn_protectedFromInjection(p_accountName)],
 		function (err,res) 
 		{
-            var c_reply = {};
+            const c_reply = {};
          
             if (res.affectedRows == 0)
             {
@@ -329,8 +329,8 @@ function fn_createNewAccessCode (p_accountName, p_newAccessCode, fn_callback, p_
     // cannot access local database from Global Account page.
     if ((p_loginCard!=null) && (m_serverconfig.m_configuration.hasOwnProperty('db_users') === true)) {
      
-        var p_reply = {};
-        var user_data = {
+        const p_reply = {};
+        const user_data = {
             'acc':p_accountName,
             'isadmin': false,
             'sid': 1
@@ -452,7 +452,7 @@ function fn_do_getHardwareVerifyByAccountSID (p_accountSID, fn_callback)
     function (rows) {
         if ((rows == null) || (rows.length == 0))
         {  
-            var c_reply = {};
+            const c_reply = {};
             c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "No hardware is found.";
             c_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_HARDWARE_NOT_FOUND;
             fn_callback (c_reply);
@@ -460,7 +460,7 @@ function fn_do_getHardwareVerifyByAccountSID (p_accountSID, fn_callback)
         else
         {
             console.log (rows);
-            var c_reply = {};
+            const c_reply = {};
             if (rows.length == 0)
             {
                 c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "No hardware is found";
@@ -472,9 +472,9 @@ function fn_do_getHardwareVerifyByAccountSID (p_accountSID, fn_callback)
                 c_reply.m_data = {};
                 c_reply.m_data.m_hwID = {};
                     
-                for (var i =0; i< rows.length; ++i)
+                for (let i =0; i< rows.length; ++i)
                 {
-                    var c_obj = {};
+                    const c_obj = {};
                     c_obj.m_hwType = rows[i]['HW_Type'];
                     c_obj.m_registerTime = rows[i]['register_time'];
                     c_reply.m_data.m_hwID[rows[i]['HW_ID']] = c_obj;
@@ -491,7 +491,7 @@ function fn_do_getHardwareVerifyByAccountSID (p_accountSID, fn_callback)
     },
     function (error)
     {
-        var c_reply = {};
+        const c_reply = {};
         c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Server is Down.";
        c_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
         fn_callback (c_reply);

@@ -76,7 +76,7 @@ function fn_createLoginCard (p_accountName, p_accessCode, p_actorType, p_group, 
         if ((m_serverconfig.m_configuration.hasOwnProperty('single_account_user_name') === true)    
         && (m_serverconfig.m_configuration.hasOwnProperty('single_account_access_code') === true))
         {
-            var p_reply = {};
+            const p_reply = {};
             
             if ((m_serverconfig.m_configuration.single_account_user_name != p_accountName)
             || (m_serverconfig.m_configuration.single_account_access_code != p_accessCode))

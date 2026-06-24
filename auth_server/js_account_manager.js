@@ -2,7 +2,7 @@
 const { v4: uuidv4 } = require('uuid');
 const hlp_string = require("../helpers/hlp_string.js");
 const v_database_manager = require("./js_database_manager");
-var email = require("emailjs/email");
+const email = require("emailjs/email");
 
 
 var email_server;
@@ -45,12 +45,12 @@ function fn_sendSubscriptionEmail(p_accountName, p_accessCode, fn_callback) {
         return;
     }
 
-    var v_msg = "Welcome to <span color='#0066FF'><strong>Ardupilot-Cloud</strong></span><p>&nbsp;</p>\
+    const v_msg = "Welcome to <span color='#0066FF'><strong>Ardupilot-Cloud</strong></span><p>&nbsp;</p>\
 												You are receiving this email because you activated your ArdupilotCloud account, please use the code below and enter it in the app<p>\
 												&nbsp;</p>The Code is: <span color=#003366><strong>" + p_accessCode + "</strong></span><span color=#FF0000><br><br><b>Did you know you can now view your live video stream online and manage your account at <a href='https://cloud.ardupilot.org:8001/webclient.html'>ArdupilotCloud Web Client</a>..</span>\
 												";
 
-    var v_msgText = "Welcome to CloudArdupilot.org.\r\nA unique way to communicate with your drones to unlimited distances.\r\nYou are receiving this email because you have just subscribed in CloudArdupilot.org\r\nYou are receiving this email because you activated your Anduav account, please use the code below and enter it in the app.\r\nThe Code is: " + p_accessCode + "\r\nDid you know you can now view your live video stream online and manage your account at www.andruav.com?"; + "\r\nIMPORTANT NOTICE: Because flying regulations differ by country/state/region plan your flights before you start using CloudArdupilot.org";
+    const v_msgText = "Welcome to CloudArdupilot.org.\r\nA unique way to communicate with your drones to unlimited distances.\r\nYou are receiving this email because you have just subscribed in CloudArdupilot.org\r\nYou are receiving this email because you activated your Anduav account, please use the code below and enter it in the app.\r\nThe Code is: " + p_accessCode + "\r\nDid you know you can now view your live video stream online and manage your account at www.andruav.com?"; + "\r\nIMPORTANT NOTICE: Because flying regulations differ by country/state/region plan your flights before you start using CloudArdupilot.org";
 
     //https://github.com/eleith/emailjs
     email_server.send(
@@ -91,7 +91,7 @@ function fn_sendSubscriptionEmail(p_accountName, p_accessCode, fn_callback) {
  */
 function fn_createAccessCode(p_accountName, p_permission, fn_callback, p_loginCard) {
 
-    var v_accessCode = fn_generateAccessCode();
+    const v_accessCode = fn_generateAccessCode();
 
     if (p_permission == null) p_permission = '0xffffffff';
 
@@ -246,7 +246,7 @@ function fn_getAccountNameByAccessCode(p_accessCode, fn_callback) {
     if (m_serverconfig.m_configuration.account_storage_type.toLowerCase() === 'file') {
         if (m_serverconfig.m_configuration.hasOwnProperty('db_users') === true) {
 
-            var account_record = global.db_users.fn_get_user_by_accesscode(p_accessCode);
+            const account_record = global.db_users.fn_get_user_by_accesscode(p_accessCode);
             if (account_record == null) {
 
                 p_reply[global.c_CONSTANTS.CONST_ERROR_MSG] = "Account Not Found.";
@@ -331,7 +331,7 @@ function fn_do_verifyHardwareByAccountSID(p_accountSID, p_hardwareID, p_hardware
                     return;
                 }
 
-                for (var i = 0; i < m_len; ++i) {
+                for (let i = 0; i < m_len; ++i) {
                     const c_key = m_hwIDKeys[i];
                     if (c_key == p_hardwareID) {
                         const c_hwCard = p_reply.m_data.m_hwID[c_key];

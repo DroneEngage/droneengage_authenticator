@@ -9,8 +9,8 @@ const c_uuidv4 = require('uuid');
 const CONST_LOGIN_REQUEST_TIMEOUT = 15000;
 const m_communicationServersList  = {};
 const m_waitingForServerLogin = {};
-var m_bestServer = null;
-var Me = this;
+let m_bestServer = null;
+let Me = this;
 
 
 
@@ -30,7 +30,7 @@ function fn_decryptCommunicationMessage (p_msg)
     }
     catch (ex)
     {
-
+        console.log ("err:fn_decryptCommunicationMessage:" + ex);
     }
 
     return null;
@@ -232,7 +232,7 @@ function fn_handleServerInfo (p_cmd)
     }
     catch (ex)
     {
-        
+        console.log ("err:fn_handleServerInfo:" + ex);
     }
 }
 
@@ -390,19 +390,19 @@ function fn_requestCommunicationLogin (p_loginCard, p_server, fn_success, fn_err
     finally
     {
         // COMMENT TO ALLOW DEBUGGING
-        // setTimeout (function ()
-        // {
-        //     // in case there no reply from AndruavServer then AndruavAuth should reply to agent to close the waiting connection.
-        //     if (c_senderID==null) return ;
+        setTimeout (function ()
+        {
+            // in case there no reply from AndruavServer then AndruavAuth should reply to agent to close the waiting connection.
+            if (c_requestId==null) return ;
 
-        //     if (m_waitingForServerLogin.hasOwnProperty(c_senderID))
-        //     {
-        //         // connection is still waiting -unless there is racing- so delete then close connection.
-        //         delete m_waitingForServerLogin [c_senderID];
-        //         fn_error ();
-        //     }
+            if (m_waitingForServerLogin.hasOwnProperty(c_requestId))
+            {
+                // connection is still waiting -unless there is racing- so delete then close connection.
+                delete m_waitingForServerLogin [c_requestId];
+                fn_error ();
+            }
             
-        // }, CONST_LOGIN_REQUEST_TIMEOUT);
+        }, CONST_LOGIN_REQUEST_TIMEOUT);
     }
 }
 

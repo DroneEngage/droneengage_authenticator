@@ -66,6 +66,14 @@ function fn_getPublicKeys() {
     return m_publicKeys;
 }
 
+/**
+ * Resets the lazy-loaded public key cache. Used by unit tests to avoid
+ * cross-test pollution when the global config changes.
+ */
+function fn_resetKeyCache() {
+    m_publicKeys = null;
+}
+
 
 /**
  * Generates a random nonce (challenge).
@@ -137,6 +145,8 @@ module.exports = {
     CONST_S2S_AUTH_HANDSHAKE_TIMEOUT,
     fn_isEnabled,
     fn_generateNonce,
+    fn_getPublicKeys,
+    fn_resetKeyCache,
     fn_verify,
     fn_buildChallenge,
     fn_parseEnvelope

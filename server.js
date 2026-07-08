@@ -40,10 +40,10 @@ function fn_startExpressServer ()
         contentSecurityPolicy: {
             directives: {
                 defaultSrc: ["'self'"],
-                styleSrc: ["'none'"],
-                scriptSrc: ["'none'"],
-                upgradeInsecureRequests: [],
-                workerSrc: []
+                styleSrc: ["'self'", "'unsafe-inline'"],
+                scriptSrc: ["'self'", "'unsafe-inline'"],
+                upgradeInsecureRequests: true,
+                workerSrc: false
             }
         }
     }))
@@ -86,7 +86,13 @@ function fn_startExpressServer ()
 
 
     console.log (global.Colors.Success + "[OK] Web Server Started" + global.Colors.Reset);
+    const protocol = global.m_serverconfig.m_configuration.enable_SSL ? 'https' : 'http';
+    const host = global.m_serverconfig.m_configuration.server_ip === '0.0.0.0' ? 'localhost' : global.m_serverconfig.m_configuration.server_ip;
+    const port = global.m_serverconfig.m_configuration.server_port;
+    const baseUrl = `${protocol}://${host}:${port}`;
 
+    console.log (global.Colors.Log + "Admin Routes:" + global.Colors.BSuccess + "  " + baseUrl + global.c_CONSTANTS.CONST_ADMIN_FUNCTION + "/dashboard" + global.Colors.Reset + " - Admin Dashboard");
+    
 }
 
 

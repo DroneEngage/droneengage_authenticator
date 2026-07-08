@@ -11,6 +11,7 @@ exports.fn_isVersionFormat = v_validation.isVersionFormat;
 exports.fn_isAlphanumericSentence = v_validation.isAlphanumericSentence;
 exports.fn_isOnlyAlphanumeric = v_validation.isOnlyAlphanumeric;
 exports.fn_isEmail = v_validation.isEmail;
+exports.fn_isValidAccountName = v_validation.isEmail;
 
 exports.generateRandomString = function (strLen)
 {

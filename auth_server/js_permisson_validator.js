@@ -9,26 +9,19 @@ const AndruavMessageTypes = {
 }
 
 
-function fn_convertPermissiontoInt (p_permission)
-{
+function fn_convertPermissiontoInt(p_permission) {
     let per_value;
-    try
-    {
-        if (p_permission == null) return 0xffffffff; // backward compatibility and for simplicity
+    try {
+        if (p_permission == null) return 0xffffffff;
 
-        if (typeof p_permission === 'string')
-        {
-            per_value = parseInt(p_permission,16); // convert from hex string to number
-        }
-        else if (typeof p_permission === number)
-        {
-            per_value = c_per;
+        if (typeof p_permission === 'string') {
+            per_value = parseInt(p_permission, 16);
+        } else if (typeof p_permission === 'number') {
+            per_value = p_permission;
         }
 
         return per_value;
-    }
-    catch 
-    {
+    } catch {
         return 0;
     }
 }

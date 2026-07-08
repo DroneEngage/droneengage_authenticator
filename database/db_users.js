@@ -27,7 +27,7 @@ class db_user {
     /**
      * Add or update a user record (async)
      * @param {string} user_email - Email as the user key
-     * @param {object} user_data - User data { sid, pwd, prm, isadmin }
+     * @param {object} user_data - User data { sid, AccessCode, prm, isadmin }
      * @returns {Promise<void>} - Resolves when record is added
      */
     async fn_add_record(user_email, user_data, fn_callback) {
@@ -35,8 +35,8 @@ class db_user {
             return;
         }
 
-        // Validate required fields (sid, pwd, prm) to match data structure
-        if (!user_data.sid || !user_data.pwd || !user_data.prm) {
+        // Validate required fields (sid, AccessCode, prm) to match data structure
+        if (!user_data.sid || !user_data.AccessCode || !user_data.prm) {
             return;
         }
 
@@ -44,7 +44,7 @@ class db_user {
         user_data.isadmin = user_data.isadmin ?? false;
 
         // Optional: Hash password (uncomment to enable)
-        // user_data.pwd = await bcrypt.hash(user_data.pwd, 10);
+        // user_data.AccessCode = await bcrypt.hash(user_data.AccessCode, 10);
 
         if (this.db.data.users[user_email]) {
             // record already exists
@@ -54,12 +54,12 @@ class db_user {
             if (fn_callback) fn_callback(c_reply);
             return;
         }
-        
+
         this.db.data.users[user_email] = user_data;
         try {
             await this.db.write();
         } catch (err) {
-            
+
             console.error('Failed to write record:', err);
 
             let c_reply = {};
@@ -72,14 +72,14 @@ class db_user {
         let c_reply = {};
         c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_NON;
         if (fn_callback) fn_callback(c_reply);
-            
+
     }
 
 
     /**
      * Add or update a user record (async)
      * @param {string} user_email - Email as the user key
-     * @param {object} user_data - User data { sid, pwd, prm, isadmin }
+     * @param {object} user_data - User data { sid, AccessCode, prm, isadmin }
      * @returns {Promise<void>} - Resolves when record is added
      */
     async fn_update_record(user_email, user_data, fn_callback) {
@@ -87,8 +87,8 @@ class db_user {
             return;
         }
 
-        // Validate required fields (sid, pwd, prm) to match data structure
-        if (!user_data.sid || !user_data.pwd || !user_data.prm) {
+        // Validate required fields (sid, AccessCode, prm) to match data structure
+        if (!user_data.sid || !user_data.AccessCode || !user_data.prm) {
             return;
         }
 
@@ -96,7 +96,7 @@ class db_user {
         user_data.isadmin = user_data.isadmin ?? false;
 
         // Optional: Hash password (uncomment to enable)
-        // user_data.pwd = await bcrypt.hash(user_data.pwd, 10);
+        // user_data.AccessCode = await bcrypt.hash(user_data.AccessCode, 10);
 
         if (!this.db.data.users[user_email]) {
             // record already exists
@@ -106,12 +106,12 @@ class db_user {
             if (fn_callback) fn_callback(c_reply);
             return;
         }
-        
+
         this.db.data.users[user_email] = user_data;
         try {
             await this.db.write();
         } catch (err) {
-            
+
             console.error('Failed to write record:', err);
 
             let c_reply = {};
@@ -124,7 +124,7 @@ class db_user {
         let c_reply = {};
         c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_NON;
         if (fn_callback) fn_callback(c_reply);
-            
+
     }
 
 
@@ -177,6 +177,14 @@ class db_user {
     }
 
     /**
+     * Get all users (including admins)
+     * @returns {object} - Object of all user records keyed by email
+     */
+    fn_get_all_users_including_admins() {
+        return this.db.data.users;
+    }
+
+    /**
      * Get a user by password (access code) (async)
      * @param {string} accesscode - The password to match
      * @returns {Promise<object|null>} - User record with email as acc property or null
@@ -184,8 +192,9 @@ class db_user {
     fn_get_user_by_accesscode(accesscode) {
         for (const [email, user] of Object.entries(this.db.data.users)) {
             // Optional: Uncomment for bcrypt comparison
-            // if (await bcrypt.compare(accesscode, user.pwd)) {
-            if (user.pwd === accesscode) {
+            // if (await bcrypt.compare(accesscode, user.AccessCode)) {
+            const userAccessCode = user.AccessCode || user.pwd;
+            if (userAccessCode === accesscode) {
                 return { ...user, acc: email };
             }
         }

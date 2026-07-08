@@ -465,5 +465,8 @@ module.exports = {
     fn_getServerCurrentlyServerAccountID:fn_getServerCurrentlyServerAccountID,
     fn_removePartyCommunicationSession: fn_removePartyCommunicationSession,
     fn_requestCommunicationLogin:fn_requestCommunicationLogin,
-    fn_initialize:fn_initialize
+    fn_initialize:fn_initialize,
+    getCommunicationServersList: function() {
+        return m_communicationServersList;
+    }
 };

@@ -45,12 +45,13 @@ function fn_sendSubscriptionEmail(p_accountName, p_accessCode, fn_callback) {
         return;
     }
 
-    const v_msg = "Welcome to <span color='#0066FF'><strong>Ardupilot-Cloud</strong></span><p>&nbsp;</p>\
-												You are receiving this email because you activated your ArdupilotCloud account, please use the code below and enter it in the app<p>\
-												&nbsp;</p>The Code is: <span color=#003366><strong>" + p_accessCode + "</strong></span><span color=#FF0000><br><br><b>Did you know you can now view your live video stream online and manage your account at <a href='https://cloud.ardupilot.org:8001/webclient.html'>ArdupilotCloud Web Client</a>..</span>\
+    const v_msg = "Welcome to <span color='#0066FF'><strong>DroneEngage</strong></span><p>&nbsp;</p>\
+												Your AccountName is: <span color=#003366><strong>" + p_accountName + "</strong></span><p>\
+												You are receiving this email because your DroneEngage account has been created. Please use the AccessCode below to authenticate.<p>\
+												&nbsp;</p>AccessCode is: <span color=#003366><strong>" + p_accessCode + "</strong></span><span color=#FF0000><br><br><b>Did you know you can now view your live video stream online and manage your account at <a href='https://cloud.droneengage.com:8001/webclient.html'>DroneEngage Web Client</a>..</span>\
 												";
 
-    const v_msgText = "Welcome to CloudArdupilot.org.\r\nA unique way to communicate with your drones to unlimited distances.\r\nYou are receiving this email because you have just subscribed in CloudArdupilot.org\r\nYou are receiving this email because you activated your Anduav account, please use the code below and enter it in the app.\r\nThe Code is: " + p_accessCode + "\r\nDid you know you can now view your live video stream online and manage your account at www.andruav.com?"; + "\r\nIMPORTANT NOTICE: Because flying regulations differ by country/state/region plan your flights before you start using CloudArdupilot.org";
+    const v_msgText = "Welcome to DroneEngage.\r\nA unique way to communicate with your drones to unlimited distances.\r\nYour AccountName is: " + p_accountName + "\r\nYou are receiving this email because your DroneEngage account has been created. Please use the AccessCode below to authenticate.\r\nAccessCode is: " + p_accessCode + "\r\nDid you know you can now view your live video stream online and manage your account at www.droneengage.com?\r\nIMPORTANT NOTICE: Because flying regulations differ by country/state/region plan your flights before you start using DroneEngage.";
 
     //https://github.com/eleith/emailjs
     email_server.send(
@@ -99,7 +100,7 @@ function fn_createAccessCode(p_accountName, p_permission, fn_callback, p_loginCa
 
         global.db_users.fn_add_record(p_accountName, {
             sid: fn_generateAccessCode(),
-            pwd: v_accessCode,
+            AccessCode: v_accessCode,
             prm: p_permission
         }, function (p_reply) {
             p_reply[global.c_CONSTANTS.CONST_ACCESS_CODE_PARAMETER.toString()] = v_accessCode;
@@ -165,7 +166,7 @@ function fn_regenerateAccessCode(p_accountName, p_permission, fn_callback) {
 
         global.db_users.fn_update_record(p_accountName, {
             sid: fn_generateAccessCode(),
-            pwd: v_accessCode,
+            AccessCode: v_accessCode,
             prm: p_permission
         }, function (p_reply) {
             p_reply[global.c_CONSTANTS.CONST_ACCESS_CODE_PARAMETER.toString()] = v_accessCode;

@@ -89,7 +89,7 @@ function fn_do_loginAccount (p_accountName, p_accessCode, fn_callback)
     c_reply[global.c_CONSTANTS.CONST_ERROR_MSG.toString()] = "Database Error";
                 
             
-    if ((p_accountName == null) || (!hlp_string.fn_isEmail(p_accountName)))
+    if ((p_accountName == null) || (!p_accountName.fn_isValidAccountName()))
     {
         // null or not alphanumeric
         if (fn_callback != null)
@@ -108,7 +108,7 @@ function fn_do_loginAccount (p_accountName, p_accessCode, fn_callback)
         return ;
     }
     
-    const c_sql = "select account.Account_SID, account.Enabled, account.Instance_Limit, account_details.Permission from account_details, account WHERE account_details.PWD=? and account.Account_SID = account_details.Account_SID and account.Name=?";
+    const c_sql = "select account.Account_SID, account.Enabled, account.Instance_Limit, account_details.Permission from account_details, account WHERE account_details.AccessCode=? and account.Account_SID = account_details.Account_SID and account.Name=?";
     
     hlp_db.fn_genericSelect_w_Params (m_dbPool, c_sql,[hlp_string.fn_protectedFromInjection(p_accessCode), hlp_string.fn_protectedFromInjection(p_accountName)],
     function (rows) {
@@ -189,7 +189,7 @@ function fn_do_getAccountNameByAccessCode (p_accessCode, fn_callback)
         return ;
     }
     
-    const c_sql = "select account.Name from account_details, account WHERE account_details.PWD=? and account.Account_SID = account_details.Account_SID ";
+    const c_sql = "select account.Name from account_details, account WHERE account_details.AccessCode=? and account.Account_SID = account_details.Account_SID ";
     console.log (c_sql);
     hlp_db.fn_genericSelect_w_Params (m_dbPool, c_sql,[hlp_string.fn_protectedFromInjection(p_accessCode)],
     function (rows) {
@@ -237,8 +237,8 @@ function fn_createSubLogin(p_accountName, p_newAccessCode, p_permission, fn_call
 {
 
     const c_reply = {};
-    
-    if ((p_accountName == null) || (!hlp_string.fn_isEmail(p_accountName)))
+
+    if ((p_accountName == null) || (!p_accountName.fn_isValidAccountName()))
     {
         // null or not alphanumeric
         if (fn_callback != null)
@@ -263,7 +263,7 @@ function fn_createSubLogin(p_accountName, p_newAccessCode, p_permission, fn_call
         return ;
     }
     
-    const c_sql = "INSERT INTO `account_details`(`Account_SID`, `PWD`, `Permission`) select account.Account_SID, ?,? from account where account.Name=?";
+    const c_sql = "INSERT INTO `account_details`(`Account_SID`, `AccessCode`, `Permission`) select account.Account_SID, ?,? from account where account.Name=?";
     
     console.log ("prv_do_createSubLogin: " + c_sql);
     

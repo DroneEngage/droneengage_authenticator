@@ -27,6 +27,7 @@ exports.CONST_WEB_FUNCTION                  =   '/w';       // verified
 exports.CONST_AGENT_FUNCTION                =   '/agent';   // verified
 exports.CONST_ANDROID_GCS_FUNCTION          =   '/gcs'
 exports.CONST_UPLOADER_FUNCTION             =   '/up';
+exports.CONST_ADMIN_FUNCTION                =   '/admin';
 
 
 

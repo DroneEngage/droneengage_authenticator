@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link href="/public/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 400px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #5568d3 0%, #654a8a 100%);
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="text-center mb-4">
+            <h1>Admin Login</h1>
+            <p class="text-muted">DroneEngage Authenticator</p>
+        </div>
+
+        <% if (error) { %>
+            <div class="alert alert-danger" role="alert"><%= error %></div>
+        <% } %>
+
+        <form method="POST" action="/admin/login">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+            <div class="mb-3">
+                <label for="username" class="form-label">Username</label>
+                <input type="text" class="form-control" id="username" name="username" required autofocus>
+            </div>
+
+            <div class="mb-3">
+                <label for="password" class="form-label">Password</label>
+                <input type="password" class="form-control" id="password" name="password" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">Login</button>
+        </form>
+    </div>
+    <script src="/public/bootstrap/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

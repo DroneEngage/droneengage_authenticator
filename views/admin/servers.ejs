@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link href="/public/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .navbar-custom {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .navbar-custom .navbar-brand,
+        .navbar-custom .nav-link {
+            color: white !important;
+        }
+        .server-card {
+            border-left: 4px solid #27ae60;
+        }
+        .server-card.offline {
+            border-left-color: #e74c3c;
+        }
+        .user-tag {
+            background: #667eea;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-custom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/admin/servers">Server Status</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/dashboard">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/users">Users</a>
+                    </li>
+                </ul>
+                <span class="navbar-text me-3 text-white">Welcome, <%= adminUsername %></span>
+                <form method="POST" action="/admin/logout" class="d-inline">
+                    <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
+                </form>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Communication Servers</h5>
+                <button class="btn btn-primary" onclick="loadServers()">Refresh</button>
+            </div>
+            <div class="card-body">
+                <div class="row" id="serverGrid">
+                    <div class="col-12 text-center">Loading servers...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/public/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script>
+        async function loadServers() {
+            try {
+                const response = await fetch('/admin/api/servers');
+                const data = await response.json();
+                const servers = data.servers || [];
+                renderServers(servers);
+            } catch (error) {
+                console.error('Error loading servers:', error);
+                document.getElementById('serverGrid').innerHTML = '<div class="col-12 text-center text-danger">Error loading servers</div>';
+            }
+        }
+
+        function renderServers(servers) {
+            const grid = document.getElementById('serverGrid');
+
+            if (servers.length === 0) {
+                grid.innerHTML = '<div class="col-12 text-center">No communication servers found</div>';
+                return;
+            }
+
+            grid.innerHTML = servers.map(server => `
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card server-card ${server.isOnline ? '' : 'offline'}">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="card-title mb-0">${server.serverId || 'Unknown'}</h6>
+                                <span class="badge ${server.isOnline ? 'bg-success' : 'bg-danger'}">
+                                    ${server.isOnline ? 'Online' : 'Offline'}
+                                </span>
+                            </div>
+                            <p class="card-text mb-1"><strong>Public IP:</strong> ${server.public_host || 'N/A'}</p>
+                            <p class="card-text mb-1"><strong>Port:</strong> ${server.serverPort || 'N/A'}</p>
+                            <p class="card-text mb-1"><strong>Version:</strong> ${server.version || 'N/A'}</p>
+                            <hr>
+                            <p class="card-text mb-2"><strong>Connected Users (${server.accounts ? server.accounts.length : 0})</strong></p>
+                            <div class="d-flex flex-wrap gap-1">
+                                ${server.accounts && server.accounts.length > 0
+                                    ? server.accounts.map(account => `<span class="user-tag">${account.substring(0, 8)}...</span>`).join('')
+                                    : '<span class="text-muted small">No connected users</span>'
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        loadServers();
+        setInterval(loadServers, 30000);
+    </script>
+</body>
+</html>

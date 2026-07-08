@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link href="/public/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .navbar-custom {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .navbar-custom .navbar-brand,
+        .navbar-custom .nav-link {
+            color: white !important;
+        }
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-custom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/admin/dashboard">Admin Dashboard</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/users">Users</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/servers">Servers</a>
+                    </li>
+                </ul>
+                <span class="navbar-text me-3 text-white">Welcome, <%= adminUsername %></span>
+                <form method="POST" action="/admin/logout" class="d-inline">
+                    <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
+                </form>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row mb-4">
+            <div class="col-12">
+                <a href="/admin/users" class="btn btn-primary me-2">Manage Users</a>
+                <a href="/admin/servers" class="btn btn-primary">Server Status</a>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-4 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Users</h5>
+                        <div class="stat-value" id="totalUsers">-</div>
+                        <p class="text-muted">Registered users</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Online Servers</h5>
+                        <div class="stat-value" id="onlineServers">-</div>
+                        <p class="text-muted">Active communication servers</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Connected Users</h5>
+                        <div class="stat-value" id="connectedUsers">-</div>
+                        <p class="text-muted">Users currently connected</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/public/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script>
+        async function loadStats() {
+            try {
+                const usersResponse = await fetch('/admin/api/users');
+                const usersData = await usersResponse.json();
+                document.getElementById('totalUsers').textContent = usersData.users ? Object.keys(usersData.users).length : 0;
+
+                const serversResponse = await fetch('/admin/api/servers');
+                const serversData = await serversResponse.json();
+                const onlineCount = serversData.servers ? serversData.servers.filter(s => s.isOnline).length : 0;
+                const connectedCount = serversData.servers ? serversData.servers.reduce((sum, s) => sum + (s.accounts ? s.accounts.length : 0), 0) : 0;
+
+                document.getElementById('onlineServers').textContent = onlineCount;
+                document.getElementById('connectedUsers').textContent = connectedCount;
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        loadStats();
+        setInterval(loadStats, 30000);
+    </script>
+</body>
+</html>

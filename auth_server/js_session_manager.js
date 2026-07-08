@@ -10,7 +10,8 @@
 "use strict";
 const c_uuidv4 = require('uuid');
 const v_database_manager = require("./js_database_manager");
-const c_permission = require ("./js_permisson_validator.js");
+const c_permission = require("./js_permisson_validator.js");
+const { getConfiguration } = require("./js_config");
 
 
 const m_loginCardList = {};
@@ -71,15 +72,15 @@ function fn_generateSessionID() {
 function fn_createLoginCard (p_accountName, p_accessCode, p_actorType, p_group, fn_callback)
 {
     
-    if (m_serverconfig.m_configuration.account_storage_type.toLowerCase() === 'single') {
+    if (getConfiguration().account_storage_type.toLowerCase() === 'single') {
         // use single logic account
-        if ((m_serverconfig.m_configuration.hasOwnProperty('single_account_user_name') === true)    
-        && (m_serverconfig.m_configuration.hasOwnProperty('single_account_access_code') === true))
+        if ((getConfiguration().hasOwnProperty('single_account_user_name') === true)
+        && (getConfiguration().hasOwnProperty('single_account_access_code') === true))
         {
             const p_reply = {};
-            
-            if ((m_serverconfig.m_configuration.single_account_user_name != p_accountName)
-            || (m_serverconfig.m_configuration.single_account_access_code != p_accessCode))
+
+            if ((getConfiguration().single_account_user_name != p_accountName)
+            || (getConfiguration().single_account_access_code != p_accessCode))
             {
                 p_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Account Not Found.";
                 p_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
@@ -104,15 +105,22 @@ function fn_createLoginCard (p_accountName, p_accessCode, p_actorType, p_group, 
         
     } 
 
-    if (m_serverconfig.m_configuration.account_storage_type.toLowerCase() === 'file') {
-        if (m_serverconfig.m_configuration.hasOwnProperty('db_users') === true) {
+    if (getConfiguration().account_storage_type.toLowerCase() === 'file') {
+        if (getConfiguration().hasOwnProperty('db_users') === true) {
      
             let p_reply = {};
             
             let account_record = global.db_users.fn_get_record(p_accountName);
-            if ((account_record==null)
-            ||  (account_record.hasOwnProperty('pwd')===false) 
-            ||  (account_record.pwd != p_accessCode)){
+            if ((account_record==null)) {
+                p_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Account Not Found.";
+                p_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
+                fn_callback (p_reply);
+                return ;
+            }
+
+            const accessCode = account_record.AccessCode || account_record.pwd;
+            if ((!accessCode)
+            ||  (accessCode != p_accessCode)){
 
                 p_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Account Not Found.";
                 p_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
@@ -137,7 +145,7 @@ function fn_createLoginCard (p_accountName, p_accessCode, p_actorType, p_group, 
         }
     }
 
-    if (m_serverconfig.m_configuration.account_storage_type.toLowerCase() === 'db') {
+    if (getConfiguration().account_storage_type.toLowerCase() === 'db') {
     
         // login via database
         v_database_manager.fn_do_loginAccount (p_accountName, p_accessCode, 

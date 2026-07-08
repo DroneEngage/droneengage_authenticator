@@ -35,6 +35,7 @@ function fn_create(app) {
 
     app.use('/public', v_express.static('public'));
 
+    app.use(global.c_CONSTANTS.CONST_ADMIN_FUNCTION, require('./js_router_admin'));
     app.use(global.c_CONSTANTS.CONST_WEB_FUNCTION, require('./js_router_web'));
     app.use(global.c_CONSTANTS.CONST_AGENT_FUNCTION, require('./js_router_agent'));
 

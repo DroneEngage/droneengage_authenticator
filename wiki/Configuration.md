@@ -156,28 +156,6 @@ The server is configured via `server.config` (JSON format). You can create envir
 
 **Security Note:** Always change `admin_username`, `admin_password`, and `session_secret` in production.
 
-## Email Configuration
-
-```json
-{
-    "ignoreEmail": true,
-    "smtp_host": "smtp.email.com",
-    "smtp_port": 465,
-    "smtp_user": "myemail@mail.com",
-    "smtp_password": "password",
-    "smtp_ssl": true
-}
-```
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `ignoreEmail` | boolean | true | Skip email sending (for testing) |
-| `smtp_host` | string | - | SMTP server hostname |
-| `smtp_port` | number | 465 | SMTP server port |
-| `smtp_user` | string | - | SMTP username |
-| `smtp_password` | string | - | SMTP password |
-| `smtp_ssl` | boolean | true | Use SSL for SMTP |
-
 ## Logging Configuration
 
 ```json
@@ -259,11 +237,6 @@ The server is configured via `server.config` (JSON format). You can create envir
     "log_timeZone": "UTC",
     "log_detailed": false,
     "ignoreEmail": false,
-    "smtp_host": "smtp.example.com",
-    "smtp_port": 465,
-    "smtp_user": "noreply@example.com",
-    "smtp_password": "smtp_password",
-    "smtp_ssl": true,
     "s2s_ws_listening_ip": "0.0.0.0",
     "s2s_ws_listening_port": 19001,
     "s2s_auth_enabled": true,

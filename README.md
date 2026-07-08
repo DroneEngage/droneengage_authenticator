@@ -123,19 +123,6 @@ See [wiki/S2SAuthentication.md](wiki/S2SAuthentication.md) for detailed setup.
 }
 ```
 
-### Email Configuration (Optional)
-
-```json
-{
-    "ignoreEmail": false,
-    "smtp_host": "smtp.email.com",
-    "smtp_port": 465,
-    "smtp_user": "myemail@mail.com",
-    "smtp_password": "password",
-    "smtp_ssl": true
-}
-```
-
 ## Running the Server
 
 ### Development

@@ -2,10 +2,6 @@
 const { v4: uuidv4 } = require('uuid');
 const hlp_string = require("../helpers/hlp_string.js");
 const v_database_manager = require("./js_database_manager");
-const email = require("emailjs/email");
-
-
-var email_server;
 
 
 /**
@@ -15,80 +11,12 @@ function fn_generateAccessCode() {
     return uuidv4().replaceAll('-', '').substr(0, 12);
 }
 
-function fn_initialize() {
-    if ((global.m_serverconfig.m_configuration.hasOwnProperty('ignoreEmail') === true)
-        && (global.m_serverconfig.m_configuration.ignoreEmail === false)) {
-
-        email_server = email.server.connect(
-            {
-                host: global.m_serverconfig.m_configuration.smtp_host, //"smtp.privateemail.com",
-                port: global.m_serverconfig.m_configuration.smtp_port, //465,
-                user: global.m_serverconfig.m_configuration.smtp_user, // "info@droneengage.com",
-                password: global.m_serverconfig.m_configuration.smtp_password, // "Month15",
-                ssl: global.m_serverconfig.m_configuration.smtp_ssl //true
-            });
-    }
-
-}
-
 
 /**
- * Send email to subscriber with subscription info.
- * @param {*} p_accountName destination email address
- * @param {*} p_accessCode access code
- * @param {*} fn_callback 
- */
-function fn_sendSubscriptionEmail(p_accountName, p_accessCode, fn_callback) {
-    //sanity check
-    if ((global.m_serverconfig.m_configuration.hasOwnProperty('ignoreEmail') === true)
-        && (global.m_serverconfig.m_configuration.ignoreEmail === true)) {
-        return;
-    }
-
-    const v_msg = "Welcome to <span color='#0066FF'><strong>DroneEngage</strong></span><p>&nbsp;</p>\
-												Your AccountName is: <span color=#003366><strong>" + p_accountName + "</strong></span><p>\
-												You are receiving this email because your DroneEngage account has been created. Please use the AccessCode below to authenticate.<p>\
-												&nbsp;</p>AccessCode is: <span color=#003366><strong>" + p_accessCode + "</strong></span><span color=#FF0000><br><br><b>Did you know you can now view your live video stream online and manage your account at <a href='https://cloud.droneengage.com:8001/webclient.html'>DroneEngage Web Client</a>..</span>\
-												";
-
-    const v_msgText = "Welcome to DroneEngage.\r\nA unique way to communicate with your drones to unlimited distances.\r\nYour AccountName is: " + p_accountName + "\r\nYou are receiving this email because your DroneEngage account has been created. Please use the AccessCode below to authenticate.\r\nAccessCode is: " + p_accessCode + "\r\nDid you know you can now view your live video stream online and manage your account at www.droneengage.com?\r\nIMPORTANT NOTICE: Because flying regulations differ by country/state/region plan your flights before you start using DroneEngage.";
-
-    //https://github.com/eleith/emailjs
-    email_server.send(
-        {
-            type: 'text/html',
-            text: v_msgText,
-            attachment: [
-                {
-                    data: v_msg,
-                    alternative: true
-                }
-            ],
-            from: "info@droneengage.com<info@droneengage.com>",
-            to: p_accountName + "<" + p_accountName + ">",
-            subject: "ArdupilotCloud Account Created"
-        }, function (p_error, message) {
-            const c_reply = {};
-            if (p_error) {
-                console.log(p_error);
-
-                c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_DATA_UNKNOWN_ERROR;
-                c_reply[global.c_CONSTANTS.CONST_ERROR_MSG.toString()] = "Bad Email.";
-
-            }
-            else {
-                c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_NON;
-            }
-
-            fn_callback(c_reply);
-        });
-}
-
-/**
- * 
- * @param {*} p_accountName 
- * @param {*} p_permission 
- * @param {*} fn_callback 
+ *
+ * @param {*} p_accountName
+ * @param {*} p_permission
+ * @param {*} fn_callback
  */
 function fn_createAccessCode(p_accountName, p_permission, fn_callback, p_loginCard) {
 
@@ -122,27 +50,8 @@ function fn_createAccessCode(p_accountName, p_permission, fn_callback, p_loginCa
 
                     v_database_manager.fn_createSubLogin(p_accountName, v_accessCode, p_permission,
                         function (p_reply) {
-                            if (p_reply[global.c_CONSTANTS.CONST_ERROR.toString()] != global.c_CONSTANTS.CONST_ERROR_NON) {
-                                fn_callback(p_reply);
-                            }
-                            else {
-                                if ((global.m_serverconfig.m_configuration.hasOwnProperty('ignoreEmail') === true)
-                                    && (global.m_serverconfig.m_configuration.ignoreEmail === false)) {
-                                    // send email with access code.
-                                    fn_sendSubscriptionEmail(p_accountName, v_accessCode,
-                                        function (p_reply) {
-
-                                            p_reply[global.c_CONSTANTS.CONST_ACCESS_CODE_PARAMETER.toString()] = v_accessCode;
-
-                                            fn_callback(p_reply);
-                                        });
-                                    return;
-                                }
-                                else {
-                                    p_reply[global.c_CONSTANTS.CONST_ACCESS_CODE_PARAMETER.toString()] = v_accessCode;
-                                    fn_callback(p_reply);
-                                }
-                            }
+                            p_reply[global.c_CONSTANTS.CONST_ACCESS_CODE_PARAMETER.toString()] = v_accessCode;
+                            fn_callback(p_reply);
                         });
                 }
             }
@@ -187,26 +96,8 @@ function fn_regenerateAccessCode(p_accountName, p_permission, fn_callback) {
                     if (p_permission == null) p_permission = '0xffffffff';
                     v_database_manager.fn_createSubLogin(p_accountName, v_accessCode, p_permission,
                         function (p_reply) {
-                            if (p_reply[global.c_CONSTANTS.CONST_ERROR.toString()] != global.c_CONSTANTS.CONST_ERROR_NON) {
-                                fn_callback(p_reply);
-                            }
-                            else {
-                                if ((global.m_serverconfig.m_configuration.hasOwnProperty('ignoreEmail') === true)
-                                    && (global.m_serverconfig.m_configuration.ignoreEmail === false)) {
-                                    // send email with access code.
-                                    fn_sendSubscriptionEmail(p_accountName, v_accessCode,
-                                        function (p_reply) {
-                                            p_reply[global.c_CONSTANTS.CONST_ACCESS_CODE_PARAMETER.toString()] = v_accessCode;
-                                            fn_callback(p_reply);
-                                        });
-                                    return;
-
-                                }
-                                else {
-                                    p_reply[global.c_CONSTANTS.CONST_ACCESS_CODE_PARAMETER.toString()] = v_accessCode;
-                                    fn_callback(p_reply);
-                                }
-                            }
+                            p_reply[global.c_CONSTANTS.CONST_ACCESS_CODE_PARAMETER.toString()] = v_accessCode;
+                            fn_callback(p_reply);
                         });
                 }
             });
@@ -356,7 +247,6 @@ function fn_do_verifyHardwareByAccountSID(p_accountSID, p_hardwareID, p_hardware
 
 module.exports =
 {
-    fn_initialize: fn_initialize,
     fn_createAccessCode: fn_createAccessCode,
     fn_regenerateAccessCode: fn_regenerateAccessCode,
     fn_getAccountNameByAccessCode: fn_getAccountNameByAccessCode,

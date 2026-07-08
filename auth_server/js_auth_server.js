@@ -66,7 +66,6 @@ function fn_startServer() {
 
     v_database_manager.fn_initialize();
     v_sessionManager.fn_initialize();
-    v_account_manager.fn_initialize();
     v_commServerManager.fn_initialize();
     v_commServerManagerServer.fn_onMessageReceived = v_commServerManager.fn_commServerMessageHandler;
     v_commServerManagerServer.fn_onServerClosed = v_commServerManager.fn_ServerUpdated;

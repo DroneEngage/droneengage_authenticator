@@ -1,11 +1,12 @@
 "use strict";
 const hlp_db = require("../helpers/hlp_db.js");
 const hlp_string = require("../helpers/hlp_string.js");
+const hlp_validation = require("../helpers/hlp_validation.js");
 const v_users = require('../database/db_users');
 
 
 
-let m_dbPool;
+let m_db;
 
 
 /**
@@ -37,32 +38,31 @@ function fn_initialize()
     
         try
         {
-            const c_mysql = require('mysql2');
-            m_dbPool = c_mysql.createPool(
-                {
-                    connectTimeout: 10000, // 3s
-                    connectionLimit: 18, //important
-                    queueLimit: 19,
-                    host: m_serverconfig.m_configuration.dbIP,
-                    user: m_serverconfig.m_configuration.dbuser,
-                    password: m_serverconfig.m_configuration.dbpassword,
-                    database: m_serverconfig.m_configuration.dbdatabase,
-                    debug: false
-                });
-
-                m_dbPool.getConnection( function (p_err,p_dbConnection)
-                {
-                    if (p_err!= null)
-                    {
-                        console.log ("[FATAL] database error.");
-                        console.log (JSON.stringify(p_err));
-                        process.exit(1);
-                        //return ; //
+            const sqlite3 = require('sqlite3');
+            const dbPath = m_serverconfig.m_configuration.dbdatabase || 'database/andruav.db';
+            
+            // Ensure directory exists
+            const dbDir = require('path').dirname(dbPath);
+            if (!fs.existsSync(dbDir)) {
+                fs.mkdirSync(dbDir, { recursive: true });
+            }
+            
+            m_db = new sqlite3.Database(dbPath, (err) => {
+                if (err) {
+                    console.log ("[FATAL] database error.");
+                    console.log (JSON.stringify(err));
+                    process.exit(1);
+                }
+                m_db.run('PRAGMA foreign_keys = ON', (pragmaErr) => {
+                    if (pragmaErr) {
+                        console.log ("[WARN] Failed to enable foreign keys:", pragmaErr.message);
                     }
-
-                    console.log (global.Colors.Success + "[OK] Database is Connected." + global.Colors.Reset);
-                    p_dbConnection.release();
+                    console.log (global.Colors.Success + "[OK] SQLite Database is Connected: " + dbPath + global.Colors.Reset);
                 });
+            });
+            
+            // Expose database connection globally for admin routes
+            global.m_db = m_db;
         }
         catch (ex)
         {
@@ -91,9 +91,9 @@ function fn_do_loginAccount (p_accountName, p_accessCode, fn_callback)
     c_reply[global.c_CONSTANTS.CONST_ERROR_MSG.toString()] = "Database Error";
                 
             
-    if ((p_accountName == null) || (!p_accountName.fn_isValidAccountName()))
+    if ((p_accountName == null) || (!hlp_validation.isEmail(p_accountName)))
     {
-        // null or not alphanumeric
+        // null or not valid email
         if (fn_callback != null)
         {
             fn_callback(c_reply);
@@ -110,9 +110,9 @@ function fn_do_loginAccount (p_accountName, p_accessCode, fn_callback)
         return ;
     }
     
-    const c_sql = "select account.Account_SID, account.Enabled, account.Instance_Limit, account_details.Permission from account_details, account WHERE account_details.AccessCode=? and account.Account_SID = account_details.Account_SID and account.Name=?";
+    const c_sql = "select teams.TeamID, teams.Enabled, teams.InstanceLimit, logins.Permissions from logins, teams WHERE logins.AccessCode=? and teams.TeamID = logins.TeamID and logins.LoginName=?";
     
-    hlp_db.fn_genericSelect_w_Params (m_dbPool, c_sql,[hlp_string.fn_protectedFromInjection(p_accessCode), hlp_string.fn_protectedFromInjection(p_accountName)],
+    hlp_db.fn_genericSelect_w_Params (m_db, c_sql,[hlp_string.fn_protectedFromInjection(p_accessCode), hlp_string.fn_protectedFromInjection(p_accountName)],
     function (rows) {
         if ((rows == null) || (rows.length != 1))
         {  
@@ -134,15 +134,15 @@ function fn_do_loginAccount (p_accountName, p_accessCode, fn_callback)
             else
             {
                 c_reply.m_data = {};
-                c_reply.m_data.m_sid = rows[0]['Account_SID'];
+                c_reply.m_data.m_sid = rows[0]['TeamID'];
                 c_reply.m_data.m_permission = 'D1G1T3R4V5C6';
-                c_reply.m_data.m_prm = rows[0]['Permission'];
+                c_reply.m_data.m_prm = rows[0]['Permissions'];
                 if (c_reply.m_data.m_prm == 'D1G1T3R4V5C6')
                 { // backward compatibility to be deleted in the next version.
                     c_reply.m_data.m_prm ='0xffffffff'; 
                 }
                 c_reply.m_data.m_enabled = rows[0]['Enabled'];
-                c_reply.m_data.m_instance_limit = rows[0]['Instance_Limit'];
+                c_reply.m_data.m_instance_limit = rows[0]['InstanceLimit'];
                 if (c_reply.m_data.m_enabled==0)
                 {
                     c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_ACCOUNT_DISABLED;
@@ -191,9 +191,9 @@ function fn_do_getAccountNameByAccessCode (p_accessCode, fn_callback)
         return ;
     }
     
-    const c_sql = "select account.Name from account_details, account WHERE account_details.AccessCode=? and account.Account_SID = account_details.Account_SID ";
+    const c_sql = "select teams.TeamName from logins, teams WHERE logins.AccessCode=? and teams.TeamID = logins.TeamID ";
     console.log (c_sql);
-    hlp_db.fn_genericSelect_w_Params (m_dbPool, c_sql,[hlp_string.fn_protectedFromInjection(p_accessCode)],
+    hlp_db.fn_genericSelect_w_Params (m_db, c_sql,[hlp_string.fn_protectedFromInjection(p_accessCode)],
     function (rows) {
         if ((rows == null) || (rows.length != 1))
         {  
@@ -215,7 +215,7 @@ function fn_do_getAccountNameByAccessCode (p_accessCode, fn_callback)
             else
             {
                 c_reply.m_data = {};
-                c_reply.m_data.m_accountName = rows[0]['Name'];
+                c_reply.m_data.m_accountName = rows[0]['TeamName'];
                 c_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_NON;
 
             }
@@ -240,9 +240,9 @@ function fn_createSubLogin(p_accountName, p_newAccessCode, p_permission, fn_call
 
     const c_reply = {};
 
-    if ((p_accountName == null) || (!p_accountName.fn_isValidAccountName()))
+    if ((p_accountName == null) || (!hlp_string.fn_isValidAccountName(p_accountName)))
     {
-        // null or not alphanumeric
+        // null or not valid email
         if (fn_callback != null)
         {
             c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_INVALID_DATA;
@@ -265,17 +265,17 @@ function fn_createSubLogin(p_accountName, p_newAccessCode, p_permission, fn_call
         return ;
     }
     
-    const c_sql = "INSERT INTO `account_details`(`Account_SID`, `AccessCode`, `Permission`) select account.Account_SID, ?,? from account where account.Name=?";
+    const c_sql = "INSERT INTO `logins`(`TeamID`, `AccessCode`, `Permissions`) select teams.TeamID, ?,? from teams where teams.TeamName=?";
     
     console.log ("prv_do_createSubLogin: " + c_sql);
     
     
-    hlp_db.fn_genericInsert_w_Params (m_dbPool,c_sql, [hlp_string.fn_protectedFromInjection(p_newAccessCode), hlp_string.fn_protectedFromInjection(p_permission), hlp_string.fn_protectedFromInjection(p_accountName)],
+    hlp_db.fn_genericInsert_w_Params (m_db,c_sql, [hlp_string.fn_protectedFromInjection(p_newAccessCode), hlp_string.fn_protectedFromInjection(p_permission), hlp_string.fn_protectedFromInjection(p_accountName)],
 		function (err,res) 
 		{
             const c_reply = {};
          
-            if (res.affectedRows == 0)
+            if (res && res.changes == 0)
             {
                 // account not found
                 c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Database Error.";
@@ -344,9 +344,9 @@ function fn_createNewAccessCode (p_accountName, p_newAccessCode, fn_callback, p_
         return ;
 
     }
-    const c_sql = "INSERT INTO `account` (`Account_SID`, `Name`)  VALUES (NULL,?)";
+    const c_sql = "INSERT INTO `teams` (`TeamID`, `TeamName`)  VALUES (NULL,?)";
     
-    hlp_db.fn_genericInsert_w_Params (m_dbPool,c_sql, [hlp_string.fn_protectedFromInjection(p_accountName), hlp_string.fn_protectedFromInjection(p_newAccessCode)],
+    hlp_db.fn_genericInsert_w_Params (m_db,c_sql, [hlp_string.fn_protectedFromInjection(p_accountName), hlp_string.fn_protectedFromInjection(p_newAccessCode)],
 		function () 
 		{
 			
@@ -355,7 +355,7 @@ function fn_createNewAccessCode (p_accountName, p_newAccessCode, fn_callback, p_
 		},
 		function (err)
 		{
-			if (err.errno == 1062)
+			if (err && err.code === 'SQLITE_CONSTRAINT')
             {
                 c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Duplicate entry.";
                 c_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
@@ -387,12 +387,12 @@ function fn_deleteSubLogins (p_accountName, p_permission, fn_callback)
         }
         return ;
     }
-    const c_sql = "DELETE FROM `account_details` WHERE `Account_SID` in ( select `Account_SID` FROM `account` WHERE `Name` LIKE ?) and `Permission` LIKE ?";
+    const c_sql = "DELETE FROM `logins` WHERE `TeamID` in ( select `TeamID` FROM `teams` WHERE `TeamName` LIKE ?) and `Permissions` LIKE ?";
     
-    hlp_db.fn_genericInsert_w_Params (m_dbPool,c_sql, [hlp_string.fn_protectedFromInjection(p_accountName), hlp_string.fn_protectedFromInjection(p_permission)],
+    hlp_db.fn_genericInsert_w_Params (m_db,c_sql, [hlp_string.fn_protectedFromInjection(p_accountName), hlp_string.fn_protectedFromInjection(p_permission)],
 		function (err,res) 
 		{
-            // if (res.affectedRows == 0)
+            // if (res.changes == 0)
             // {
             //     // account not found
             //     c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Database Error.";
@@ -407,7 +407,7 @@ function fn_deleteSubLogins (p_accountName, p_permission, fn_callback)
 		},
 		function (err,res)
 		{
-			if (err.errno == 1062)
+			if (err && err.code === 'SQLITE_CONSTRAINT')
             {
                 c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Duplicate entry.";
                 c_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
@@ -448,9 +448,9 @@ function fn_do_getHardwareVerifyByAccountSID (p_accountSID, fn_callback)
     }
     
     
-    const c_sql = "select account_hw_info.SID, account_hw_info.HW_ID, account_hw_info.HW_Type, account_hw_info.register_time from account_hw_info  WHERE account_hw_info.Account_SID=? ";
+    const c_sql = "select team_hardware.HardwareSID, team_hardware.HardwareID, team_hardware.HardwareType, team_hardware.RegisteredAt from team_hardware  WHERE team_hardware.TeamID=? ";
     console.log ("REMOVE ME:" + c_sql);
-    hlp_db.fn_genericSelect_w_Params (m_dbPool, c_sql,[p_accountSID],
+    hlp_db.fn_genericSelect_w_Params (m_db, c_sql,[p_accountSID],
     function (rows) {
         if ((rows == null) || (rows.length == 0))
         {  
@@ -477,9 +477,9 @@ function fn_do_getHardwareVerifyByAccountSID (p_accountSID, fn_callback)
                 for (let i =0; i< rows.length; ++i)
                 {
                     const c_obj = {};
-                    c_obj.m_hwType = rows[i]['HW_Type'];
-                    c_obj.m_registerTime = rows[i]['register_time'];
-                    c_reply.m_data.m_hwID[rows[i]['HW_ID']] = c_obj;
+                    c_obj.m_hwType = rows[i]['HardwareType'];
+                    c_obj.m_registerTime = rows[i]['RegisteredAt'];
+                    c_reply.m_data.m_hwID[rows[i]['HardwareID']] = c_obj;
                     
                 }
                 c_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_NON;

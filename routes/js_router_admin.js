@@ -75,7 +75,8 @@ router.post('/logout', (req, res) => {
 router.get('/dashboard', requireAuth, (req, res) => {
     res.render('admin/dashboard', {
         title: 'Admin Dashboard',
-        adminUsername: req.session.adminUsername
+        adminUsername: req.session.adminUsername,
+        accountStorageType: global.m_serverconfig.m_configuration.account_storage_type
     });
 });
 
@@ -91,6 +92,14 @@ router.get('/users', requireAuth, (req, res) => {
 router.get('/servers', requireAuth, (req, res) => {
     res.render('admin/servers', {
         title: 'Server Status',
+        adminUsername: req.session.adminUsername
+    });
+});
+
+// SQL Management page (protected)
+router.get('/sql-management', requireAuth, (req, res) => {
+    res.render('admin/sql-management', {
+        title: 'Teams & Logins Management',
         adminUsername: req.session.adminUsername
     });
 });
@@ -222,6 +231,175 @@ router.get('/api/servers', requireAuth, (req, res) => {
     } catch (error) {
         console.error('Error fetching server status:', error);
         res.json({ error: 1, errorMessage: 'Failed to fetch server status' });
+    }
+});
+
+// API: Get all teams with logins (SQL mode)
+router.get('/api/sql/teams', requireAuth, (req, res) => {
+    try {
+        if (global.m_serverconfig.m_configuration.account_storage_type !== 'db') {
+            return res.json({ error: 1, errorMessage: 'SQL mode not enabled' });
+        }
+
+        // Access the database connection from the database manager module
+        const dbManager = require('../auth_server/js_database_manager');
+        // The database connection is stored as a module-level variable in js_database_manager.js
+        // We need to access it through a getter or by requiring the module after initialization
+        const db = global.m_db; // Set by js_database_manager during initialization
+
+        if (!db) {
+            return res.json({ error: 1, errorMessage: 'Database not connected' });
+        }
+
+        // Get all teams
+        db.all('SELECT * FROM teams ORDER BY TeamID', [], (err, teams) => {
+            if (err) {
+                console.error('Error fetching teams:', err);
+                return res.json({ error: 1, errorMessage: 'Failed to fetch teams' });
+            }
+
+            // Get logins for each team
+            const teamsWithLogins = teams.map(team => {
+                return new Promise((resolve) => {
+                    db.all('SELECT * FROM logins WHERE TeamID = ? ORDER BY LoginID', [team.TeamID], (err, logins) => {
+                        if (err) {
+                            console.error('Error fetching logins for team:', team.TeamID, err);
+                            resolve({ ...team, logins: [] });
+                        } else {
+                            resolve({ ...team, logins: logins || [] });
+                        }
+                    });
+                });
+            });
+
+            Promise.all(teamsWithLogins).then(results => {
+                res.json({ error: 0, teams: results });
+            });
+        });
+    } catch (error) {
+        console.error('Error in /api/sql/teams:', error);
+        res.json({ error: 1, errorMessage: 'Failed to fetch teams' });
+    }
+});
+
+// API: Create team (SQL mode)
+router.post('/api/sql/teams', requireAuth, (req, res) => {
+    try {
+        if (global.m_serverconfig.m_configuration.account_storage_type !== 'db') {
+            return res.json({ error: 1, errorMessage: 'SQL mode not enabled' });
+        }
+
+        const { teamName, email, instanceLimit, enabled } = req.body;
+        const db = global.m_db;
+
+        if (!db) {
+            return res.json({ error: 1, errorMessage: 'Database not connected' });
+        }
+
+        db.run('INSERT INTO teams (TeamName, Email, InstanceLimit, Enabled) VALUES (?, ?, ?, ?)',
+            [teamName, email, instanceLimit, enabled],
+            function(err) {
+                if (err) {
+                    console.error('Error creating team:', err);
+                    return res.json({ error: 1, errorMessage: 'Failed to create team' });
+                }
+                res.json({ error: 0, teamId: this.lastID });
+            }
+        );
+    } catch (error) {
+        console.error('Error in POST /api/sql/teams:', error);
+        res.json({ error: 1, errorMessage: 'Failed to create team' });
+    }
+});
+
+// API: Delete team (SQL mode)
+router.delete('/api/sql/teams/:id', requireAuth, (req, res) => {
+    try {
+        if (global.m_serverconfig.m_configuration.account_storage_type !== 'db') {
+            return res.json({ error: 1, errorMessage: 'SQL mode not enabled' });
+        }
+
+        const teamId = req.params.id;
+        const db = global.m_db;
+
+        if (!db) {
+            return res.json({ error: 1, errorMessage: 'Database not connected' });
+        }
+
+        db.run('DELETE FROM teams WHERE TeamID = ?', [teamId], function(err) {
+            if (err) {
+                console.error('Error deleting team:', err);
+                return res.json({ error: 1, errorMessage: 'Failed to delete team' });
+            }
+            res.json({ error: 0 });
+        });
+    } catch (error) {
+        console.error('Error in DELETE /api/sql/teams:', error);
+        res.json({ error: 1, errorMessage: 'Failed to delete team' });
+    }
+});
+
+// API: Create login (SQL mode)
+router.post('/api/sql/logins', requireAuth, (req, res) => {
+    try {
+        if (global.m_serverconfig.m_configuration.account_storage_type !== 'db') {
+            return res.json({ error: 1, errorMessage: 'SQL mode not enabled' });
+        }
+
+        const { teamId, loginName, accessCode, permissions, isAdmin } = req.body;
+        const db = global.m_db;
+
+        if (!db) {
+            return res.json({ error: 1, errorMessage: 'Database not connected' });
+        }
+
+        // Auto-generate access code if not provided
+        let finalAccessCode = accessCode;
+        if (!finalAccessCode || finalAccessCode.trim() === '') {
+            const { v4: uuidv4 } = require('uuid');
+            finalAccessCode = uuidv4().replaceAll('-', '').substr(0, 12);
+        }
+
+        db.run('INSERT INTO logins (TeamID, LoginName, AccessCode, Permissions, IsAdmin) VALUES (?, ?, ?, ?, ?)',
+            [teamId, loginName, finalAccessCode, permissions, isAdmin],
+            function(err) {
+                if (err) {
+                    console.error('Error creating login:', err);
+                    return res.json({ error: 1, errorMessage: 'Failed to create login' });
+                }
+                res.json({ error: 0, loginId: this.lastID, accessCode: finalAccessCode });
+            }
+        );
+    } catch (error) {
+        console.error('Error in POST /api/sql/logins:', error);
+        res.json({ error: 1, errorMessage: 'Failed to create login' });
+    }
+});
+
+// API: Delete login (SQL mode)
+router.delete('/api/sql/logins/:id', requireAuth, (req, res) => {
+    try {
+        if (global.m_serverconfig.m_configuration.account_storage_type !== 'db') {
+            return res.json({ error: 1, errorMessage: 'SQL mode not enabled' });
+        }
+
+        const loginId = req.params.id;
+        const db = global.m_db;
+
+        if (!db) {
+            return res.json({ error: 1, errorMessage: 'Database not connected' });
+        }
+
+        db.run('DELETE FROM logins WHERE LoginID = ?', [loginId], function(err) {
+            if (err) {
+                console.error('Error deleting login:', err);
+                return res.json({ error: 1, errorMessage: 'Failed to delete login' });
+            }
+            res.json({ error: 0 });
+        });
+    } catch (error) {
+        console.error('Error in DELETE /api/sql/logins:', error);
+        res.json({ error: 1, errorMessage: 'Failed to delete login' });
     }
 });
 

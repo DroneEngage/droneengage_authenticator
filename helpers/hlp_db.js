@@ -5,157 +5,54 @@ Author: Mohammad Said Hefny mohammad.hefny@gmail.com
 Created 23 Jul 2017
 
 Last update 23 Jul 2017: 
+Updated for SQLite (sqlite3) support
 
 */
 
 "use strict";
 
-function fn_genericSelect (p_dbPool,p_sql,p_params, fn_successcallback,fn_errorcallback)
+function fn_genericSelect (p_db,p_sql,p_params, fn_successcallback,fn_errorcallback)
 {
-	//console.log (p_sql);
-    p_dbPool.getConnection(function(p_err, p_dbConnection)
-    {
-        if (p_err)
-        {
-			if (fn_errorcallback != null) fn_errorcallback(p_err);
-			
-            return;
-        }
-
-        //console.log(p_sql);
-       
-        p_dbConnection.query(p_sql, p_params, function(p_err, rows)
-        {
-
-            if (p_err)
-            {
-
-                p_dbConnection.release();
-
-                if (fn_errorcallback != null) fn_errorcallback(p_err);
-                
-                return;
-            }
-			else
-			{
-				
-                p_dbConnection.release();
-                
-                if (fn_successcallback != null) fn_successcallback(rows);
-
-                return ;
-			}
-            
-
-        });
-
-
-    });
-}
-
-function fn_genericSelect_w_Params (p_dbPool,p_sql,paramlist,fn_successcallback,fn_errorcallback)
-{
-    p_dbPool.getConnection(function(err, p_dbConnection)
-    {
-        if (err)
-        {
+	p_db.all(p_sql, p_params || [], function(err, rows) {
+		if (err) {
 			if (fn_errorcallback != null) fn_errorcallback(err);
-			
-            return;
-        }
-
-        //console.log(p_sql);
-       
-        p_dbConnection.query(p_sql, paramlist, function(err, rows)
-        {
-
-            if (err)
-            {
-                p_dbConnection.release();
-                if (fn_errorcallback != null) fn_errorcallback(err);
-                
-                return;
-            }
-			else
-			{
-				p_dbConnection.release();
-                if (fn_successcallback != null) fn_successcallback(rows);
-				
-				return ;
-			}
-            
-
-        });
-
-
-    });
-}
-function insertOrDelete (p_dbPool,p_sql,fn_successcallback,fn_errorcallback)
-{
-	
-    p_dbPool.getConnection(function(err, p_dbConnection)
-    {
-        if (err)
-        {
-            if (fn_errorcallback != null) fn_errorcallback(err);
-            p_dbConnection.release();
-            return;
-        }
-
-        p_dbConnection.query(p_sql, function(err, rows)
-        {
-            if (err)
-            {
-                if (fn_errorcallback != null) fn_errorcallback(err);
-                p_dbConnection.release();
-                return;
-            }
-            else
-            {
-				if (fn_successcallback != null) fn_successcallback ();
-
-                p_dbConnection.release();
-                return ;
-            }
-        }); // end of update connection
-
-    });
+			return;
+		}
+		if (fn_successcallback != null) fn_successcallback(rows);
+	});
 }
 
-
-function fn_insertOrDelete_w_Params (dbPool,p_sql,paramlist,fn_successcallback,fn_errorcallback)
+function fn_genericSelect_w_Params (p_db,p_sql,paramlist,fn_successcallback,fn_errorcallback)
 {
-	
-    dbPool.getConnection(function(err, dbConnection)
-    {
-        if (err)
-        {
-            if (fn_errorcallback != null) fn_errorcallback(err);
-            dbConnection.release();
-            return;
-        }
+	p_db.all(p_sql, paramlist, function(err, rows) {
+		if (err) {
+			if (fn_errorcallback != null) fn_errorcallback(err);
+			return;
+		}
+		if (fn_successcallback != null) fn_successcallback(rows);
+	});
+}
 
-        console.log (p_sql);
-        console.log (paramlist);
+function insertOrDelete (p_db,p_sql,fn_successcallback,fn_errorcallback)
+{
+	p_db.run(p_sql, function(err) {
+		if (err) {
+			if (fn_errorcallback != null) fn_errorcallback(err);
+			return;
+		}
+		if (fn_successcallback != null) fn_successcallback();
+	});
+}
 
-        dbConnection.query(p_sql, paramlist, 
-            function(err, res)
-            {
-                if (err)
-                {
-                    dbConnection.release();
-                    if (fn_errorcallback != null) fn_errorcallback(err, res);
-                    return;
-                }
-                else
-                {
-                    dbConnection.release();
-                    if (fn_successcallback != null) fn_successcallback (null, res);
-                    return ;
-                }
-            }); // end of update connection
-
-    });
+function fn_insertOrDelete_w_Params (p_db,p_sql,paramlist,fn_successcallback,fn_errorcallback)
+{
+	p_db.run(p_sql, paramlist, function(err, res) {
+		if (err) {
+			if (fn_errorcallback != null) fn_errorcallback(err, null);
+			return;
+		}
+		if (fn_successcallback != null) fn_successcallback(null, res);
+	});
 }
 
 module.exports =

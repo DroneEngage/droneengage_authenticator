@@ -50,7 +50,9 @@ function fn_startApiServer ()
 
     //settings
     c_app.set('port', global.m_serverconfig.m_configuration.server_port);
-    
+    c_app.set('views', v_path.join(__dirname, 'views'));
+    c_app.set('view engine', 'ejs');
+
     c_app.use(c_cors())
 
     //middleware

@@ -29,9 +29,15 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
+                    <% if (accountStorageType === 'file') { %>
                     <li class="nav-item">
                         <a class="nav-link" href="/admin/users">Users</a>
                     </li>
+                    <% } else if (accountStorageType === 'db') { %>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/sql-management">Teams & Logins</a>
+                    </li>
+                    <% } %>
                     <li class="nav-item">
                         <a class="nav-link" href="/admin/servers">Servers</a>
                     </li>
@@ -47,8 +53,35 @@
     <div class="container mt-4">
         <div class="row mb-4">
             <div class="col-12">
+                <% if (accountStorageType === 'file') { %>
                 <a href="/admin/users" class="btn btn-primary me-2">Manage Users</a>
+                <% } else if (accountStorageType === 'db') { %>
+                <a href="/admin/sql-management" class="btn btn-primary me-2">Manage Teams & Logins</a>
+                <% } %>
                 <a href="/admin/servers" class="btn btn-primary">Server Status</a>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Database Configuration</h5>
+                        <p class="mb-0">
+                            <strong>Storage Type:</strong> 
+                            <span class="badge bg-<%= accountStorageType === 'file' ? 'success' : accountStorageType === 'db' ? 'primary' : 'warning' %>">
+                                <%= accountStorageType %>
+                            </span>
+                            <% if (accountStorageType === 'file') { %>
+                                <span class="text-muted ms-2">(JSON File Storage)</span>
+                            <% } else if (accountStorageType === 'db') { %>
+                                <span class="text-muted ms-2">(SQLite Database)</span>
+                            <% } else if (accountStorageType === 'single') { %>
+                                <span class="text-muted ms-2">(Single Account Mode)</span>
+                            <% } %>
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -87,9 +120,26 @@
     <script>
         async function loadStats() {
             try {
-                const usersResponse = await fetch('/admin/api/users');
-                const usersData = await usersResponse.json();
-                document.getElementById('totalUsers').textContent = usersData.users ? Object.keys(usersData.users).length : 0;
+                // Load users based on storage type
+                if ('<%= accountStorageType %>' === 'file') {
+                    const usersResponse = await fetch('/admin/api/users');
+                    const usersData = await usersResponse.json();
+                    document.getElementById('totalUsers').textContent = usersData.users ? Object.keys(usersData.users).length : 0;
+                } else if ('<%= accountStorageType %>' === 'db') {
+                    const teamsResponse = await fetch('/admin/api/sql/teams');
+                    const teamsData = await teamsResponse.json();
+                    let totalLogins = 0;
+                    if (teamsData.teams) {
+                        teamsData.teams.forEach(team => {
+                            if (team.logins) {
+                                totalLogins += team.logins.length;
+                            }
+                        });
+                    }
+                    document.getElementById('totalUsers').textContent = totalLogins;
+                } else {
+                    document.getElementById('totalUsers').textContent = 'N/A';
+                }
 
                 const serversResponse = await fetch('/admin/api/servers');
                 const serversData = await serversResponse.json();

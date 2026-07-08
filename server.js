@@ -14,15 +14,14 @@ process.once('SIGINT', function(err) {
 
  
 /**
- * launch express server. core of everything
+ * launch express server for API endpoints
  */
-function fn_startExpressServer ()
+function fn_startApiServer ()
 {
     //to view es6 capabilities see http://node.green/
     //node v8-options es6 module syntax currently under development (2016/06/25)
     const v_path              = require('path');
     const v_express           = require('express');
-    const v_ejsLayouts        = require('express-ejs-layouts');
     const v_cookieParser      = require('cookie-parser');
     const v_bodyParser        = require('body-parser');
     const c_router            = require('./routes/js_router');
@@ -51,6 +50,80 @@ function fn_startExpressServer ()
 
     //settings
     c_app.set('port', global.m_serverconfig.m_configuration.server_port);
+    
+    c_app.use(c_cors())
+
+    //middleware
+    c_app.use(v_bodyParser.json());
+    c_app.use(v_bodyParser.urlencoded({ extended: false }));
+    c_app.use(v_cookieParser());
+
+    //router
+    c_router.fn_create(c_app);
+
+    let v_https = require('https');
+    let v_fs = require('fs');
+    console.log (global.Colors.Log + "READING " + global.m_serverconfig.m_configuration.ssl_key_file + global.Colors.Reset);
+    let v_keyPath = v_path.isAbsolute(global.m_serverconfig.m_configuration.ssl_key_file) ? global.m_serverconfig.m_configuration.ssl_key_file : v_path.join(__dirname, global.m_serverconfig.m_configuration.ssl_key_file);
+    let v_keyFile = v_fs.readFileSync(v_keyPath);
+    console.log (global.Colors.Log + "READING " + global.m_serverconfig.m_configuration.ssl_cert_file + global.Colors.Reset);
+    let v_certPath = v_path.isAbsolute(global.m_serverconfig.m_configuration.ssl_cert_file) ? global.m_serverconfig.m_configuration.ssl_cert_file : v_path.join(__dirname, global.m_serverconfig.m_configuration.ssl_cert_file);
+    let v_certFile = v_fs.readFileSync(v_certPath);
+    let v_options = {
+        key: v_keyFile,
+        cert: v_certFile
+    };
+
+
+    // start listening
+    v_https.createServer(v_options, c_app).listen(c_app.get('port'));
+
+
+    console.log (global.Colors.Success + "[OK] API Server Started" + global.Colors.Reset);
+    const protocol = global.m_serverconfig.m_configuration.enable_SSL ? 'https' : 'http';
+    const host = global.m_serverconfig.m_configuration.server_ip === '0.0.0.0' ? 'localhost' : global.m_serverconfig.m_configuration.server_ip;
+    const port = global.m_serverconfig.m_configuration.server_port;
+    const baseUrl = `${protocol}://${host}:${port}`;
+
+    console.log (global.Colors.Log + "API Server:" + global.Colors.BSuccess + "  " + baseUrl + global.Colors.Reset);
+    
+}
+
+
+/**
+ * launch express server for views/web interface
+ */
+function fn_startViewsServer ()
+{
+    const v_path              = require('path');
+    const v_express           = require('express');
+    const v_ejsLayouts        = require('express-ejs-layouts');
+    const v_cookieParser      = require('cookie-parser');
+    const v_bodyParser        = require('body-parser');
+    const c_router            = require('./routes/js_router');
+    const c_cors              = require('cors')
+    const c_helmet            = require('helmet')
+
+    //setup
+    const c_app      = v_express();
+    
+    // Please check this for more details:
+    // https://www.html5rocks.com/en/tutorials/security/content-security-policy/
+    c_app.use(c_helmet({
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+                styleSrc: ["'self'", "'unsafe-inline'"],
+                scriptSrc: ["'self'", "'unsafe-inline'"],
+                upgradeInsecureRequests: true,
+                workerSrc: false
+            }
+        }
+    }))
+
+    //settings
+    const webadminPort = global.m_serverconfig.m_configuration.webadmin_port || 19409;
+    c_app.set('port', webadminPort);
     c_app.set('views', v_path.join(__dirname, 'views'));
     
     //view engine & main template
@@ -68,37 +141,26 @@ function fn_startExpressServer ()
     c_router.fn_create(c_app);
 
     let v_https = require('https');
-    let v_http = require('http');
     let v_fs = require('fs');
+    let v_keyPath = v_path.isAbsolute(global.m_serverconfig.m_configuration.ssl_key_file) ? global.m_serverconfig.m_configuration.ssl_key_file : v_path.join(__dirname, global.m_serverconfig.m_configuration.ssl_key_file);
+    let v_keyFile = v_fs.readFileSync(v_keyPath);
+    let v_certPath = v_path.isAbsolute(global.m_serverconfig.m_configuration.ssl_cert_file) ? global.m_serverconfig.m_configuration.ssl_cert_file : v_path.join(__dirname, global.m_serverconfig.m_configuration.ssl_cert_file);
+    let v_certFile = v_fs.readFileSync(v_certPath);
+    let v_options = {
+        key: v_keyFile,
+        cert: v_certFile
+    };
 
-    if (global.m_serverconfig.m_configuration.enable_SSL === true) {
-        console.log (global.Colors.Log + "READING " + global.m_serverconfig.m_configuration.ssl_key_file + global.Colors.Reset);
-        let v_keyPath = v_path.isAbsolute(global.m_serverconfig.m_configuration.ssl_key_file) ? global.m_serverconfig.m_configuration.ssl_key_file : v_path.join(__dirname, global.m_serverconfig.m_configuration.ssl_key_file);
-        let v_keyFile = v_fs.readFileSync(v_keyPath);
-        console.log (global.Colors.Log + "READING " + global.m_serverconfig.m_configuration.ssl_cert_file + global.Colors.Reset);
-        let v_certPath = v_path.isAbsolute(global.m_serverconfig.m_configuration.ssl_cert_file) ? global.m_serverconfig.m_configuration.ssl_cert_file : v_path.join(__dirname, global.m_serverconfig.m_configuration.ssl_cert_file);
-        let v_certFile = v_fs.readFileSync(v_certPath);
-        let v_options = {
-            key: v_keyFile,
-            cert: v_certFile
-        };
+    // start listening
+    v_https.createServer(v_options, c_app).listen(c_app.get('port'));
 
-        // start listening
-        v_https.createServer(v_options, c_app).listen(c_app.get('port'));
-    } else {
-        // start listening with HTTP
-        v_http.createServer(c_app).listen(c_app.get('port'));
-    }
-
-
-    console.log (global.Colors.Success + "[OK] Web Server Started" + global.Colors.Reset);
+    console.log (global.Colors.Success + "[OK] Views Server Started" + global.Colors.Reset);
     const protocol = global.m_serverconfig.m_configuration.enable_SSL ? 'https' : 'http';
     const host = global.m_serverconfig.m_configuration.server_ip === '0.0.0.0' ? 'localhost' : global.m_serverconfig.m_configuration.server_ip;
-    const port = global.m_serverconfig.m_configuration.server_port;
+    const port = webadminPort;
     const baseUrl = `${protocol}://${host}:${port}`;
 
     console.log (global.Colors.Log + "Admin Routes:" + global.Colors.BSuccess + "  " + baseUrl + global.c_CONSTANTS.CONST_ADMIN_FUNCTION + "/dashboard" + global.Colors.Reset + " - Admin Dashboard");
-    
 }
 
 
@@ -222,8 +284,9 @@ function fn_start ()
     // start auth server 
     global.m_authServer.fn_startServer ();
 
-    // load express server
-	fn_startExpressServer();
+    // load express servers
+	fn_startApiServer();
+	fn_startViewsServer();
 
 }
 

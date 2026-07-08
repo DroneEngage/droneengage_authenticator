@@ -24,8 +24,10 @@ function fn_initialize()
             // users database
             global.db_users = new v_users.db_user(global.m_serverconfig.m_configuration.db_users);
             console.log ("Users Database File  " + global.Colors.BSuccess + global.m_serverconfig.m_configuration.db_users + global.Colors.Reset);
-            if (!fs.existsSync(global.m_serverconfig.m_configuration.db_users)) { 
-                console.log (global.Colors.Error +  "File Not Found"  + global.Colors.Reset);
+            if (!fs.existsSync(global.m_serverconfig.m_configuration.db_users)) {
+                console.log (global.Colors.Warn +  "[WARN] Database file not found: " + global.m_serverconfig.m_configuration.db_users + " - will be created on first user registration" + global.Colors.Reset);
+            } else {
+                console.log (global.Colors.Success +  "[OK] Database file exists and loaded" + global.Colors.Reset);
             }
             return;
         }

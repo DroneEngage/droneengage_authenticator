@@ -13,6 +13,7 @@ const fs = require('fs');
 const path = require('path');
 const WebSocketServer = require('ws').Server;
 const https = require('https');
+const http = require('http');
 const c_s2s_auth = require('./js_s2s_auth.js');
 
 let Me;
@@ -148,14 +149,38 @@ function fn_sendMessage(p_conn_guid, p_message) {
  */
 function fn_startWebSocketListener() {
     const app = express();
-    const v_keyPath = path.isAbsolute(global.m_serverconfig.m_configuration.ssl_key_file) ? global.m_serverconfig.m_configuration.ssl_key_file : path.join(__dirname, "../" + global.m_serverconfig.m_configuration.ssl_key_file);
-    const v_certPath = path.isAbsolute(global.m_serverconfig.m_configuration.ssl_cert_file) ? global.m_serverconfig.m_configuration.ssl_cert_file : path.join(__dirname, "../" + global.m_serverconfig.m_configuration.ssl_cert_file);
-    const options = {
-        key: fs.readFileSync(v_keyPath),
-        cert: fs.readFileSync(v_certPath)
-    };
+    let wserver;
 
-    const wserver = https.createServer(options, app);
+    if (global.m_serverconfig.m_configuration.enable_SSL === true) {
+        const v_keyPath = path.isAbsolute(global.m_serverconfig.m_configuration.ssl_key_file) ? global.m_serverconfig.m_configuration.ssl_key_file : path.join(__dirname, "../" + global.m_serverconfig.m_configuration.ssl_key_file);
+        const v_certPath = path.isAbsolute(global.m_serverconfig.m_configuration.ssl_cert_file) ? global.m_serverconfig.m_configuration.ssl_cert_file : path.join(__dirname, "../" + global.m_serverconfig.m_configuration.ssl_cert_file);
+        let error = false;
+
+        // Check if SSL files exist before attempting to read them
+        if (!fs.existsSync(v_keyPath)) {
+            console.error(global.Colors.Error + "[ERROR] Communication Server: Missing SSL key file not found: " + v_keyPath + global.Colors.Reset);
+            error = true;
+        }
+
+        if (!fs.existsSync(v_certPath)) {
+            console.error(global.Colors.Error + "[ERROR] Communication Server: Missing SSL certificate file not found: " + v_certPath + global.Colors.Reset);
+            error = true;
+        }
+
+        if (error === true) {
+            process.exit(1);
+        }
+
+        const options = {
+            key: fs.readFileSync(v_keyPath),
+            cert: fs.readFileSync(v_certPath)
+        };
+
+        wserver = https.createServer(options, app);
+    } else {
+        wserver = http.createServer(app);
+    }
+
     wserver.listen(global.m_serverconfig.m_configuration.s2s_ws_listening_port, global.m_serverconfig.m_configuration.s2s_ws_listening_ip);
 
     const v_wss = new WebSocketServer({ server: wserver });

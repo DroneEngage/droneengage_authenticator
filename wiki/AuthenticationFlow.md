@@ -1,0 +1,277 @@
+# Authentication Flow
+
+This document describes the authentication flow in the Andruav Authenticator server.
+
+## Overview
+
+The authenticator server handles user and vehicle authentication, assigns them to communication servers, and manages sessions. The authentication process involves multiple components working together to validate credentials and establish secure connections.
+
+## Components
+
+### Core Modules
+
+| Module | File | Purpose |
+|--------|------|---------|
+| Auth Server | `auth_server/js_auth_server.js` | Main authentication orchestration |
+| Session Manager | `auth_server/js_session_manager.js` | Session and login card management |
+| Account Manager | `auth_server/js_account_manager.js` | Account and access code operations |
+| Database Manager | `auth_server/js_database_manager.js` | Database operations (file/MySQL) |
+| Comm Server Manager | `auth_server/js_comm_server_manager.js` | Communication server selection and management |
+| S2S Auth | `auth_server/js_s2s_auth.js` | Server-to-server authentication |
+
+## Authentication Flow
+
+### 1. Login Card Creation
+
+When a client (GCS or Agent) requests authentication:
+
+```
+Client
+  │
+  ├─► fn_newLoginCard(accountName, accessCode, actorType, group, app, version)
+  │
+  ▼
+Input Validator
+  │
+  ├─► Normalize and validate fields
+  │
+  ▼
+App Version Check
+  │
+  ├─► Verify client version compatibility
+  │
+  ▼
+Session Manager
+  │
+  ├─► fn_createLoginCard()
+  │   ├─► Validate account credentials
+  │   ├─► Create session ID
+  │   └─► Generate login card
+  │
+  ▼
+Permission Check
+  │
+  ├─► Verify GCS/Agent permissions
+  │
+  ▼
+Comm Server Manager
+  │
+  ├─► fn_selectServerforAccount()
+  │   └─► Select optimal communication server
+  │
+  ▼
+Comm Server Manager
+  │
+  ├─► fn_requestCommunicationLogin()
+  │   ├─► Send login request to comm server
+  │   └─► Receive comm server response
+  │
+  ▼
+Session Manager
+  │
+  ├─► fn_generateLoginReplyToParty()
+  │   └─► Generate final response with comm server details
+  │
+  ▼
+Client
+```
+
+### 2. Account Operations
+
+Account operations (create/regenerate access codes, lookup by access code):
+
+```
+Client
+  │
+  ├─► fn_accountOperation(subCommand, accountName, permission, accessCode)
+  │
+  ▼
+Input Validator
+  │
+  ├─► Validate operation parameters
+  │
+  ▼
+Session Manager
+  │
+  ├─► fn_getLoginCardBySessionID()
+  │   └─► Retrieve session context
+  │
+  ▼
+Account Manager
+  │
+  ├─► Execute operation:
+  │   ├─► fn_createAccessCode()
+  │   ├─► fn_regenerateAccessCode()
+  │   └─► fn_getAccountNameByAccessCode()
+  │
+  ▼
+Client
+```
+
+### 3. Hardware Verification
+
+Agent clients can verify hardware IDs:
+
+```
+Agent
+  │
+  ├─► fn_hardwareOperationFromAgent(sessionID, hardwareID, hardwareType)
+  │
+  ▼
+Input Validator
+  │
+  ├─► Validate hardware operation parameters
+  │
+  ▼
+Session Manager
+  │
+  ├─► fn_getLoginCardBySessionID()
+  │   └─► Retrieve session context
+  │
+  ▼
+Account Manager
+  │
+  ├─► fn_do_verifyHardwareByAccountSID()
+  │   └─► Verify hardware against account
+  │
+  ▼
+Agent
+```
+
+### 4. Logout
+
+Session invalidation and cleanup:
+
+```
+Client
+  │
+  ├─► fn_logout(sessionID)
+  │
+  ▼
+Input Validator
+  │
+  ├─► Validate session ID
+  │
+  ▼
+Session Manager
+  │
+  ├─► fn_getLoginCardBySessionID()
+  │   └─► Retrieve login card
+  │
+  ▼
+Comm Server Manager
+  │
+  ├─► fn_removePartyCommunicationSession()
+  │   └─► Signal comm server to close connection
+  │
+  ▼
+Session Manager
+  │
+  ├─► fn_deleteOldCard()
+  │   └─► Delete session from local storage
+  │
+  ▼
+Client
+```
+
+## Server-to-Server Authentication
+
+The authenticator uses Ed25519 public-key cryptography for S2S authentication:
+
+### Handshake Flow
+
+```
+Communication Server                    Authenticator
+       │                                      │
+       │    ───────── WebSocket Connect ─────▶│
+       │                                      │
+       │◀───── Challenge (nonce) ─────────────│
+       │                                      │
+       │    Sign nonce with private key       │
+       │                                      │
+       │    ───── Response (signature) ───────▶│
+       │                                      │
+       │         Verify signature              │
+       │    using public key for server_id    │
+       │                                      │
+       │◀─────── Authenticated ───────────────│
+       │                                      │
+```
+
+### S2S Auth Components
+
+- **Challenge**: Random nonce generated by authenticator
+- **Response**: Signature of nonce using connecting server's private key
+- **Verification**: Authenticator verifies signature using stored public key
+- **Timeout**: 8 seconds to complete handshake
+
+## Data Structures
+
+### Login Card
+
+```javascript
+{
+    m_session_id: "unique_session_id",
+    m_data: {
+        m_sid: "encrypted_session_id",
+        m_accountName: "user@example.com",
+        m_actorType: "GCS" | "AGENT",
+        m_group: "group_id",
+        m_permissions: "permission_mask"
+    }
+}
+```
+
+### S2S Auth Challenge
+
+```javascript
+{
+    s2s_auth: "challenge",
+    nonce: "random_hex_string"
+}
+```
+
+### S2S Auth Response
+
+```javascript
+{
+    s2s_auth: "response",
+    server_id: "ServerName",
+    signature: "base64_signature"
+}
+```
+
+## Error Handling
+
+### Common Errors
+
+| Error Code | Constant | Description |
+|------------|---------|-------------|
+| 0 | `CONST_ERROR_NON` | Success |
+| 1 | `CONST_ERROR_NO_PERMISSION` | Insufficient permissions |
+| 2 | `CONST_ERROR_SERVER_NOT_AVAILABLE` | No communication server available |
+| 3 | `CONST_ERROR_SESSION_NOT_FOUND` | Invalid session ID |
+
+### Validation Errors
+
+All requests are validated by `js_input_validator.js` before processing:
+- Field normalization (trim, case conversion)
+- Required field checks
+- Format validation (email, session ID format)
+- Permission validation
+
+## Security Considerations
+
+- Session IDs are encrypted
+- Access codes are generated with permissions
+- S2S authentication uses Ed25519 cryptography
+- Hardware verification for agent devices
+- Version checking to prevent outdated clients
+- Rate limiting on authentication endpoints
+
+## Related Documentation
+
+- [Database Schema](DatabaseSchema.md)
+- [API Endpoints](APIEndpoints.md)
+- [Configuration](Configuration.md)
+- [S2S Authentication](../andruav_server/wiki/S2SAuthentication.md)

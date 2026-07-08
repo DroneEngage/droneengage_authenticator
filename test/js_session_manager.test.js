@@ -16,7 +16,7 @@ const c_CONSTANTS = require("../js_constants");
 describe("js_session_manager", () => {
     before(() => {
         global.m_serverconfig.m_configuration.account_storage_type = "file";
-        global.m_serverconfig.m_configuration.db_users = path.join("test", "fixtures", "db_users.test.db");
+        global.m_serverconfig.m_configuration.db_users = path.join(__dirname, "fixtures", "db_users.test.db");
     });
 
     it("creates a login card for valid file-backed credentials", async () => {

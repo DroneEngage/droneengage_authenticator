@@ -70,9 +70,11 @@ function fn_startExpressServer ()
     let v_https = require('https');
     let v_fs = require('fs');
     console.log (global.Colors.Log + "READING " + global.m_serverconfig.m_configuration.ssl_key_file + global.Colors.Reset);
-    let v_keyFile = v_fs.readFileSync(v_path.join(__dirname, global.m_serverconfig.m_configuration.ssl_key_file));
+    let v_keyPath = v_path.isAbsolute(global.m_serverconfig.m_configuration.ssl_key_file) ? global.m_serverconfig.m_configuration.ssl_key_file : v_path.join(__dirname, global.m_serverconfig.m_configuration.ssl_key_file);
+    let v_keyFile = v_fs.readFileSync(v_keyPath);
     console.log (global.Colors.Log + "READING " + global.m_serverconfig.m_configuration.ssl_cert_file + global.Colors.Reset);
-    let v_certFile = v_fs.readFileSync(v_path.join(__dirname, global.m_serverconfig.m_configuration.ssl_cert_file));
+    let v_certPath = v_path.isAbsolute(global.m_serverconfig.m_configuration.ssl_cert_file) ? global.m_serverconfig.m_configuration.ssl_cert_file : v_path.join(__dirname, global.m_serverconfig.m_configuration.ssl_cert_file);
+    let v_certFile = v_fs.readFileSync(v_certPath);
     let v_options = {
         key: v_keyFile,
         cert: v_certFile

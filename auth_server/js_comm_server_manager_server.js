@@ -148,9 +148,11 @@ function fn_sendMessage(p_conn_guid, p_message) {
  */
 function fn_startWebSocketListener() {
     const app = express();
+    const v_keyPath = path.isAbsolute(global.m_serverconfig.m_configuration.ssl_key_file) ? global.m_serverconfig.m_configuration.ssl_key_file : path.join(__dirname, "../" + global.m_serverconfig.m_configuration.ssl_key_file);
+    const v_certPath = path.isAbsolute(global.m_serverconfig.m_configuration.ssl_cert_file) ? global.m_serverconfig.m_configuration.ssl_cert_file : path.join(__dirname, "../" + global.m_serverconfig.m_configuration.ssl_cert_file);
     const options = {
-        key: fs.readFileSync(path.join(__dirname, "../" + global.m_serverconfig.m_configuration.ssl_key_file)),
-        cert: fs.readFileSync(path.join(__dirname, "../" + global.m_serverconfig.m_configuration.ssl_cert_file))
+        key: fs.readFileSync(v_keyPath),
+        cert: fs.readFileSync(v_certPath)
     };
 
     const wserver = https.createServer(options, app);

@@ -91,6 +91,28 @@ function isEmail(str) {
     return (str.match(/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,4})+$/i) != null);
 }
 
+/**
+ * Validate admin username (3-50 chars, alphanumeric or email format)
+ * @param {string} username - The username to validate
+ * @returns {boolean} - True if valid
+ */
+function isValidAdminUsername(username) {
+    if (username == null) return false;
+    if (username.length < 3 || username.length > 50) return false;
+    return isAlphanumeric(username) || isEmail(username);
+}
+
+/**
+ * Validate admin password (8-128 chars, no whitespace)
+ * @param {string} password - The password to validate
+ * @returns {boolean} - True if valid
+ */
+function isValidAdminPassword(password) {
+    if (password == null) return false;
+    if (password.length < 8 || password.length > 128) return false;
+    return !/\s/.test(password);
+}
+
 module.exports = {
     replaceAll,
     protectedFromInjection,
@@ -99,5 +121,7 @@ module.exports = {
     isVersionFormat,
     isAlphanumericSentence,
     isOnlyAlphanumeric,
-    isEmail
+    isEmail,
+    isValidAdminUsername,
+    isValidAdminPassword
 };

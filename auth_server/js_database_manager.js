@@ -91,9 +91,9 @@ function fn_do_loginAccount (p_accountName, p_accessCode, fn_callback)
     c_reply[global.c_CONSTANTS.CONST_ERROR_MSG.toString()] = "Database Error";
                 
             
-    if ((p_accountName == null) || (!hlp_validation.isEmail(p_accountName)))
+    if ((p_accountName == null) || (!hlp_string.fn_isValidAccountName(p_accountName)))
     {
-        // null or not valid email
+        // null or not valid login name
         if (fn_callback != null)
         {
             fn_callback(c_reply);
@@ -242,11 +242,11 @@ function fn_createSubLogin(p_accountName, p_newAccessCode, p_permission, fn_call
 
     if ((p_accountName == null) || (!hlp_string.fn_isValidAccountName(p_accountName)))
     {
-        // null or not valid email
+        // null or not valid login name
         if (fn_callback != null)
         {
             c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_INVALID_DATA;
-            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG.toString()] = "Bad Email";
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG.toString()] = "Bad LoginName";
             fn_callback(c_reply);
         }
         return ;
@@ -302,13 +302,13 @@ function fn_createNewAccessCode (p_accountName, p_newAccessCode, fn_callback, p_
 {
     const c_reply = {};
     
-    if ((p_accountName == null) || (!hlp_string.fn_isEmail(p_accountName)))
+    if ((p_accountName == null) || (!hlp_string.fn_isValidAccountName(p_accountName)))
     {
-        // null or not alphanumeric
+        // null or not valid login name
         if (fn_callback != null)
         {
             c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_INVALID_DATA;
-            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG.toString()] = "Bad Email";
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG.toString()] = "Bad LoginName";
             fn_callback(c_reply);
         }
         return ;
@@ -376,13 +376,13 @@ function fn_deleteSubLogins (p_accountName, p_permission, fn_callback)
 {
     const c_reply = {};
     
-    if ((p_accountName == null) || (!hlp_string.fn_isEmail(p_accountName)))
+    if ((p_accountName == null) || (!hlp_string.fn_isValidAccountName(p_accountName)))
     {
-        // null or not alphanumeric
+        // null or not valid login name
         if (fn_callback != null)
         {
             c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_INVALID_DATA;
-            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG.toString()] = "Bad Email";
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG.toString()] = "Bad LoginName";
             fn_callback(c_reply);
         }
         return ;

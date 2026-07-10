@@ -2,6 +2,28 @@
 const v_router = require('./js_router');
 
 const C = global.c_CONSTANTS;
+
+// Simple in-memory rate limiter
+const rateLimitMap = new Map();
+const RATE_LIMIT_WINDOW = 60000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 10; // Max 10 requests per minute per IP
+
+function fn_checkRateLimit(ip) {
+    const now = Date.now();
+    const windowStart = now - RATE_LIMIT_WINDOW;
+    
+    let requests = rateLimitMap.get(ip) || [];
+    // Remove requests outside the window
+    requests = requests.filter(timestamp => timestamp > windowStart);
+    
+    if (requests.length >= RATE_LIMIT_MAX_REQUESTS) {
+        return false;
+    }
+    
+    requests.push(now);
+    rateLimitMap.set(ip, requests);
+    return true;
+}
         
 
 /**
@@ -12,6 +34,27 @@ v_router.m_Router.post(C.CONST_AGENT_FUNCTION + C.CONST_AGENT_LOGIN_COMMAND, fun
     try
     {
         console.log ("debug ... " + C.CONST_AGENT_LOGIN_COMMAND + " called");
+
+        // Rate limiting check
+        const clientIp = v_req.ip || v_req.connection.remoteAddress;
+        if (!fn_checkRateLimit(clientIp)) {
+            v_response.status(429).json({
+                [C.CONST_ERROR]: C.CONST_ERROR_UNKNOWN,
+                [C.CONST_ERROR_MSG]: 'Too many requests. Please try again later.',
+                [C.CONST_COMMAND]: C.CONST_AGENT_LOGIN_COMMAND
+            });
+            return;
+        }
+
+        // Content-Type validation
+        if (!v_req.is('application/json')) {
+            v_response.status(400).json({
+                [C.CONST_ERROR]: C.CONST_ERROR_UNKNOWN,
+                [C.CONST_ERROR_MSG]: 'Invalid Content-Type. Expected application/json.',
+                [C.CONST_COMMAND]: C.CONST_AGENT_LOGIN_COMMAND
+            });
+            return;
+        }
 
         //https://github.com/expressjs/express/issues/3264
         Object.setPrototypeOf(v_req.body, {});
@@ -28,6 +71,26 @@ v_router.m_Router.post(C.CONST_AGENT_FUNCTION + C.CONST_AGENT_LOGIN_COMMAND, fun
         if (c_body.hasOwnProperty (C.CONST_ACCESS_CODE_PARAMETER) === false)
         {
             v_router.fn_errorPage (v_response);
+            return;
+        }
+
+        // Input length validation
+        const accountName = c_body[C.CONST_ACCOUNT_NAME_PARAMETER];
+        const accessCode = c_body[C.CONST_ACCESS_CODE_PARAMETER];
+        if (typeof accountName === 'string' && accountName.length > 255) {
+            v_response.status(400).json({
+                [C.CONST_ERROR]: C.CONST_ERROR_UNKNOWN,
+                [C.CONST_ERROR_MSG]: 'Account name too long. Maximum 255 characters.',
+                [C.CONST_COMMAND]: C.CONST_AGENT_LOGIN_COMMAND
+            });
+            return;
+        }
+        if (typeof accessCode === 'string' && accessCode.length > 128) {
+            v_response.status(400).json({
+                [C.CONST_ERROR]: C.CONST_ERROR_UNKNOWN,
+                [C.CONST_ERROR_MSG]: 'Access code too long. Maximum 128 characters.',
+                [C.CONST_COMMAND]: C.CONST_AGENT_LOGIN_COMMAND
+            });
             return;
         }
         if (c_body.hasOwnProperty (C.CONST_APP_GROUP_PARAMETER) === false)

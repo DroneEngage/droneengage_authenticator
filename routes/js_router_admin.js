@@ -5,6 +5,8 @@ const router = express.Router();
 const session = require('express-session');
 const rateLimit = require('express-rate-limit');
 const csrf = require('csurf');
+const helmet = require('helmet');
+const { isValidAdminUsername, isValidAdminPassword } = require('../helpers/hlp_validation');
 
 // Configure session
 router.use(session({
@@ -14,7 +16,24 @@ router.use(session({
     cookie: {
         secure: true, // HTTPS only
         httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        maxAge: 2 * 60 * 60 * 1000 // 2 hours
+    }
+}));
+
+// Configure Content Security Policy
+router.use(helmet.contentSecurityPolicy({
+    directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:"],
+        fontSrc: ["'self'"],
+        connectSrc: ["'self'"],
+        frameSrc: ["'none'"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        frameAncestors: ["'none'"]
     }
 }));
 
@@ -24,6 +43,38 @@ const loginLimiter = rateLimit({
     max: 5, // 5 attempts per window
     message: { error: 'Too many login attempts, please try again later' }
 });
+
+// Account lockout tracking
+const failedAttempts = new Map(); // key: "ip:username", value: { count, lastAttempt }
+
+function isAccountLocked(ip, username) {
+    const key = `${ip}:${username}`;
+    const record = failedAttempts.get(key);
+    if (!record) return false;
+    
+    const lockoutDuration = 30 * 60 * 1000; // 30 minutes
+    const timeSinceLastAttempt = Date.now() - record.lastAttempt;
+    
+    if (timeSinceLastAttempt > lockoutDuration) {
+        failedAttempts.delete(key);
+        return false;
+    }
+    
+    return record.count >= 5;
+}
+
+function recordFailedAttempt(ip, username) {
+    const key = `${ip}:${username}`;
+    const record = failedAttempts.get(key) || { count: 0, lastAttempt: 0 };
+    record.count++;
+    record.lastAttempt = Date.now();
+    failedAttempts.set(key, record);
+}
+
+function clearFailedAttempts(ip, username) {
+    const key = `${ip}:${username}`;
+    failedAttempts.delete(key);
+}
 
 // CSRF protection
 const csrfProtection = csrf({ cookie: true });
@@ -50,12 +101,34 @@ router.get('/login', csrfProtection, (req, res) => {
 router.post('/login', loginLimiter, csrfProtection, (req, res) => {
     const { username, password } = req.body;
     const config = global.m_serverconfig.m_configuration;
+    const clientIp = req.ip || req.connection.remoteAddress;
+
+    // Input validation
+    if (!isValidAdminUsername(username)) {
+        req.session.error = 'Invalid username format';
+        return res.redirect('/admin/login');
+    }
+
+    if (!isValidAdminPassword(password)) {
+        req.session.error = 'Invalid password format';
+        return res.redirect('/admin/login');
+    }
+
+    // Check account lockout
+    if (isAccountLocked(clientIp, username)) {
+        req.session.error = 'Account temporarily locked due to too many failed attempts. Please try again later.';
+        return res.redirect('/admin/login');
+    }
 
     if (username === config.admin_username && password === config.admin_password) {
+        // Successful login - clear failed attempts
+        clearFailedAttempts(clientIp, username);
         req.session.adminAuthenticated = true;
         req.session.adminUsername = username;
         return res.redirect('/admin/dashboard');
     } else {
+        // Failed login - record attempt
+        recordFailedAttempt(clientIp, username);
         req.session.error = 'Invalid username or password';
         return res.redirect('/admin/login');
     }

@@ -54,7 +54,7 @@
                         <thead>
                             <tr>
                                 <th>LoginID</th>
-                                <th>AccountID</th>
+                                <th>TeamID</th>
                                 <th>AccessCode</th>
                                 <th>Permissions</th>
                                 <th>Is Admin</th>
@@ -85,7 +85,7 @@
                             <input type="text" class="form-control" id="loginId" name="loginId" required>
                         </div>
                         <div class="mb-3">
-                            <label for="sid" class="form-label">AccountID</label>
+                            <label for="sid" class="form-label">TeamID</label>
                             <input type="number" class="form-control" id="sid" name="sid" required>
                         </div>
                         <div class="mb-3">
@@ -141,8 +141,8 @@
 
             // Apply LoginID filter
             if (filterText) {
-                filteredUsers = filteredUsers.filter(([email, user]) =>
-                    email.toLowerCase().includes(filterText)
+                filteredUsers = filteredUsers.filter(([loginID, user]) =>
+                    loginID.toLowerCase().includes(filterText)
                 );
             }
 
@@ -151,19 +151,19 @@
                 return;
             }
 
-            // Sort by SID (AccountID)
+            // Sort by SID (TeamID)
             filteredUsers.sort((a, b) => a[1].sid - b[1].sid);
 
-            tbody.innerHTML = filteredUsers.map(([email, user]) => `
+            tbody.innerHTML = filteredUsers.map(([loginID, user]) => `
                 <tr>
-                    <td>${email}</td>
+                    <td>${loginID}</td>
                     <td>${user.sid}</td>
                     <td>${user.AccessCode || user.pwd || 'N/A'}</td>
                     <td>${user.prm}</td>
                     <td>${user.isadmin ? '<span class="badge bg-success">Yes</span>' : '<span class="badge bg-secondary">No</span>'}</td>
                     <td>
-                        <button class="btn btn-sm btn-primary me-1" onclick="editUser('${email}')">Edit</button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteUser('${email}')">Delete</button>
+                        <button class="btn btn-sm btn-primary me-1" onclick="editUser('${loginID}')">Edit</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteUser('${loginID}')">Delete</button>
                     </td>
                 </tr>
             `).join('');
@@ -182,36 +182,36 @@
             title.textContent = 'Add New User';
         }
 
-        function editUser(email) {
+        function editUser(loginID) {
             const form = document.getElementById('userForm');
             const title = document.getElementById('modalTitle');
 
             form.reset();
-            document.getElementById('editLoginId').value = email;
-            document.getElementById('loginId').value = email;
-            document.getElementById('sid').value = users[email].sid;
-            document.getElementById('accessCodeDisplay').textContent = users[email].AccessCode || 'N/A';
-            document.getElementById('prm').value = users[email].prm;
-            document.getElementById('isadmin').checked = users[email].isadmin;
+            document.getElementById('editLoginId').value = loginID;
+            document.getElementById('loginId').value = loginID;
+            document.getElementById('sid').value = users[loginID].sid;
+            document.getElementById('accessCodeDisplay').textContent = users[loginID].AccessCode || 'N/A';
+            document.getElementById('prm').value = users[loginID].prm;
+            document.getElementById('isadmin').checked = users[loginID].isadmin;
             document.getElementById('loginId').disabled = true;
             title.textContent = 'Edit User';
 
             userModal.show();
         }
 
-        async function deleteUser(email) {
-            if (!confirm(`Are you sure you want to delete user ${email}?`)) {
+        async function deleteUser(loginID) {
+            if (!confirm(`Are you sure you want to delete user ${loginID}?`)) {
                 return;
             }
 
             try {
-                const response = await fetch(`/admin/api/users/${encodeURIComponent(email)}`, {
+                const response = await fetch(`/admin/api/users/${encodeURIComponent(loginID)}`, {
                     method: 'DELETE'
                 });
                 const data = await response.json();
 
                 if (data.error === 0) {
-                    delete users[email];
+                    delete users[loginID];
                     renderUsers();
                 } else {
                     alert('Error deleting user: ' + (data.errorMessage || 'Unknown error'));

@@ -15,16 +15,27 @@
         }
         .server-card {
             border-left: 4px solid #27ae60;
+            cursor: pointer;
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+        }
+        .server-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,0.1);
         }
         .server-card.offline {
             border-left-color: #e74c3c;
         }
-        .user-tag {
-            background: #667eea;
-            color: white;
-            padding: 0.25rem 0.5rem;
-            border-radius: 15px;
-            font-size: 0.8rem;
+        .server-card.selected {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        .connected-users-table {
+            font-size: 0.85rem;
+            table-layout: fixed;
+            width: 100%;
+        }
+        .connected-users-table td {
+            overflow-wrap: break-word;
         }
     </style>
 </head>
@@ -52,7 +63,7 @@
         </div>
     </nav>
 
-    <div class="container mt-4">
+    <div class="container-fluid mt-4">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Communication Servers</h5>
@@ -62,18 +73,43 @@
                 <div class="row" id="serverGrid">
                     <div class="col-12 text-center">Loading servers...</div>
                 </div>
+                <div class="row mt-4" id="userPanel">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0" id="userPanelTitle">Connected Users</h5>
+                            </div>
+                            <div class="card-body" id="userPanelBody">
+                                <p class="text-muted text-center mb-0">Select a server to view connected users</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <script src="/public/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script>
+        let m_servers = [];
+        let m_selectedServerId = null;
+
         async function loadServers() {
             try {
                 const response = await fetch('/admin/api/servers');
                 const data = await response.json();
-                const servers = data.servers || [];
-                renderServers(servers);
+                m_servers = data.servers || [];
+                renderServers(m_servers);
+
+                if (m_selectedServerId) {
+                    const selectedServer = m_servers.find(s => s.serverId === m_selectedServerId);
+                    if (selectedServer) {
+                        selectServer(m_selectedServerId);
+                    } else {
+                        m_selectedServerId = null;
+                        renderUserPanel(null);
+                    }
+                }
             } catch (error) {
                 console.error('Error loading servers:', error);
                 document.getElementById('serverGrid').innerHTML = '<div class="col-12 text-center text-danger">Error loading servers</div>';
@@ -88,12 +124,14 @@
                 return;
             }
 
-            grid.innerHTML = servers.map(server => `
+            grid.innerHTML = servers.map(server => {
+                const serverId = server.serverId || 'unknown';
+                return `
                 <div class="col-md-6 col-lg-4 mb-4">
-                    <div class="card server-card ${server.isOnline ? '' : 'offline'}">
+                    <div class="card server-card ${server.isOnline ? '' : 'offline'} ${serverId === m_selectedServerId ? 'selected' : ''}" data-server-id="${encodeURIComponent(serverId)}">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h6 class="card-title mb-0">${server.serverId || 'Unknown'}</h6>
+                                <h6 class="card-title mb-0">${serverId}</h6>
                                 <span class="badge ${server.isOnline ? 'bg-success' : 'bg-danger'}">
                                     ${server.isOnline ? 'Online' : 'Offline'}
                                 </span>
@@ -101,18 +139,91 @@
                             <p class="card-text mb-1"><strong>Public IP:</strong> ${server.public_host || 'N/A'}</p>
                             <p class="card-text mb-1"><strong>Port:</strong> ${server.serverPort || 'N/A'}</p>
                             <p class="card-text mb-1"><strong>Version:</strong> ${server.version || 'N/A'}</p>
-                            <hr>
-                            <p class="card-text mb-2"><strong>Connected Users (${server.accounts ? server.accounts.length : 0})</strong></p>
-                            <div class="d-flex flex-wrap gap-1">
-                                ${server.accounts && server.accounts.length > 0
-                                    ? server.accounts.map(account => `<span class="user-tag">${account.substring(0, 8)}...</span>`).join('')
-                                    : '<span class="text-muted small">No connected users</span>'
-                                }
-                            </div>
                         </div>
                     </div>
                 </div>
+                `;
+            }).join('');
+
+            attachServerCardListeners();
+        }
+
+        function attachServerCardListeners() {
+            document.querySelectorAll('.server-card').forEach(card => {
+                card.addEventListener('click', function() {
+                    const serverId = decodeURIComponent(this.dataset.serverId);
+                    selectServer(serverId);
+                });
+            });
+        }
+
+        function selectServer(serverId) {
+            m_selectedServerId = serverId;
+            const server = m_servers.find(s => s.serverId === serverId);
+            if (!server) return;
+
+            document.querySelectorAll('.server-card').forEach(card => {
+                const cardServerId = decodeURIComponent(card.dataset.serverId);
+                card.classList.toggle('selected', cardServerId === serverId);
+            });
+
+            renderUserPanel(server);
+        }
+
+        function renderUserPanel(server) {
+            const title = document.getElementById('userPanelTitle');
+            const body = document.getElementById('userPanelBody');
+
+            if (!server) {
+                title.textContent = 'Connected Users';
+                body.innerHTML = '<p class="text-muted text-center mb-0">Select a server to view connected users</p>';
+                return;
+            }
+
+            const users = server.accounts || [];
+            title.textContent = `Connected Users (${users.length}) - ${server.serverId || 'Unknown'}`;
+
+            if (users.length === 0) {
+                body.innerHTML = '<p class="text-muted text-center mb-0">No connected users</p>';
+                return;
+            }
+
+            function getActorTypeLabel(actorType) {
+                switch (actorType) {
+                    case 'g': return 'GCS';
+                    case 'd': return 'Agent';
+                    case 'a': return 'Admin';
+                    default: return 'Unknown';
+                }
+            }
+
+            const rows = users.map(account => `
+                <tr>
+                    <td>${account.loginId || 'Unknown'}</td>
+                    <td>
+                        ${account.accountId}
+                        <br><small class="text-muted">${account.hashedAccountId}</small>
+                    </td>
+                    <td>${account.unitName || 'N/A'}</td>
+                    <td>${getActorTypeLabel(account.actorType)}</td>
+                </tr>
             `).join('');
+
+            body.innerHTML = `
+                <table class="table table-striped table-bordered connected-users-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th>LoginID</th>
+                            <th>AccountID</th>
+                            <th>Unit</th>
+                            <th>Type</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows}
+                    </tbody>
+                </table>
+            `;
         }
 
         loadServers();

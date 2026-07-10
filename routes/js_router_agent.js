@@ -46,11 +46,11 @@ v_router.m_Router.post(C.CONST_AGENT_FUNCTION + C.CONST_AGENT_LOGIN_COMMAND, fun
             return;
         }
 
-        // Content-Type validation
-        if (!v_req.is('application/json')) {
+        // Content-Type validation (accept JSON and form-urlencoded for backward compatibility)
+        if (!v_req.is('application/json') && !v_req.is('application/x-www-form-urlencoded')) {
             v_response.status(400).json({
                 [C.CONST_ERROR]: C.CONST_ERROR_UNKNOWN,
-                [C.CONST_ERROR_MSG]: 'Invalid Content-Type. Expected application/json.',
+                [C.CONST_ERROR_MSG]: 'Invalid Content-Type. Expected application/json or application/x-www-form-urlencoded.',
                 [C.CONST_COMMAND]: C.CONST_AGENT_LOGIN_COMMAND
             });
             return;

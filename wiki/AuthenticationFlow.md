@@ -268,6 +268,7 @@ All requests are validated by `js_input_validator.js` before processing:
 - Hardware verification for agent devices
 - Version checking to prevent outdated clients
 - Rate limiting on authentication endpoints
+- Temporary login keys expire after 10 seconds
 
 ## Related Documentation
 

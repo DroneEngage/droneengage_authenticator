@@ -24,7 +24,7 @@ router.use(session({
 router.use(helmet.contentSecurityPolicy({
     directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:"],
         fontSrc: ["'self'"],
@@ -289,16 +289,56 @@ router.delete('/api/users/:email', requireAuth, async (req, res) => {
 router.get('/api/servers', requireAuth, (req, res) => {
     try {
         const commServerManager = require('../auth_server/js_comm_server_manager');
+        const sessionManager = require('../auth_server/js_session_manager');
         const serversList = commServerManager.getCommunicationServersList();
 
-        const servers = Object.values(serversList).map(serverInfo => ({
-            serverId: serverInfo.m_server.m_serverId,
-            isOnline: serverInfo.m_server.m_isOnline,
-            public_host: serverInfo.m_server.m_serverPublicIP,
-            serverPort: serverInfo.m_server.m_serverPort,
-            version: serverInfo.m_server.m_version,
-            accounts: serverInfo.m_server.m_accounts || []
-        }));
+        const servers = Object.values(serversList).map(serverInfo => {
+            const rawAccounts = serverInfo.m_server.m_accounts || serverInfo.m_server.accounts || [];
+            const accountDetails = serverInfo.m_server.m_accountDetails || serverInfo.m_server.accountDetails || {};
+            const accounts = [];
+
+            rawAccounts.forEach(accountId => {
+                const loginCards = sessionManager.fn_getLoginCardsByAccountId(accountId);
+                const loginCard = loginCards.length > 0 ? loginCards[0] : null;
+                const loginName = loginCard ? loginCard.m_login_name : 'Unknown';
+                const originalAccountId = (loginCard && loginCard.m_data && loginCard.m_data.m_sid != null)
+                    ? loginCard.m_data.m_sid
+                    : accountId.replace(/xx$/, '');
+
+                const unitDetails = accountDetails[accountId] || [];
+                if (unitDetails.length === 0) {
+                    accounts.push({
+                        accountId: originalAccountId,
+                        hashedAccountId: accountId,
+                        loginId: loginName,
+                        unitName: null,
+                        actorType: 'a'
+                    });
+                } else {
+                    unitDetails.forEach(unit => {
+                        const unitInfo = (typeof unit === 'string')
+                            ? { unitName: unit, actorType: 'a' }
+                            : unit;
+                        accounts.push({
+                            accountId: originalAccountId,
+                            hashedAccountId: accountId,
+                            loginId: loginName,
+                            unitName: unitInfo.unitName,
+                            actorType: unitInfo.actorType || 'a'
+                        });
+                    });
+                }
+            });
+
+            return {
+                serverId: serverInfo.m_server.m_serverId,
+                isOnline: serverInfo.m_server.m_isOnline,
+                public_host: serverInfo.m_server.m_serverPublicIP,
+                serverPort: serverInfo.m_server.m_serverPort,
+                version: serverInfo.m_server.m_version,
+                accounts: accounts
+            };
+        });
 
         res.json({ error: 0, servers });
     } catch (error) {

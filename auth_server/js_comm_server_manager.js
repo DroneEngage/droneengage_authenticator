@@ -183,6 +183,7 @@ function fn_handleServerInfo (p_cmd)
                 v_msg.m_serverPublicIP      = p_server.public_host;
                 v_msg.m_serverPort          = p_server.serverPort;
                 v_msg.m_accounts            = p_server.accounts;
+                v_msg.m_accountDetails      = p_server.accountDetails;
                 v_msg.m_commServerGUID      = p_cmd.m_commServerGUID;
 
         p_server.m_commServerGUID = p_cmd.m_commServerGUID;

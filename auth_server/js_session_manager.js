@@ -92,11 +92,15 @@ function fn_createLoginCard (p_accountName, p_accessCode, p_actorType, p_group, 
             p_reply.m_timestamp = new Date();
             p_reply.m_data.m_prm = c_permission.fn_convertPermissiontoInt('0xffffffff'); // single account should have all permissions.
             p_reply.m_data.m_permission ='D1G1T3R4V5C6';
+            p_reply.m_data.m_sid = '1';
             p_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_NON;
             p_reply[global.c_CONSTANTS.CONST_CS_GROUP_ID.toString()] = p_group;
             p_reply.m_actorType = p_actorType;
             p_reply.m_session_id     = fn_generateSessionID();
+            // The single account mode has no real account DB, so it uses a fixed account ID of '1'.
+            // fn_generateSenderID('1') produces "1xx" as the shared hashed account ID.
             p_reply.m_acc_id_hashed  = fn_generateSenderID('1');
+            p_reply.m_login_name     = p_accountName;
             m_loginCardList[p_reply.m_session_id] = p_reply;
             fn_callback (p_reply);
             
@@ -132,11 +136,13 @@ function fn_createLoginCard (p_accountName, p_accessCode, p_actorType, p_group, 
             p_reply.m_timestamp = new Date();
             p_reply.m_data.m_prm = c_permission.fn_convertPermissiontoInt(account_record.prm); 
             p_reply.m_data.m_permission ='D1G1T3R4V5C6';
+            p_reply.m_data.m_sid = account_record.sid;
             p_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_NON;
             p_reply[global.c_CONSTANTS.CONST_CS_GROUP_ID.toString()] = p_group;
             p_reply.m_actorType = p_actorType;
             p_reply.m_session_id     = fn_generateSessionID();
             p_reply.m_acc_id_hashed  = fn_generateSenderID(account_record.sid);
+            p_reply.m_login_name     = p_accountName;
             m_loginCardList[p_reply.m_session_id] = p_reply;
             fn_callback (p_reply);
                 
@@ -163,6 +169,7 @@ function fn_createLoginCard (p_accountName, p_accessCode, p_actorType, p_group, 
                     p_reply.m_actorType = p_actorType;
                     p_reply.m_session_id     = fn_generateSessionID();
                     p_reply.m_acc_id_hashed  = fn_generateSenderID(p_reply.m_data.m_sid);
+                    p_reply.m_login_name     = p_accountName;
                     m_loginCardList[p_reply.m_session_id] = p_reply;
                     fn_callback (p_reply);
                 }
@@ -205,6 +212,24 @@ function fn_getLoginCardBySessionID (p_sessionID)
     return m_loginCardList[p_sessionID];
 }
 
+function fn_getLoginCardsByAccountId (p_accountId)
+{
+    const c_cards = [];
+    const c_keys = Object.keys(m_loginCardList);
+    const c_len = c_keys.length;
+
+    for (let i=0; i< c_len; ++i)
+    {
+        const c_loginCard = m_loginCardList[c_keys[i]];
+        if (c_loginCard.m_acc_id_hashed === p_accountId)
+        {
+            c_cards.push(c_loginCard);
+        }
+    }
+
+    return c_cards;
+}
+
 function fn_deleteOldCard (p_sessionID)
 {
     if (p_sessionID in m_loginCardList) {
@@ -221,5 +246,6 @@ module.exports =
     fn_isGCS: fn_isGCS,
     fn_isAGN: fn_isAGN,
     fn_getLoginCardBySessionID: fn_getLoginCardBySessionID,
+    fn_getLoginCardsByAccountId: fn_getLoginCardsByAccountId,
     fn_deleteOldCard: fn_deleteOldCard,
 }

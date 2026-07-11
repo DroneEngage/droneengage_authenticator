@@ -14,3 +14,4 @@ db_*.db
 
 db_users.db
 *.code-workspace
+database/database.db

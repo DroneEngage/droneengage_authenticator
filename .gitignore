@@ -12,5 +12,5 @@ server.home.config
 db_*.db
 *.old
 
-
+db_users.db
 *.code-workspace

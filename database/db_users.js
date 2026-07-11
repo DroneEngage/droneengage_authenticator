@@ -198,6 +198,8 @@ class db_user {
 
         let c_reply = {};
         c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_NON;
+        c_reply[global.c_CONSTANTS.CONST_ACCOUNT_ID_PARAMETER.toString()] = teamID;
+        c_reply[global.c_CONSTANTS.CONST_LOGIN_ID_PARAMETER.toString()] = loginID;
         if (fn_callback) fn_callback(c_reply);
     }
 
@@ -275,6 +277,8 @@ class db_user {
 
         let c_reply = {};
         c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_NON;
+        c_reply[global.c_CONSTANTS.CONST_ACCOUNT_ID_PARAMETER.toString()] = existingLogin.TeamID;
+        c_reply[global.c_CONSTANTS.CONST_LOGIN_ID_PARAMETER.toString()] = existingLogin.LoginID;
         if (fn_callback) fn_callback(c_reply);
     }
 

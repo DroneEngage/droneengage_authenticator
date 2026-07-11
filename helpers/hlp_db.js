@@ -48,10 +48,10 @@ function fn_insertOrDelete_w_Params (p_db,p_sql,paramlist,fn_successcallback,fn_
 {
 	p_db.run(p_sql, paramlist, function(err, res) {
 		if (err) {
-			if (fn_errorcallback != null) fn_errorcallback(err, null);
+			if (fn_errorcallback != null) fn_errorcallback(err, { lastID: this ? this.lastID : null, changes: this ? this.changes : 0 });
 			return;
 		}
-		if (fn_successcallback != null) fn_successcallback(null, res);
+		if (fn_successcallback != null) fn_successcallback(null, { lastID: this.lastID, changes: this.changes });
 	});
 }
 

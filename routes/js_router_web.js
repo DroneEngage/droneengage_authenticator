@@ -9,6 +9,10 @@ const rateLimitMap = new Map();
 const RATE_LIMIT_WINDOW = 60000; // 1 minute
 const RATE_LIMIT_MAX_REQUESTS = 10; // Max 10 requests per minute per IP
 
+const accountRateLimitMap = new Map();
+const ACCOUNT_RATE_LIMIT_WINDOW = 60000; // 1 minute
+const ACCOUNT_RATE_LIMIT_MAX_REQUESTS = 3; // Max 3 account-management requests per minute per IP
+
 function fn_checkRateLimit(ip) {
     const now = Date.now();
     const windowStart = now - RATE_LIMIT_WINDOW;
@@ -23,6 +27,23 @@ function fn_checkRateLimit(ip) {
     
     requests.push(now);
     rateLimitMap.set(ip, requests);
+    return true;
+}
+
+function fn_checkAccountRateLimit(ip) {
+    const now = Date.now();
+    const windowStart = now - ACCOUNT_RATE_LIMIT_WINDOW;
+
+    let requests = accountRateLimitMap.get(ip) || [];
+    // Remove requests outside the window
+    requests = requests.filter(timestamp => timestamp > windowStart);
+
+    if (requests.length >= ACCOUNT_RATE_LIMIT_MAX_REQUESTS) {
+        return false;
+    }
+
+    requests.push(now);
+    accountRateLimitMap.set(ip, requests);
     return true;
 }
 
@@ -142,6 +163,17 @@ v_router.m_Router.post(C.CONST_WEB_FUNCTION + C.CONST_ACCOUNT_MANAGMENT, functio
 
     try {
         console.log("debug ... " + C.CONST_ACCOUNT_MANAGMENT + " called");
+
+        // Rate limiting check
+        const clientIp = v_req.ip || v_req.connection.remoteAddress;
+        if (!fn_checkAccountRateLimit(clientIp)) {
+            v_response.status(429).json({
+                [C.CONST_ERROR]: C.CONST_ERROR_UNKNOWN,
+                [C.CONST_ERROR_MSG]: 'Too many requests. Please try again later.',
+                [C.CONST_COMMAND]: C.CONST_ACCOUNT_MANAGMENT
+            });
+            return;
+        }
 
         //https://github.com/expressjs/express/issues/3264
         Object.setPrototypeOf(v_req.body, {});

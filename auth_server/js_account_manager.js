@@ -42,7 +42,8 @@ function fn_createAccessCode(p_accountName, p_permission, fn_callback, p_loginCa
             function (p_reply) {
 
                 if (p_reply[global.c_CONSTANTS.CONST_ERROR.toString()] != global.c_CONSTANTS.CONST_ERROR_NON) {
-
+                    fn_callback(p_reply);
+                    return;
                 }
                 else {
                     // Create sub login account that is used by andruav for actual login. 

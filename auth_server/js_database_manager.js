@@ -264,32 +264,50 @@ function fn_createSubLogin(p_accountName, p_newAccessCode, p_permission, fn_call
         }
         return ;
     }
-    
-    const c_sql = "INSERT INTO `logins`(`TeamID`, `AccessCode`, `Permissions`) select teams.TeamID, ?,? from teams where teams.TeamName=?";
-    
-    console.log ("prv_do_createSubLogin: " + c_sql);
-    
-    
-    hlp_db.fn_genericInsert_w_Params (m_db,c_sql, [hlp_string.fn_protectedFromInjection(p_newAccessCode), hlp_string.fn_protectedFromInjection(p_permission), hlp_string.fn_protectedFromInjection(p_accountName)],
-		function (err,res) 
-		{
-            const c_reply = {};
-         
-            if (res && res.changes == 0)
-            {
-                // account not found
-                c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Database Error.";
-                c_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
+
+    // Look up the team for this account name.
+    const c_team_sql = "SELECT `TeamID` FROM `teams` WHERE `TeamName` = ?";
+    hlp_db.fn_genericSelect_w_Params(m_db, c_team_sql, [hlp_string.fn_protectedFromInjection(p_accountName)],
+        function(rows) {
+            if (!rows || rows.length === 0) {
+                c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] = "Account Not Found.";
+                c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
+                fn_callback(c_reply);
+                return;
             }
-            else
-            {
-                c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_NON;
-            }
-            fn_callback (c_reply);
+
+            const v_teamId = rows[0]['TeamID'];
+            const c_sql = "INSERT INTO `logins`(`TeamID`, `LoginName`, `AccessCode`, `Permissions`) VALUES (?, ?, ?, ?)";
+
+            console.log ("prv_do_createSubLogin: " + c_sql);
+
+            hlp_db.fn_genericInsert_w_Params (m_db, c_sql, [v_teamId, hlp_string.fn_protectedFromInjection(p_accountName), hlp_string.fn_protectedFromInjection(p_newAccessCode), hlp_string.fn_protectedFromInjection(p_permission)],
+                function (err,res)
+                {
+                    const c_reply = {};
+
+                    if (res && res.changes == 0)
+                    {
+                        // account not found
+                        c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Database Error.";
+                        c_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
+                    }
+                    else
+                    {
+                        c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_NON;
+                        c_reply[global.c_CONSTANTS.CONST_ACCOUNT_ID_PARAMETER.toString()] = v_teamId;
+                        c_reply[global.c_CONSTANTS.CONST_LOGIN_ID_PARAMETER.toString()] = res ? res.lastID : null;
+                    }
+                    fn_callback (c_reply);
+                },
+                function (p_err)
+                {
+                    fn_callback (p_err);
+                });
         },
         function (p_err)
         {
-            fn_callback (p_err);
+            fn_callback(p_err);
         });
 }
 
@@ -344,13 +362,13 @@ function fn_createNewAccessCode (p_accountName, p_newAccessCode, fn_callback, p_
         return ;
 
     }
-    const c_sql = "INSERT INTO `teams` (`TeamID`, `TeamName`)  VALUES (NULL,?)";
-    
-    hlp_db.fn_genericInsert_w_Params (m_db,c_sql, [hlp_string.fn_protectedFromInjection(p_accountName), hlp_string.fn_protectedFromInjection(p_newAccessCode)],
-		function () 
+    const c_sql = "INSERT INTO `teams` (`TeamID`, `TeamName`)  VALUES (NULL, ?)";
+
+    hlp_db.fn_genericInsert_w_Params (m_db, c_sql, [hlp_string.fn_protectedFromInjection(p_accountName)],
+		function (err, res)
 		{
-			
 			c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_NON;
+            c_reply[global.c_CONSTANTS.CONST_ACCOUNT_ID_PARAMETER.toString()] = res ? res.lastID : null;
             fn_callback (c_reply);
 		},
 		function (err)

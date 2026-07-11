@@ -189,23 +189,18 @@ function fn_getAccountNameByAccessCode(p_accessCode, fn_callback) {
  * @param {*} fn_callback call back to http response.
  */
 function fn_do_verifyHardwareByAccountSID(p_accountSID, p_hardwareID, p_hardwareType, fn_callback) {
+    // Skip hardware validation if config is not explicitly false
+    if (global.m_serverconfig.m_configuration.skip_hardware_validation !== false) {
+        const c_reply = {};
+        c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_NON;
+        fn_callback(c_reply);
+        return;
+    }
+
     v_database_manager.fn_do_getHardwareVerifyByAccountSID(p_accountSID,
         function (p_reply) {
 
             if (p_reply[global.c_CONSTANTS.CONST_ERROR.toString()] != global.c_CONSTANTS.CONST_ERROR_NON) {
-                /**
-                 * exits if no validation is required however we still go to database as we may need to 
-                 * store HW for future restrictions.
-                 */
-                if (global.m_serverconfig.m_configuration.skip_hardware_validation === true) {
-                    // skip hardware validation
-                    const c_reply = {};
-                    c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_NON;
-
-                    fn_callback(c_reply);
-                    return;
-                }
-
                 // No Data or Error
                 fn_callback(p_reply);
             }
@@ -213,15 +208,6 @@ function fn_do_verifyHardwareByAccountSID(p_accountSID, p_hardwareID, p_hardware
                 // Search if HW required exists in the return list.
                 const m_hwIDKeys = Object.keys(p_reply.m_data.m_hwID);
                 const m_len = m_hwIDKeys.length;
-
-                if (global.m_serverconfig.m_configuration.skip_hardware_validation === true) {
-                    // skip hardware validation
-                    const c_reply = {};
-                    c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_NON;
-
-                    fn_callback(c_reply);
-                    return;
-                }
 
                 for (let i = 0; i < m_len; ++i) {
                     const c_key = m_hwIDKeys[i];

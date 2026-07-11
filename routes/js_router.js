@@ -41,7 +41,8 @@ function fn_create(app) {
 
     // Catch-all for unmatched routes
     app.use((v_req, v_res, next) => {
-        const isApiRequest = v_req.originalUrl.startsWith(global.c_CONSTANTS.CONST_WEB_FUNCTION);
+        const isApiRequest = v_req.originalUrl.startsWith(global.c_CONSTANTS.CONST_WEB_FUNCTION)
+            || v_req.originalUrl.startsWith(global.c_CONSTANTS.CONST_AGENT_FUNCTION);
         fn_errorPage(v_res, isApiRequest);
     });
 }

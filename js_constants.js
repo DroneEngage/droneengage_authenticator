@@ -102,6 +102,8 @@ exports.CONST_ERROR_NO_PERMISSION               = 6;
 exports.CONST_ERROR_SESSION_NOT_FOUND           = 7;  // a relogin might be required.
 exports.CONST_ERROR_HARDWARE_NOT_FOUND          = 8;  
 exports.CONST_ERROR_ACCOUNT_DISABLED            = 9;  
+exports.CONST_ERROR_NOT_FOUND                   = 10;  
+exports.CONST_ERROR_UNKNOWN                     = 999;  
 exports.CONST_ERROR_DATA_UNKNOWN_ERROR          = 999;  
 
 

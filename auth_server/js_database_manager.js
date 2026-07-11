@@ -449,7 +449,6 @@ function fn_do_getHardwareVerifyByAccountSID (p_accountSID, fn_callback)
     
     
     const c_sql = "select team_hardware.HardwareSID, team_hardware.HardwareID, team_hardware.HardwareType, team_hardware.RegisteredAt from team_hardware  WHERE team_hardware.TeamID=? ";
-    console.log ("REMOVE ME:" + c_sql);
     hlp_db.fn_genericSelect_w_Params (m_db, c_sql,[p_accountSID],
     function (rows) {
         if ((rows == null) || (rows.length == 0))

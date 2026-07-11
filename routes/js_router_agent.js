@@ -65,12 +65,12 @@ v_router.m_Router.post(C.CONST_AGENT_FUNCTION + C.CONST_AGENT_LOGIN_COMMAND, fun
         // extract parameter values from header... no verification check here.
         if (c_body.hasOwnProperty (C.CONST_ACCOUNT_NAME_PARAMETER) === false)
         {
-            v_router.fn_errorPage (v_response);
+            v_router.fn_errorPage (v_response, true);
             return;
         }
         if (c_body.hasOwnProperty (C.CONST_ACCESS_CODE_PARAMETER) === false)
         {
-            v_router.fn_errorPage (v_response);
+            v_router.fn_errorPage (v_response, true);
             return;
         }
 
@@ -95,22 +95,22 @@ v_router.m_Router.post(C.CONST_AGENT_FUNCTION + C.CONST_AGENT_LOGIN_COMMAND, fun
         }
         if (c_body.hasOwnProperty (C.CONST_APP_GROUP_PARAMETER) === false)
         {
-            v_router.fn_errorPage (v_response);
+            v_router.fn_errorPage (v_response, true);
             return;
         }
         if (c_body.hasOwnProperty (C.CONST_APP_NAME_PARAMETER) === false)
         {
-            v_router.fn_errorPage (v_response);
+            v_router.fn_errorPage (v_response, true);
             return;
         }
         if (c_body.hasOwnProperty (C.CONST_APP_VER_PARAMETER) === false)
         {
-            v_router.fn_errorPage (v_response);
+            v_router.fn_errorPage (v_response, true);
             return;
         }
         if (c_body.hasOwnProperty (C.CONST_EXTRA_PARAMETER) === false)
         {
-            v_router.fn_errorPage (v_response);
+            v_router.fn_errorPage (v_response, true);
             return;
         }
         
@@ -146,12 +146,12 @@ v_router.m_Router.post(C.CONST_AGENT_FUNCTION + C.CONST_AGENT_LOGIN_COMMAND, fun
             },
             function ()
             {
-                v_router.fn_errorPage (v_response);
+                v_router.fn_errorPage (v_response, true);
             });
     }
     catch (ex)
     {
-        v_router.fn_errorPage (v_response);
+        v_router.fn_errorPage (v_response, true);
     }
 
 });
@@ -171,28 +171,28 @@ v_router.m_Router.post(C.CONST_AGENT_FUNCTION + C.CONST_AGENT_ACCOUNT_MANAGMENT,
         const c_body = v_req.body;
         if (c_body.hasOwnProperty (C.CONST_SUB_COMMAND) === false)
         {
-            v_router.fn_errorPage (v_response);
+            v_router.fn_errorPage (v_response, true);
             return;
         }
         if ((c_body.hasOwnProperty (C.CONST_ACCOUNT_NAME_PARAMETER) === false)
         && (c_body.hasOwnProperty (C.CONST_ACCESS_CODE_PARAMETER) === false))
         {
-            v_router.fn_errorPage (v_response);
+            v_router.fn_errorPage (v_response, true);
             return;
         }
         if (c_body.hasOwnProperty (C.CONST_APP_NAME_PARAMETER) === false)
         {
-            v_router.fn_errorPage (v_response);
+            v_router.fn_errorPage (v_response, true);
             return;
         }
         if (c_body.hasOwnProperty (C.CONST_APP_VER_PARAMETER) === false)
         {
-            v_router.fn_errorPage (v_response);
+            v_router.fn_errorPage (v_response, true);
             return;
         }
         if (c_body.hasOwnProperty (C.CONST_EXTRA_PARAMETER) === false)
         {
-            v_router.fn_errorPage (v_response);
+            v_router.fn_errorPage (v_response, true);
             return;
         }
         
@@ -215,13 +215,13 @@ v_router.m_Router.post(C.CONST_AGENT_FUNCTION + C.CONST_AGENT_ACCOUNT_MANAGMENT,
             },
             function ()
             {
-                v_router.fn_errorPage (v_response);
+                v_router.fn_errorPage (v_response, true);
             }
         );
     }
     catch (ex)
     {
-        v_router.fn_errorPage (v_response);
+        v_router.fn_errorPage (v_response, true);
     }
 
 });
@@ -245,18 +245,18 @@ v_router.m_Router.post(C.CONST_AGENT_FUNCTION + C.CONST_AGENT_HARDWARE_MANAGMENT
         const c_body = v_req.body;
         if (c_body.hasOwnProperty (C.CONST_SUB_COMMAND) === false)
         {
-            v_router.fn_errorPage (v_response);
+            v_router.fn_errorPage (v_response, true);
             return;
         }
         if ((c_body.hasOwnProperty (C.CONST_HARDWARE_ID) === false)
         && (c_body.hasOwnProperty (C.CONST_HARDWARE_TYPE) === false))
         {
-            v_router.fn_errorPage (v_response);
+            v_router.fn_errorPage (v_response, true);
             return;
         }
         if (c_body.hasOwnProperty (C.CONST_SESSION_ID) === false)
         {
-            v_router.fn_errorPage (v_response);
+            v_router.fn_errorPage (v_response, true);
             return;
         }
                 
@@ -277,13 +277,13 @@ v_router.m_Router.post(C.CONST_AGENT_FUNCTION + C.CONST_AGENT_HARDWARE_MANAGMENT
             },
             function ()
             {
-                v_router.fn_errorPage (v_response);
+                v_router.fn_errorPage (v_response, true);
             }
         );
     }
     catch (ex)
     {
-        v_router.fn_errorPage (v_response);
+        v_router.fn_errorPage (v_response, true);
     }
 
 });

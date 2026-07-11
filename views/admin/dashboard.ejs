@@ -6,17 +6,49 @@
     <title><%= title %></title>
     <link href="/public/bootstrap/css/bootstrap.min.css" rel="stylesheet">
     <style>
+        body {
+            background: #212529;
+            color: #f8f9fa;
+        }
         .navbar-custom {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #343a40;
         }
         .navbar-custom .navbar-brand,
         .navbar-custom .nav-link {
-            color: white !important;
+            color: #f8f9fa !important;
+        }
+        .card {
+            background: #2c3034;
+            border: 1px solid #495057;
+        }
+        .card-title {
+            color: #e9ecef;
+        }
+        .card-body strong {
+            color: #f8f9fa;
         }
         .stat-value {
             font-size: 2.5rem;
             font-weight: bold;
-            color: #667eea;
+            color: #0d6efd;
+        }
+        .text-muted {
+            color: #adb5bd !important;
+        }
+        .btn-primary {
+            background: #0d6efd;
+            border: none;
+        }
+        .btn-primary:hover {
+            background: #0b5ed7;
+        }
+        .btn-outline-light {
+            border-color: #f8f9fa;
+            color: #f8f9fa;
+        }
+        .btn-outline-light:hover {
+            background: #f8f9fa;
+            color: #212529;
         }
     </style>
 </head>

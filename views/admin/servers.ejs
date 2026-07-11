@@ -6,28 +6,52 @@
     <title><%= title %></title>
     <link href="/public/bootstrap/css/bootstrap.min.css" rel="stylesheet">
     <style>
+        body {
+            background: #212529;
+            color: #f8f9fa;
+        }
         .navbar-custom {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #343a40;
         }
         .navbar-custom .navbar-brand,
         .navbar-custom .nav-link {
-            color: white !important;
+            color: #f8f9fa !important;
+        }
+        .card {
+            background: #2c3034;
+            border: 1px solid #495057;
+        }
+        .card-header {
+            background: #2c3034;
+            border-bottom: 1px solid #495057;
+            color: #f8f9fa;
+        }
+        .card-header h5,
+        .card-header h6 {
+            color: #f8f9fa;
         }
         .server-card {
-            border-left: 4px solid #27ae60;
+            border-left: 4px solid #198754;
             cursor: pointer;
             transition: transform 0.1s ease, box-shadow 0.1s ease;
+            background: #2c3034;
         }
         .server-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,0.1);
+            box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,0.5);
         }
         .server-card.offline {
-            border-left-color: #e74c3c;
+            border-left-color: #dc3545;
         }
         .server-card.selected {
-            border-color: #667eea;
-            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+            border-color: #0d6efd;
+            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+        }
+        .card-title {
+            color: #e9ecef;
+        }
+        .card-text {
+            color: #adb5bd;
         }
         .connected-users-table {
             font-size: 0.85rem;
@@ -36,6 +60,37 @@
         }
         .connected-users-table td {
             overflow-wrap: break-word;
+        }
+        .table-light {
+            background: #2c3034;
+            color: #f8f9fa;
+        }
+        .table {
+            color: #f8f9fa;
+            border-color: #495057;
+        }
+        .table > :not(caption) > * > * {
+            background-color: transparent;
+            color: #f8f9fa;
+            border-color: #495057;
+        }
+        .text-muted {
+            color: #adb5bd !important;
+        }
+        .btn-primary {
+            background: #0d6efd;
+            border: none;
+        }
+        .btn-primary:hover {
+            background: #0b5ed7;
+        }
+        .btn-outline-light {
+            border-color: #f8f9fa;
+            color: #f8f9fa;
+        }
+        .btn-outline-light:hover {
+            background: #f8f9fa;
+            color: #212529;
         }
     </style>
 </head>
@@ -131,14 +186,14 @@
                     <div class="card server-card ${server.isOnline ? '' : 'offline'} ${serverId === m_selectedServerId ? 'selected' : ''}" data-server-id="${encodeURIComponent(serverId)}">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h6 class="card-title mb-0">${serverId}</h6>
+                                <h6 class="card-title mb-0 text-warning">${serverId}</h6>
                                 <span class="badge ${server.isOnline ? 'bg-success' : 'bg-danger'}">
                                     ${server.isOnline ? 'Online' : 'Offline'}
                                 </span>
                             </div>
-                            <p class="card-text mb-1"><strong>Public IP:</strong> ${server.public_host || 'N/A'}</p>
-                            <p class="card-text mb-1"><strong>Port:</strong> ${server.serverPort || 'N/A'}</p>
-                            <p class="card-text mb-1"><strong>Version:</strong> ${server.version || 'N/A'}</p>
+                            <p class="card-text mb-1 text-primary"><strong>Public IP:</strong> ${server.public_host || 'N/A'}</p>
+                            <p class="card-text mb-1 text-primary"><strong>Port:</strong> ${server.serverPort || 'N/A'}</p>
+                            <p class="card-text mb-1 text-white"><strong>Version:</strong> ${server.version || 'N/A'}</p>
                         </div>
                     </div>
                 </div>

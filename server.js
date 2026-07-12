@@ -125,6 +125,11 @@ function fn_startViewsServer ()
 
     //settings
     const webadminPort = global.m_serverconfig.m_configuration.webadmin_port || 19409;
+    const webadminIP = global.m_serverconfig.m_configuration.webadmin_listening_ip;
+    if (!webadminIP) {
+        console.log (global.Colors.BError + "FATAL ERROR:" + global.Colors.FgYellow + " webadmin_listening_ip " +  global.Colors.Reset + " is not specified in config file. ");
+        process.exit(0);
+    }
     c_app.set('port', webadminPort);
     c_app.set('views', v_path.join(__dirname, 'views'));
     
@@ -154,11 +159,11 @@ function fn_startViewsServer ()
     };
 
     // start listening
-    v_https.createServer(v_options, c_app).listen(c_app.get('port'));
+    v_https.createServer(v_options, c_app).listen(c_app.get('port'), webadminIP);
 
     console.log (global.Colors.Success + "[OK] Views Server Started" + global.Colors.Reset);
     const protocol = global.m_serverconfig.m_configuration.enable_SSL ? 'https' : 'http';
-    const host = global.m_serverconfig.m_configuration.server_ip === '0.0.0.0' ? 'localhost' : global.m_serverconfig.m_configuration.server_ip;
+    const host = webadminIP;
     const port = webadminPort;
     const baseUrl = `${protocol}://${host}:${port}`;
 
@@ -288,7 +293,9 @@ function fn_start ()
 
     // load express servers
 	fn_startApiServer();
-	fn_startViewsServer();
+	if (global.m_serverconfig.m_configuration.webadmin_enable) {
+	    fn_startViewsServer();
+	}
 
 }
 

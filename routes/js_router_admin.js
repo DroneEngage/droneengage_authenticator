@@ -195,14 +195,16 @@ router.get('/api/users', requireAuth, async (req, res) => {
 // API: Create user
 router.post('/api/users', requireAuth, async (req, res) => {
     try {
-        const { email, sid, prm, isadmin } = req.body;
+        const { email, sid, prm, isadmin, accessCode } = req.body;
 
         if (!email || !sid || !prm) {
             return res.json({ error: 1, errorMessage: 'Missing required fields' });
         }
 
         const { v4: uuidv4 } = require('uuid');
-        const generatedAccessCode = uuidv4().replaceAll('-', '').substr(0, 12);
+        const generatedAccessCode = (accessCode && accessCode.trim() !== '')
+            ? accessCode.trim()
+            : uuidv4().replaceAll('-', '').substr(0, 12);
 
         // Use global.db_users instead of creating new instance
         const db = global.db_users;
@@ -211,17 +213,20 @@ router.post('/api/users', requireAuth, async (req, res) => {
         const existingUser = db.fn_get_record(email);
 
         if (existingUser) {
-            // User exists, update instead - don't regenerate AccessCode
-            await db.fn_update_record(email, { sid, AccessCode: existingUser.AccessCode, prm, isadmin: isadmin || false }, (reply) => {
+            // User exists, update instead - preserve existing AccessCode unless one is provided
+            const finalAccessCode = (accessCode && accessCode.trim() !== '')
+                ? accessCode.trim()
+                : existingUser.AccessCode;
+            await db.fn_update_record(email, { sid, AccessCode: finalAccessCode, prm, isadmin: isadmin || false }, (reply) => {
                 const errorCode = reply[global.c_CONSTANTS.CONST_ERROR.toString()];
                 if (errorCode === global.c_CONSTANTS.CONST_ERROR_NON) {
-                    res.json({ error: 0, AccessCode: existingUser.AccessCode });
+                    res.json({ error: 0, AccessCode: finalAccessCode });
                 } else {
                     res.json({ error: errorCode, errorMessage: reply[global.c_CONSTANTS.CONST_ERROR_MSG.toString()] || 'Failed to update user' });
                 }
             });
         } else {
-            // New user, add record with auto-generated AccessCode
+            // New user, add record with provided or auto-generated AccessCode
             await db.fn_add_record(email, { sid, AccessCode: generatedAccessCode, prm, isadmin: isadmin || false }, (reply) => {
                 const errorCode = reply[global.c_CONSTANTS.CONST_ERROR.toString()];
                 if (errorCode === global.c_CONSTANTS.CONST_ERROR_NON) {
@@ -241,7 +246,7 @@ router.post('/api/users', requireAuth, async (req, res) => {
 router.put('/api/users/:email', requireAuth, async (req, res) => {
     try {
         const { email } = req.params;
-        const { sid, prm, isadmin } = req.body;
+        const { sid, prm, isadmin, accessCode } = req.body;
 
         if (!sid || !prm) {
             return res.json({ error: 1, errorMessage: 'Missing required fields' });
@@ -250,16 +255,20 @@ router.put('/api/users/:email', requireAuth, async (req, res) => {
         // Use global.db_users instead of creating new instance
         const db = global.db_users;
 
-        // Get existing user to preserve AccessCode
+        // Get existing user to preserve AccessCode unless one is provided
         const existingUser = db.fn_get_record(email);
         if (!existingUser) {
             return res.json({ error: 1, errorMessage: 'User not found' });
         }
 
-        await db.fn_update_record(email, { sid, AccessCode: existingUser.AccessCode, prm, isadmin: isadmin || false }, (reply) => {
+        const finalAccessCode = (accessCode && accessCode.trim() !== '')
+            ? accessCode.trim()
+            : existingUser.AccessCode;
+
+        await db.fn_update_record(email, { sid, AccessCode: finalAccessCode, prm, isadmin: isadmin || false }, (reply) => {
             const errorCode = reply[global.c_CONSTANTS.CONST_ERROR.toString()];
             if (errorCode === global.c_CONSTANTS.CONST_ERROR_NON) {
-                res.json({ error: 0, AccessCode: existingUser.AccessCode });
+                res.json({ error: 0, AccessCode: finalAccessCode });
             } else {
                 res.json({ error: errorCode, errorMessage: reply[global.c_CONSTANTS.CONST_ERROR_MSG.toString()] || 'Failed to update user' });
             }

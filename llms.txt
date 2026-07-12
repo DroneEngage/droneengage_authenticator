@@ -1,0 +1,116 @@
+# DroneEngage Authenticator
+
+## Project Summary
+DroneEngage Authenticator is the central authentication and authorization server for the DroneEngage/Andruav drone management ecosystem. It handles user registration, vehicle registration, authentication token generation, and assigns users/vehicles to communication servers using Ed25519 cryptographic authentication for server-to-server communication.
+
+## Tech Stack
+- **Runtime**: Node.js >= 18
+- **Web Framework**: Express.js
+- **Database**: SQLite3 with migration support
+- **Authentication**: Custom token-based + Ed25519 S2S authentication
+- **Real-time**: WebSocket (ws library)
+- **Templates**: EJS with express-ejs-layouts
+- **Security**: Helmet, CORS, CSRF protection, express-rate-limit
+
+## Architecture
+Three independent servers running simultaneously:
+1. **API Server** (port 19408): REST API for authentication
+2. **Views Server** (port 8089): Admin web interface with EJS templating
+3. **S2S WebSocket Server** (port 19001): Server-to-Server communication with Ed25519 auth
+
+## Key Files
+- `server.js` - Main entry point, spawns all three servers
+- `server.config` - JSON configuration (supports --config override)
+- `package.json` - Dependencies and scripts
+- `auth_server/js_auth_server.js` - Main auth server controller
+- `auth_server/js_account_manager.js` - User account CRUD operations
+- `auth_server/js_comm_server_manager.js` - Communication server management
+- `auth_server/js_session_manager.js` - Session/token management
+- `auth_server/js_s2s_auth.js` - Server-to-Server Ed25519 authentication
+- `auth_server/js_database_manager.js` - Database operations layer
+- `routes/js_router.js` - Main router setup
+- `routes/js_router_admin.js` - Admin interface routes
+- `routes/js_router_agent.js` - Agent/drone routes
+- `routes/js_router_web.js` - Web client routes
+- `database/db_users.js` - User database operations
+- `database/migrations/` - SQL migration files
+- `js_constants.js` - API endpoints, error codes, message types
+
+## Configuration
+Configuration is centralized in `server.config` (JSON format). Key sections:
+- Server identity (server_id, server_ip, server_port)
+- Account storage (single/file/db modes)
+- S2S authentication (trusted Ed25519 public keys)
+- SSL/TLS certificates
+- Admin interface credentials
+- Logging configuration
+
+## Coding Standards
+- Use `global.m_logger` for logging (if enabled)
+- All inputs must pass `auth_server/js_input_validator.js`
+- Use `auth_server/js_database_manager.js` for all DB operations
+- Use `auth_server/js_session_manager.js` for token operations
+- Reuse utilities in `helpers/` directory
+- Several modules attached to `global` for easy access
+- Error handling: check `global.m_logger` existence before use
+
+## Authentication Flow
+1. User registration → access code generation → email (unless ignoreEmail)
+2. User login → session token generation → client uses token
+3. S2S: WebSocket connection → Ed25519 challenge → signature verification → connection established
+
+## API Endpoints
+- Authentication: `/api/login`, `/api/register`, `/api/logout`, `/api/verify`
+- S2S: `/api/s2s/register`, `/api/s2s/servers`, WebSocket `/s2s`
+- Admin: `/admin/dashboard`, `/admin/servers`, `/admin/users`
+- Agent: `/agent/register`, `/agent/authenticate`, `/agent/servers`
+
+## Database Schema
+SQLite database with tables:
+- `users` (id, username, email, password_hash, access_code, created_at)
+- `comm_servers` (id, server_id, ip_address, port, public_key, registered_at)
+
+## Security Features
+- Helmet.js for HTTP security headers
+- CORS configuration
+- CSRF protection
+- Rate limiting on API endpoints
+- SSL/TLS for all connections
+- Ed25519 cryptographic S2S authentication
+- Secure password hashing
+- Configurable session secrets
+
+## Development
+```bash
+npm install
+cp server.config server.config.local
+# Edit server.config.local
+mkdir -p ssl
+openssl req -x509 -newkey rsa:4096 -keyout ssl/domain.key -out ssl/domain.crt -days 365 -nodes
+npm start
+```
+
+## Testing
+```bash
+npm test
+node --test test/js_session_manager.test.js
+```
+
+## S2S Key Generation
+```bash
+cd scripts
+./gen_s2s_keys.sh <server_id>
+```
+
+## Related Projects
+- droneengage_communication - Communication server
+- droneengage_server - Main DroneEngage server
+- droneengage_webclient_react - React web client
+- droneengage_mavlink - MAVLink integration
+
+## Documentation
+- README.md - User-facing documentation
+- wiki/ - Detailed documentation (AuthenticationFlow, DatabaseSchema, APIEndpoints, Configuration, S2SAuthentication)
+
+## Version
+5.0.0

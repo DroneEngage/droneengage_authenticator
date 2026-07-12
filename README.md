@@ -258,9 +258,6 @@ See [wiki/S2SAuthentication.md](wiki/S2SAuthentication.md) for complete guide.
 
 Contributions are welcome! Please read the contributing guidelines before submitting PRs.
 
-## License
-
-[License information here]
 
 ## Support
 

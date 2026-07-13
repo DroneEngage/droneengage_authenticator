@@ -3,10 +3,12 @@
 # Generates an Ed25519 key pair used for Server-to-Server (S2S) authentication.
 #
 # Usage:
+#   Generate keys private & public to be used with s2s_auth_enabled (Server to Server Authentication)
+#   Choose CommunicationServer Name as a param
 #   ./scripts/gen_s2s_keys.sh <server_id>
 #
 # Example:
-#   ./scripts/gen_s2s_keys.sh AndruavLap
+#   ./scripts/gen_s2s_keys.sh DE_CommSrv
 #
 # Output (written to current directory, which is git-ignored):
 #   <server_id>_private.pem   - PRIVATE key. Keep secret. Required by the server
@@ -24,9 +26,9 @@
 set -e
 
 if [ -z "$1" ]; then
-    echo "Error: comm_server_id argument is required"
-    echo "Usage: $0 <server_id>"
-    echo "Example: $0 AndruavLap"
+    echo "Generate keys private & public to be used with s2s_auth_enabled (Server to Server Authentication)"
+    echo "Choose CommunicationServer Name as a param"
+    echo "e.g. $0 DE_CommSrv"
     exit 1
 fi
 

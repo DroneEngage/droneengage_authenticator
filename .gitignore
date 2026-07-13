@@ -7,7 +7,7 @@ logs/
 .vscode
 checks.json
 server.home.config
-*.pem
+
 
 db_*.db
 *.old

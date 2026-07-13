@@ -188,13 +188,30 @@ function fn_displayInfo ()
     console.log ("==============================================");
     console.log (global.Colors.Bright + "DE Authentication Server version " +  JSON.stringify(v_pjson.version) + global.Colors.Reset);
     console.log ("----------------------------------");
-    console.log ("Server Name  " + global.Colors.BSuccess + global.m_serverconfig.m_configuration.server_id + global.Colors.Reset);
-    console.log ("listening on ip: " + global.Colors.BSuccess +  global.m_serverconfig.m_configuration.server_ip + global.Colors.Reset + " port: " + global.Colors.BSuccess + global.m_serverconfig.m_configuration.server_port + global.Colors.Reset);
-    console.log ("S2S WS ip: "  + global.Colors.BSuccess +  global.m_serverconfig.m_configuration.s2s_ws_listening_ip  + global.Colors.Reset + " port: " + global.Colors.BSuccess + global.m_serverconfig.m_configuration.s2s_ws_listening_port + global.Colors.Reset);
-    
+    console.log (global.Colors.Log + "Server Name  " + global.Colors.BSuccess + global.m_serverconfig.m_configuration.server_id + global.Colors.Reset);
+    console.log (global.Colors.Log + "listening on ip: " + global.Colors.BSuccess +  global.m_serverconfig.m_configuration.server_ip + global.Colors.Log + " port: " + global.Colors.BSuccess + global.m_serverconfig.m_configuration.server_port + global.Colors.Reset);
+    console.log (global.Colors.Log + "S2S WS ip: "  + global.Colors.BSuccess +  global.m_serverconfig.m_configuration.s2s_ws_listening_ip  + global.Colors.Log +  " port: " + global.Colors.BSuccess + global.m_serverconfig.m_configuration.s2s_ws_listening_port + global.Colors.Reset);
+
+    console.log (global.Colors.Log + "S2S Auth: " +  (global.m_serverconfig.m_configuration.s2s_auth_enabled ? global.Colors.BSuccess + 'enabled' : global.Colors.BFgYellow + 'disabled') + global.Colors.Reset);
+    if (global.m_serverconfig.m_configuration.s2s_auth_enabled === true)
+    {
+        if (!global.m_serverconfig.m_configuration.s2s_trusted_server_keys || 
+            Object.keys(global.m_serverconfig.m_configuration.s2s_trusted_server_keys).length === 0)
+        {
+            console.log (global.Colors.BError + "FATAL ERROR:" + global.Colors.BFgYellow + " s2s_auth_enabled is true but s2s_trusted_server_keys is not configured or empty." + global.Colors.Reset);
+            process.exit(1);
+        }
+        console.log (global.Colors.Log + "Trusted S2S Servers:" + global.Colors.Reset);
+        for (const serverId in global.m_serverconfig.m_configuration.s2s_trusted_server_keys)
+        {
+            const keyPath = global.m_serverconfig.m_configuration.s2s_trusted_server_keys[serverId];
+            console.log ("  - " + global.Colors.BSuccess + serverId + global.Colors.Reset + " : " + keyPath);
+        }
+    }
+
     if (global.m_serverconfig.m_configuration.enableLog!==true)
     {
-        console.log ("logging is " + global.Colors.FgYellow + 'disabled' + global.Colors.Reset);
+        console.log (global.Colors.Log + "logging is " + global.Colors.FgYellow + 'disabled' + global.Colors.Reset);
     }
     else
     {

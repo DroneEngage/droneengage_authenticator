@@ -11,6 +11,7 @@ const m_communicationServersList  = {};
 const m_waitingForServerLogin = {};
 let m_bestServer = null;
 let Me = this;
+const v_sessionManager = require("./js_session_manager");
 
 
 
@@ -279,6 +280,47 @@ function fn_handleLoginResponses (p_cmd)
 
 
 /**
+ * Handles logout notification from communication server when a unit's WebSocket connection is terminated.
+ * This function removes the session from the auth server's active session list.
+ * @param {decrypted raw command} p_cmd 
+ */
+function fn_handleLogoutNotification (p_cmd)
+{
+    try
+    {
+        const c_senderID = p_cmd.d[global.c_CONSTANTS.CONST_CS_SENDER_ID.toString()];
+        
+        if (c_senderID == null)
+        {
+            console.log ("err:fn_handleLogoutNotification: missing senderID");
+            return;
+        }
+
+        // Find all sessions associated with this senderID and delete them
+        const c_loginCards = v_sessionManager.fn_getLoginCardsByAccountId(c_senderID);
+        
+        if (c_loginCards != null && c_loginCards.length > 0)
+        {
+            for (let i = 0; i < c_loginCards.length; ++i)
+            {
+                const c_sessionID = c_loginCards[i].m_session_id;
+                v_sessionManager.fn_deleteOldCard(c_sessionID);
+                console.log ("[INFO] Session removed for senderID: " + c_senderID + " sessionID: " + c_sessionID);
+            }
+        }
+        else
+        {
+            console.log ("[INFO] No active sessions found for senderID: " + c_senderID);
+        }
+    }
+    catch (ex)
+    {
+        console.log ("err:fn_handleLogoutNotification:" + ex);
+    }
+}
+
+
+/**
  * Handles communication servers all messages.
  * @param {a GUID identifies connection instance. this refers to websocket client in case of using websockets.} p_conn_GUID 
  * @param {raw encrypted message from communication servers} p_msg 
@@ -302,6 +344,10 @@ function fn_commServerMessageHandler (p_conn_GUID,p_msg)
         else if (p_cmd.c === global.c_CONSTANTS.CONST_CS_CMD_LOGIN_REQUEST)
         {   // send as reply to LOGIN REQUEST
             fn_handleLoginResponses (p_cmd);
+        }
+        else if (p_cmd.c === global.c_CONSTANTS.CONST_CS_CMD_LOGOUT_REQUEST)
+        {   // handle logout notification from commServer
+            fn_handleLogoutNotification (p_cmd);
         }
     }
     catch (ex)

@@ -33,7 +33,7 @@ The main dashboard displays:
 
 Statistics auto-refresh every 30 seconds.
 
-![Admin Dashboard](https://raw.githubusercontent.com/HefnySco/andruav_authenticator/main/wiki/images/_new_dashboard_authweb.png)
+![Admin Dashboard](https://raw.githubusercontent.com/DroneEngage/droneengage_authenticator/refs/heads/release/wiki/images/_new_dashboard_authweb.png)
 
 ### User Management
 
@@ -72,7 +72,7 @@ The "Servers" page provides real-time monitoring of communication servers:
 
 Servers auto-refresh every 30 seconds. Click on a server card to view its connected users.
 
-![Server Status](https://raw.githubusercontent.com/HefnySco/andruav_authenticator/main/wiki/images/_new_airgap_auth_site.png)
+![Server Status](https://raw.githubusercontent.com/DroneEngage/droneengage_authenticator/refs/heads/release/wiki/images/_new_airgap_auth_site.png)
 
 ## Configuration
 

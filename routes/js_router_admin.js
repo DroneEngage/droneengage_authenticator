@@ -14,7 +14,7 @@ router.use(session({
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: true, // HTTPS only
+        secure: global.m_serverconfig.m_configuration.enable_SSL || false, // HTTPS only when SSL enabled
         httpOnly: true,
         maxAge: 2 * 60 * 60 * 1000 // 2 hours
     }
@@ -345,7 +345,8 @@ router.get('/api/servers', requireAuth, (req, res) => {
                 public_host: serverInfo.m_server.m_serverPublicIP,
                 serverPort: serverInfo.m_server.m_serverPort,
                 version: serverInfo.m_server.m_version,
-                accounts: accounts
+                accounts: accounts,
+                storageStatus: serverInfo.m_server.m_storageStatus || null
             };
         });
 

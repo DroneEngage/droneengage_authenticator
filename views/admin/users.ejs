@@ -102,6 +102,15 @@
                     <li class="nav-item">
                         <a class="nav-link" href="/admin/dashboard">Dashboard</a>
                     </li>
+                    <% if (accountStorageType === 'file' || accountStorageType === 'single') { %>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/admin/users">Users</a>
+                    </li>
+                    <% } else if (accountStorageType === 'db') { %>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/sql-management">Teams & Logins</a>
+                    </li>
+                    <% } %>
                     <li class="nav-item">
                         <a class="nav-link" href="/admin/servers">Servers</a>
                     </li>

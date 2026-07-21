@@ -167,17 +167,9 @@
                     const usersData = await usersResponse.json();
                     document.getElementById('totalUsers').textContent = usersData.users ? Object.keys(usersData.users).length : 0;
                 } else if ('<%= accountStorageType %>' === 'db') {
-                    const teamsResponse = await fetch('/admin/api/sql/teams');
-                    const teamsData = await teamsResponse.json();
-                    let totalLogins = 0;
-                    if (teamsData.teams) {
-                        teamsData.teams.forEach(team => {
-                            if (team.logins) {
-                                totalLogins += team.logins.length;
-                            }
-                        });
-                    }
-                    document.getElementById('totalUsers').textContent = totalLogins;
+                    const statsResponse = await fetch('/admin/api/sql/stats');
+                    const statsData = await statsResponse.json();
+                    document.getElementById('totalUsers').textContent = statsData.totalLogins || 0;
                 } else {
                     document.getElementById('totalUsers').textContent = 'N/A';
                 }

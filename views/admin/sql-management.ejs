@@ -53,6 +53,23 @@
             border-left: 4px solid #0d6efd;
             background: #2c3034;
         }
+        .pagination .page-link {
+            background: #2c3034;
+            border: 1px solid #495057;
+            color: #f8f9fa;
+        }
+        .pagination .page-link:hover {
+            background: #495057;
+            color: #f8f9fa;
+        }
+        .pagination .active .page-link {
+            background: #0d6efd;
+            border-color: #0d6efd;
+        }
+        .pagination .disabled .page-link {
+            background: #2c3034;
+            color: #6c757d;
+        }
         .login-card {
             border-left: 4px solid #6f42c1;
             margin-left: 20px;
@@ -121,12 +138,15 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
+                    <% if (accountStorageType === 'file' || accountStorageType === 'single') { %>
                     <li class="nav-item">
-                        <a class="nav-link" href="/admin/users">Users (File)</a>
+                        <a class="nav-link" href="/admin/users">Users</a>
                     </li>
+                    <% } else if (accountStorageType === 'db') { %>
                     <li class="nav-item">
-                        <a class="nav-link active" href="/admin/sql-management">Teams & Logins (SQL)</a>
+                        <a class="nav-link active" href="/admin/sql-management">Teams & Logins</a>
                     </li>
+                    <% } %>
                     <li class="nav-item">
                         <a class="nav-link" href="/admin/servers">Servers</a>
                     </li>
@@ -201,14 +221,45 @@
             <div class="col-12">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Teams</h5>
-                        <button class="btn btn-sm btn-outline-primary" onclick="loadTeams()">Refresh</button>
+                        <h5 class="mb-0">Teams <span class="badge bg-secondary" id="teamsTotalBadge"></span></h5>
+                        <div class="d-flex align-items-center gap-2">
+                            <input type="text" class="form-control form-control-sm" id="teamSearch" placeholder="Search by TeamID, name, email..." style="width: 220px;">
+                            <select class="form-select form-select-sm" id="sortBySelect" style="width: auto;" onchange="loadTeams()">
+                                <option value="TeamID">Sort: TeamID</option>
+                                <option value="TeamName">Sort: Name</option>
+                                <option value="Email">Sort: Email</option>
+                                <option value="CreatedAt">Sort: Date</option>
+                                <option value="InstanceLimit">Sort: Limit</option>
+                                <option value="Enabled">Sort: Enabled</option>
+                            </select>
+                            <select class="form-select form-select-sm" id="sortDirSelect" style="width: auto;" onchange="loadTeams()">
+                                <option value="asc">ASC</option>
+                                <option value="desc">DESC</option>
+                            </select>
+                            <button class="btn btn-sm btn-outline-primary" onclick="loadTeams()">Refresh</button>
+                        </div>
                     </div>
                     <div class="card-body" id="teamsContainer">
                         <div class="text-center">
                             <div class="spinner-border" role="status">
                                 <span class="visually-hidden">Loading...</span>
                             </div>
+                        </div>
+                    </div>
+                    <div class="card-footer" id="teamsPagination" style="display:none;">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div>
+                                <select class="form-select form-select-sm d-inline-block" id="pageSizeSelect" style="width: auto;" onchange="changePageSize()">
+                                    <option value="10">10 / page</option>
+                                    <option value="20" selected>20 / page</option>
+                                    <option value="50">50 / page</option>
+                                    <option value="100">100 / page</option>
+                                </select>
+                            </div>
+                            <nav>
+                                <ul class="pagination pagination-sm mb-0" id="paginationNav"></ul>
+                            </nav>
+                            <div class="text-muted" id="pageInfo"></div>
                         </div>
                     </div>
                 </div>
@@ -260,8 +311,20 @@
     <script src="/public/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script>
         let teamsData = [];
+        let currentPage = 1;
+        let totalPages = 1;
+        let totalTeams = 0;
+        let pageLimit = 20;
+        let searchTimer = null;
+        let currentSortBy = 'TeamID';
+        let currentSortDir = 'asc';
 
-        function loadTeams() {
+        function loadTeams(page) {
+            if (page) currentPage = page;
+            const search = document.getElementById('teamSearch').value.trim();
+            currentSortBy = document.getElementById('sortBySelect').value;
+            currentSortDir = document.getElementById('sortDirSelect').value;
+
             document.getElementById('teamsContainer').innerHTML = `
                 <div class="text-center">
                     <div class="spinner-border" role="status">
@@ -270,11 +333,23 @@
                 </div>
             `;
 
-            fetch('/admin/api/sql/teams')
+            let url = `/admin/api/sql/teams?page=${currentPage}&limit=${pageLimit}&sortBy=${currentSortBy}&sortDir=${currentSortDir}`;
+            if (search) url += `&search=${encodeURIComponent(search)}`;
+
+            fetch(url)
                 .then(response => response.json())
                 .then(data => {
+                    if (data.error) {
+                        document.getElementById('teamsContainer').innerHTML = `
+                            <div class="alert alert-danger">${data.errorMessage || 'Error loading teams'}</div>
+                        `;
+                        return;
+                    }
                     teamsData = data.teams || [];
+                    totalPages = data.totalPages || 1;
+                    totalTeams = data.total || 0;
                     renderTeams();
+                    renderPagination();
                 })
                 .catch(error => {
                     console.error('Error loading teams:', error);
@@ -287,10 +362,12 @@
         }
 
         function renderTeams() {
+            document.getElementById('teamsTotalBadge').textContent = totalTeams;
+
             if (teamsData.length === 0) {
                 document.getElementById('teamsContainer').innerHTML = `
                     <div class="alert alert-info">
-                        No teams found. Create a team to get started.
+                        No teams found.
                     </div>
                 `;
                 return;
@@ -305,10 +382,11 @@
                                 <div>
                                     <h6 class="card-title">${team.TeamName}</h6>
                                     <p class="card-text mb-1">
-                                        <small class="text-muted">Email: ${team.Email || 'N/A'}</small><br>
                                         <small class="text-muted">Team ID: ${team.TeamID}</small><br>
+                                        <small class="text-muted">Email: ${team.Email || 'N/A'}</small><br>
                                         <small class="text-muted">Instance Limit: ${team.InstanceLimit}</small><br>
-                                        <small class="text-muted">Enabled: ${team.Enabled ? 'Yes' : 'No'}</small>
+                                        <small class="text-muted">Enabled: ${team.Enabled ? 'Yes' : 'No'}</small><br>
+                                        <small class="text-muted">Created: ${team.CreatedAt || 'N/A'}</small>
                                     </p>
                                 </div>
                                 <div>
@@ -362,6 +440,76 @@
             html += '</div>';
             return html;
         }
+
+        function renderPagination() {
+            const paginationEl = document.getElementById('teamsPagination');
+            const navEl = document.getElementById('paginationNav');
+            const pageInfoEl = document.getElementById('pageInfo');
+
+            if (totalPages <= 1) {
+                paginationEl.style.display = totalTeams === 0 ? 'none' : '';
+                navEl.innerHTML = '';
+            } else {
+                paginationEl.style.display = '';
+
+                let pagesHtml = '';
+                const maxVisible = 7;
+                let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+                let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+                if (endPage - startPage < maxVisible - 1) {
+                    startPage = Math.max(1, endPage - maxVisible + 1);
+                }
+
+                // Prev button
+                pagesHtml += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                    <a class="page-link" href="#" onclick="loadTeams(${currentPage - 1}); return false;">&laquo;</a>
+                </li>`;
+
+                // First page + ellipsis
+                if (startPage > 1) {
+                    pagesHtml += `<li class="page-item"><a class="page-link" href="#" onclick="loadTeams(1); return false;">1</a></li>`;
+                    if (startPage > 2) pagesHtml += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+                }
+
+                // Page numbers
+                for (let i = startPage; i <= endPage; i++) {
+                    pagesHtml += `<li class="page-item ${i === currentPage ? 'active' : ''}">
+                        <a class="page-link" href="#" onclick="loadTeams(${i}); return false;">${i}</a>
+                    </li>`;
+                }
+
+                // Last page + ellipsis
+                if (endPage < totalPages) {
+                    if (endPage < totalPages - 1) pagesHtml += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+                    pagesHtml += `<li class="page-item"><a class="page-link" href="#" onclick="loadTeams(${totalPages}); return false;">${totalPages}</a></li>`;
+                }
+
+                // Next button
+                pagesHtml += `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+                    <a class="page-link" href="#" onclick="loadTeams(${currentPage + 1}); return false;">&raquo;</a>
+                </li>`;
+
+                navEl.innerHTML = pagesHtml;
+            }
+
+            const offsetStart = totalTeams === 0 ? 0 : (currentPage - 1) * pageLimit + 1;
+            const offsetEnd = Math.min(currentPage * pageLimit, totalTeams);
+            pageInfoEl.textContent = `${offsetStart}-${offsetEnd} of ${totalTeams}`;
+        }
+
+        function changePageSize() {
+            pageLimit = parseInt(document.getElementById('pageSizeSelect').value);
+            currentPage = 1;
+            loadTeams();
+        }
+
+        document.getElementById('teamSearch').addEventListener('input', function() {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => {
+                currentPage = 1;
+                loadTeams();
+            }, 400);
+        });
 
         function openCreateLoginModal(teamId, teamName) {
             document.getElementById('loginTeamId').value = teamId;

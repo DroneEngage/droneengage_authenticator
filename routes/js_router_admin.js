@@ -157,7 +157,8 @@ router.get('/dashboard', requireAuth, (req, res) => {
 router.get('/users', requireAuth, (req, res) => {
     res.render('admin/users', {
         title: 'User Management',
-        adminUsername: req.session.adminUsername
+        adminUsername: req.session.adminUsername,
+        accountStorageType: global.m_serverconfig.m_configuration.account_storage_type
     });
 });
 
@@ -173,7 +174,8 @@ router.get('/servers', requireAuth, (req, res) => {
 router.get('/sql-management', requireAuth, (req, res) => {
     res.render('admin/sql-management', {
         title: 'Teams & Logins Management',
-        adminUsername: req.session.adminUsername
+        adminUsername: req.session.adminUsername,
+        accountStorageType: global.m_serverconfig.m_configuration.account_storage_type
     });
 });
 
@@ -357,51 +359,125 @@ router.get('/api/servers', requireAuth, (req, res) => {
     }
 });
 
-// API: Get all teams with logins (SQL mode)
+// API: Get teams with logins (SQL mode, paginated)
 router.get('/api/sql/teams', requireAuth, (req, res) => {
     try {
         if (global.m_serverconfig.m_configuration.account_storage_type !== 'db') {
             return res.json({ error: 1, errorMessage: 'SQL mode not enabled' });
         }
 
-        // Access the database connection from the database manager module
-        const dbManager = require('../auth_server/js_database_manager');
-        // The database connection is stored as a module-level variable in js_database_manager.js
-        // We need to access it through a getter or by requiring the module after initialization
-        const db = global.m_db; // Set by js_database_manager during initialization
-
+        const db = global.m_db;
         if (!db) {
             return res.json({ error: 1, errorMessage: 'Database not connected' });
         }
 
-        // Get all teams
-        db.all('SELECT * FROM teams ORDER BY TeamID', [], (err, teams) => {
+        const page = Math.max(1, parseInt(req.query.page) || 1);
+        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+        const offset = (page - 1) * limit;
+        const search = (req.query.search || '').trim();
+        const sortBy = (req.query.sortBy || 'TeamID').trim();
+        const sortDir = (req.query.sortDir || 'asc').trim().toLowerCase() === 'desc' ? 'DESC' : 'ASC';
+
+        // Validate sort column to prevent SQL injection
+        const allowedSortColumns = ['TeamID', 'TeamName', 'Email', 'CreatedAt', 'UpdatedAt', 'InstanceLimit', 'Enabled'];
+        const sortColumn = allowedSortColumns.includes(sortBy) ? sortBy : 'TeamID';
+
+        let whereClause = '';
+        let countParams = [];
+        let queryParams = [];
+
+        if (search) {
+            // Check if search is a number (TeamID search)
+            const searchNum = parseInt(search);
+            if (!isNaN(searchNum) && search.toString() === searchNum.toString()) {
+                whereClause = ' WHERE TeamID = ?';
+                countParams = [searchNum];
+                queryParams = [searchNum, limit, offset];
+            } else {
+                whereClause = ' WHERE TeamName LIKE ? OR Email LIKE ?';
+                const likePattern = '%' + search + '%';
+                countParams = [likePattern, likePattern];
+                queryParams = [likePattern, likePattern, limit, offset];
+            }
+        } else {
+            queryParams = [limit, offset];
+        }
+
+        // Get total count
+        db.get('SELECT COUNT(*) as total FROM teams' + whereClause, countParams, (err, countRow) => {
             if (err) {
-                console.error('Error fetching teams:', err);
+                console.error('Error counting teams:', err);
                 return res.json({ error: 1, errorMessage: 'Failed to fetch teams' });
             }
 
-            // Get logins for each team
-            const teamsWithLogins = teams.map(team => {
-                return new Promise((resolve) => {
-                    db.all('SELECT * FROM logins WHERE TeamID = ? ORDER BY LoginID', [team.TeamID], (err, logins) => {
-                        if (err) {
-                            console.error('Error fetching logins for team:', team.TeamID, err);
-                            resolve({ ...team, logins: [] });
-                        } else {
-                            resolve({ ...team, logins: logins || [] });
-                        }
+            const total = countRow.total;
+            const totalPages = Math.ceil(total / limit);
+
+            // Get paginated teams
+            const query = 'SELECT * FROM teams' + whereClause + ' ORDER BY ' + sortColumn + ' ' + sortDir + ' LIMIT ? OFFSET ?';
+            db.all(query, queryParams, (err, teams) => {
+                if (err) {
+                    console.error('Error fetching teams:', err);
+                    return res.json({ error: 1, errorMessage: 'Failed to fetch teams' });
+                }
+
+                if (!teams || teams.length === 0) {
+                    return res.json({ error: 0, teams: [], total: total, page: page, limit: limit, totalPages: totalPages });
+                }
+
+                // Get logins for each team in this page
+                const teamsWithLogins = teams.map(team => {
+                    return new Promise((resolve) => {
+                        db.all('SELECT * FROM logins WHERE TeamID = ? ORDER BY LoginID', [team.TeamID], (err, logins) => {
+                            if (err) {
+                                console.error('Error fetching logins for team:', team.TeamID, err);
+                                resolve({ ...team, logins: [] });
+                            } else {
+                                resolve({ ...team, logins: logins || [] });
+                            }
+                        });
                     });
                 });
-            });
 
-            Promise.all(teamsWithLogins).then(results => {
-                res.json({ error: 0, teams: results });
+                Promise.all(teamsWithLogins).then(results => {
+                    res.json({ error: 0, teams: results, total: total, page: page, limit: limit, totalPages: totalPages });
+                });
             });
         });
     } catch (error) {
         console.error('Error in /api/sql/teams:', error);
         res.json({ error: 1, errorMessage: 'Failed to fetch teams' });
+    }
+});
+
+// API: Get SQL stats (total counts)
+router.get('/api/sql/stats', requireAuth, (req, res) => {
+    try {
+        if (global.m_serverconfig.m_configuration.account_storage_type !== 'db') {
+            return res.json({ error: 1, errorMessage: 'SQL mode not enabled' });
+        }
+
+        const db = global.m_db;
+        if (!db) {
+            return res.json({ error: 1, errorMessage: 'Database not connected' });
+        }
+
+        db.get('SELECT COUNT(*) as total FROM logins', [], (err, loginRow) => {
+            if (err) {
+                console.error('Error counting logins:', err);
+                return res.json({ error: 1, errorMessage: 'Failed to get stats' });
+            }
+            db.get('SELECT COUNT(*) as total FROM teams', [], (err, teamRow) => {
+                if (err) {
+                    console.error('Error counting teams:', err);
+                    return res.json({ error: 1, errorMessage: 'Failed to get stats' });
+                }
+                res.json({ error: 0, totalLogins: loginRow.total, totalTeams: teamRow.total });
+            });
+        });
+    } catch (error) {
+        console.error('Error in /api/sql/stats:', error);
+        res.json({ error: 1, errorMessage: 'Failed to get stats' });
     }
 });
 

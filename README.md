@@ -62,10 +62,20 @@ The server is configured via `server.config` (JSON format). Key settings:
 ### Account Storage
 
 Three storage modes available:
-- `single`: Single account mode (for testing)
-- `file`: JSON file storage (default)
-- `db`: MySQL database storage
+- `single`: Single account mode (default, for testing)
+- `file`: JSON file storage
+- `db`: SQLite database storage
 
+Single-account settings:
+```json
+{
+    "account_storage_type": "single",
+    "single_account_user_name": "single@airgap.droneengage.com",
+    "single_account_access_code": "test"
+}
+```
+
+File-based settings:
 ```json
 {
     "account_storage_type": "file",
@@ -73,14 +83,11 @@ Three storage modes available:
 }
 ```
 
-For database mode:
+Database mode uses the bundled SQLite database:
 ```json
 {
     "account_storage_type": "db",
-    "dbIP": "localhost",
-    "dbuser": "USERNAME",
-    "dbpassword": "PASSWORD",
-    "dbdatabase": "andruav"
+    "dbdatabase": "database/andruav.db"
 }
 ```
 
@@ -91,11 +98,10 @@ Server-to-Server authentication using Ed25519 keys:
 ```json
 {
     "s2s_ws_listening_ip": "127.0.0.1",
-    "s2s_ws_listening_port": 19001,
-    "s2s_auth_enabled": true,
+    "s2s_ws_listening_port": "19001",
+    "s2s_auth_enabled": false,
     "s2s_trusted_server_keys": {
-        "AndruavLap": "./ssl/AndruavLap_public.pem",
-        "SuperServer": "./ssl/SuperServer_public.pem"
+        "DE_CommSrv": "./ssl_local/DE_ServerComm_public.pem"
     }
 }
 ```
@@ -107,8 +113,8 @@ See [wiki/S2SAuthentication.md](wiki/S2SAuthentication.md) for detailed setup.
 ```json
 {
     "enable_SSL": true,
-    "ssl_key_file": "ssl/domain.key",
-    "ssl_cert_file": "ssl/domain.crt"
+    "ssl_key_file": "./ssl_local/ssl_airgap/domain.key",
+    "ssl_cert_file": "./ssl_local/ssl_airgap/domain.crt"
 }
 ```
 
@@ -116,10 +122,12 @@ See [wiki/S2SAuthentication.md](wiki/S2SAuthentication.md) for detailed setup.
 
 ```json
 {
+    "webadmin_enable": true,
     "admin_username": "admin",
     "admin_password": "admin123",
     "session_secret": "change-this-secret-in-production",
-    "webadmin_port": 8089
+    "webadmin_port": 8089,
+    "webadmin_listening_ip": "0.0.0.0"
 }
 ```
 
@@ -159,8 +167,9 @@ NODE_ENV=production npm start
 ### Admin Endpoints
 
 - `GET /admin` - Admin dashboard
-- `GET /admin/servers` - Manage communication servers
+- `GET /admin/servers` - Manage communication servers and view storage connection status
 - `GET /admin/users` - Manage users
+- `GET /admin/api/servers` - Get communication server status including storage connection
 
 See [wiki/APIEndpoints.md](wiki/APIEndpoints.md) for detailed API documentation.
 
@@ -264,5 +273,6 @@ Contributions are welcome! Please read the contributing guidelines before submit
 For support and documentation, please refer to [Cloud.Ardupilot.org](https://cloud.ardupilot.org).
 
 [![Ardupilot Cloud EcoSystem](https://cloud.ardupilot.org/_static/ardupilot_logo.png)](https://cloud.ardupilot.org) **Drone Engage** is part of Ardupilot Cloud Eco System
+
 
 

@@ -90,6 +90,13 @@ function fn_onAccountConflicts (p_server1, p_server2, p_accountOfConflict)
 function fn_onServerAdded (p_serverInfo)
 {
     console.log (global.Colors.Log +  "[INFO] Communication Server [%s] has been added" + global.Colors.Reset, p_serverInfo.m_server.m_serverId);
+
+    // Give any known active storage (DB) server(s) a chance to announce themselves
+    // to this newly-connected comm server (see js_auth_server.js wiring).
+    if (Me.fn_onCommServerAdded != null)
+    {
+        Me.fn_onCommServerAdded(p_serverInfo);
+    }
 }
 
 
@@ -321,6 +328,48 @@ function fn_handleLogoutNotification (p_cmd)
 
 
 /**
+ * Handles storage server connection status updates from communication servers.
+ * This function tracks the storage connection status per comm server for admin visibility.
+ * @param {decrypted raw command} p_cmd 
+ */
+function fn_handleStorageStatus (p_cmd)
+{
+    try
+    {
+        const c_commServerGUID = p_cmd.m_commServerGUID;
+        const c_statusData = p_cmd.d;
+        
+        if (!m_communicationServersList.hasOwnProperty(c_commServerGUID))
+        {
+            console.log ("[INFO] Storage status from unknown comm server: " + c_commServerGUID);
+            return;
+        }
+        
+        // Initialize storage status object if not exists
+        if (!m_communicationServersList[c_commServerGUID].m_server.m_storageStatus)
+        {
+            m_communicationServersList[c_commServerGUID].m_server.m_storageStatus = {};
+        }
+        
+        // Update storage status
+        m_communicationServersList[c_commServerGUID].m_server.m_storageStatus = {
+            status: c_statusData.status,
+            storage_host: c_statusData.storage_host,
+            storage_port: c_statusData.storage_port,
+            timestamp: c_statusData.timestamp,
+            error: c_statusData.error || null
+        };
+        
+        console.log (`[INFO] Comm server ${m_communicationServersList[c_commServerGUID].m_server.m_serverId} storage status: ${c_statusData.status}`);
+    }
+    catch (ex)
+    {
+        console.log ("err:fn_handleStorageStatus:" + ex);
+    }
+}
+
+
+/**
  * Handles communication servers all messages.
  * @param {a GUID identifies connection instance. this refers to websocket client in case of using websockets.} p_conn_GUID 
  * @param {raw encrypted message from communication servers} p_msg 
@@ -330,12 +379,12 @@ function fn_commServerMessageHandler (p_conn_GUID,p_msg)
     try
     {
         const p_cmd = fn_decryptCommunicationMessage (p_msg);
-        p_cmd['m_commServerGUID'] = p_conn_GUID;
         if (p_cmd == null)
         {
             // invalid command
             return;
         }
+        p_cmd['m_commServerGUID'] = p_conn_GUID;
 
         if (p_cmd.c === global.c_CONSTANTS.CONST_CS_CMD_INFO)
         {   // send once when connection established
@@ -348,6 +397,10 @@ function fn_commServerMessageHandler (p_conn_GUID,p_msg)
         else if (p_cmd.c === global.c_CONSTANTS.CONST_CS_CMD_LOGOUT_REQUEST)
         {   // handle logout notification from commServer
             fn_handleLogoutNotification (p_cmd);
+        }
+        else if (p_cmd.c === global.c_CONSTANTS.CONST_CS_CMD_STORAGE_STATUS)
+        {   // handle storage server connection status from commServer
+            fn_handleStorageStatus (p_cmd);
         }
     }
     catch (ex)
@@ -472,7 +525,7 @@ function fn_removePartyCommunicationSession (p_loginCard)
         'd': {}
     };
 
-    c_req.d[global.c_CONSTANTS.CONST_CS_SENDER_ID.toString()] = p_loginCard.m_senderID;
+    c_req.d[global.c_CONSTANTS.CONST_CS_SENDER_ID.toString()] = p_loginCard.m_acc_id_hashed;
 
     Me.fn_sendMessage (p_loginCard.m_commServerGUID,JSON.stringify(c_req));
 }

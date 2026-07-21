@@ -119,7 +119,7 @@
     </nav>
 
     <div class="container-fluid mt-4">
-        <div class="card">
+        <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Communication Servers</h5>
                 <button class="btn btn-primary" onclick="loadServers()">Refresh</button>
@@ -181,6 +181,25 @@
 
             grid.innerHTML = servers.map(server => {
                 const serverId = server.serverId || 'unknown';
+                const storageStatus = server.storageStatus || null;
+                let storageStatusHtml = '';
+                
+                if (storageStatus) {
+                    const statusColor = storageStatus.status === 'connected' ? 'bg-success' : 
+                                      storageStatus.status === 'disconnected' ? 'bg-danger' : 'bg-warning';
+                    storageStatusHtml = `
+                        <p class="card-text mb-1 text-white">
+                            <strong>Storage:</strong> 
+                            <span class="badge ${statusColor}">${storageStatus.status}</span>
+                            ${storageStatus.storage_host ? ` (${storageStatus.storage_host}:${storageStatus.storage_port})` : ''}
+                        </p>
+                    `;
+                } else {
+                    storageStatusHtml = `
+                        <p class="card-text mb-1 text-muted"><strong>Storage:</strong> Not reported</p>
+                    `;
+                }
+                
                 return `
                 <div class="col-md-6 col-lg-4 mb-4">
                     <div class="card server-card ${server.isOnline ? '' : 'offline'} ${serverId === m_selectedServerId ? 'selected' : ''}" data-server-id="${encodeURIComponent(serverId)}">
@@ -194,6 +213,7 @@
                             <p class="card-text mb-1 text-primary"><strong>Public IP:</strong> ${server.public_host || 'N/A'}</p>
                             <p class="card-text mb-1 text-primary"><strong>Port:</strong> ${server.serverPort || 'N/A'}</p>
                             <p class="card-text mb-1 text-white"><strong>Version:</strong> ${server.version || 'N/A'}</p>
+                            ${storageStatusHtml}
                         </div>
                     </div>
                 </div>

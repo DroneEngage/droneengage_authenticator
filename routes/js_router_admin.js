@@ -166,7 +166,8 @@ router.get('/users', requireAuth, (req, res) => {
 router.get('/servers', requireAuth, (req, res) => {
     res.render('admin/servers', {
         title: 'Server Status',
-        adminUsername: req.session.adminUsername
+        adminUsername: req.session.adminUsername,
+        accountStorageType: global.m_serverconfig.m_configuration.account_storage_type
     });
 });
 

@@ -190,8 +190,18 @@ function fn_getAccountNameByAccessCode(p_accessCode, fn_callback) {
  * @param {*} fn_callback call back to http response.
  */
 function fn_do_verifyHardwareByAccountSID(p_accountSID, p_hardwareID, p_hardwareType, fn_callback) {
-    // Skip hardware validation if config is not explicitly false
+    // Skip hardware validation if explicitly enabled in config
     if (global.m_serverconfig.m_configuration.skip_hardware_validation !== false) {
+        const c_reply = {};
+        c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_NON;
+        fn_callback(c_reply);
+        return;
+    }
+
+    // Hardware validation requires db storage mode (team_hardware table)
+    const storageType = global.m_serverconfig.m_configuration.account_storage_type.toLowerCase();
+    if (storageType !== 'db') {
+        console.log(global.Colors.Warn + "[WARN] Hardware validation is enabled but account_storage_type is '" + storageType + "' — hardware validation requires 'db' mode. Skipping hardware check." + global.Colors.Reset);
         const c_reply = {};
         c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_NON;
         fn_callback(c_reply);

@@ -268,6 +268,16 @@ function fn_displayInfo ()
         process.exit(0);
     }
 
+    // Hardware validation status
+    const storageType = m_serverconfig.m_configuration.account_storage_type.toLowerCase();
+    if (m_serverconfig.m_configuration.skip_hardware_validation !== false) {
+        console.log(global.Colors.Log + " Hardware Validation: " + global.Colors.FgYellow + 'skipped (skip_hardware_validation=true)' + global.Colors.Reset);
+    } else if (storageType !== 'db') {
+        console.log(global.Colors.Log + " Hardware Validation: " + global.Colors.FgYellow + 'skipped (not supported in ' + storageType + ' mode, requires db mode)' + global.Colors.Reset);
+    } else {
+        console.log(global.Colors.Log + " Hardware Validation: " + global.Colors.BSuccess + 'enabled' + global.Colors.Reset);
+    }
+
     if (global.m_logger) global.m_logger.Info('System Started.');
 }
 

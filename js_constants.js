@@ -78,6 +78,13 @@ exports.CONST_CS_CMD_LOGIN_REQUEST              = 'b';
 exports.CONST_CS_CMD_LOGOUT_REQUEST             = 'c';
 exports.CONST_CS_CMD_STORAGE_STATUS             = 'd';   // CommServer -> AUTH: storage server connection status
 
+// Storage/DB connection state codes (short strings to minimize message size)
+exports.CONST_STORAGE_STATE_DISCONNECTED = 'dc';
+exports.CONST_STORAGE_STATE_CONNECTING   = 'cg';
+exports.CONST_STORAGE_STATE_CONNECTED    = 'cd';
+exports.CONST_STORAGE_STATE_UNHEALTHY    = 'uh';
+exports.CONST_STORAGE_STATE_ERROR        = 'er';
+
 
 exports.CONST_CS_ACCOUNT_ID                     = 'a';
 exports.CONST_CS_GROUP_ID                       = 'b';

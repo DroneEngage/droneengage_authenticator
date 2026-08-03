@@ -191,12 +191,18 @@
                 let storageStatusHtml = '';
                 
                 if (storageStatus) {
-                    const statusColor = storageStatus.status === 'connected' ? 'bg-success' : 
-                                      storageStatus.status === 'disconnected' ? 'bg-danger' : 'bg-warning';
+                    const stateMap = {
+                        'cd': { label: 'connected',    color: 'bg-success' },
+                        'dc': { label: 'disconnected', color: 'bg-danger'  },
+                        'cg': { label: 'connecting',   color: 'bg-warning' },
+                        'uh': { label: 'unhealthy',    color: 'bg-warning' },
+                        'er': { label: 'error',        color: 'bg-danger'  }
+                    };
+                    const stateInfo = stateMap[storageStatus.status] || { label: storageStatus.status, color: 'bg-warning' };
                     storageStatusHtml = `
                         <p class="card-text mb-1 text-white">
                             <strong>Storage:</strong> 
-                            <span class="badge ${statusColor}">${storageStatus.status}</span>
+                            <span class="badge ${stateInfo.color}">${stateInfo.label}</span>
                             ${storageStatus.storage_host ? ` (${storageStatus.storage_host}:${storageStatus.storage_port})` : ''}
                         </p>
                     `;

@@ -15,7 +15,7 @@ WORKDIR /usr/src/app
 # COPY ./auth_server ./auth_server/
 # COPY ./helpers ./helpers/
 # COPY server.config ./
-CMD ["node", "server.js", "--config=server.docker.config"]
+CMD ["node", "src/server.js", "--config=server.docker.config"]
 
 
 

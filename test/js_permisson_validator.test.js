@@ -2,7 +2,7 @@
 
 const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
-const permission = require("../auth_server/js_permisson_validator");
+const permission = require("../src/auth_server/js_permisson_validator");
 
 describe("js_permisson_validator", () => {
     it("converts hex permission strings to integers", () => {

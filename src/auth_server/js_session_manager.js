@@ -110,7 +110,7 @@ function fn_createLoginCard (p_accountName, p_accessCode, p_actorType, p_group, 
     } 
 
     if (getConfiguration().account_storage_type.toLowerCase() === 'file') {
-        if (getConfiguration().hasOwnProperty('db_users') === true) {
+        if (getConfiguration().hasOwnProperty('file_db') === true) {
      
             let p_reply = {};
             
@@ -178,7 +178,7 @@ function fn_createLoginCard (p_accountName, p_accessCode, p_actorType, p_group, 
         return ;
     }
 
-    console.log (global.Colors.BError + "FATAL ERROR:" + global.Colors.FgYellow + " account_storage_type or db_users or db connection" +  global.Colors.Reset + " are not specified in config file. ");
+    console.log (global.Colors.BError + "FATAL ERROR:" + global.Colors.FgYellow + " account_storage_type or file_db or db connection" +  global.Colors.Reset + " are not specified in config file. ");
 
 }
 

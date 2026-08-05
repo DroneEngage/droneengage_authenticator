@@ -42,22 +42,22 @@ for (let i = 0; i < args.length; i++) {
 let config = {};
 try {
     const stripJsonComments = require('../helpers/js_3rd_StripJsonComments.js');
-    const configPath = path.join(__dirname, '..', 'server.config');
+    const configPath = path.join(__dirname, '..', '..', 'server.config');
     const configContent = fs.readFileSync(configPath, 'utf8');
     config = JSON.parse(stripJsonComments(configContent));
 } catch (err) {
     console.log(`[WARN] Could not read server.config: ${err.message}`);
 }
 
-// Determine input path: explicit arg -> server.config.db_users -> none
-if (!inputDbPath && config.db_users) {
-    inputDbPath = path.join(__dirname, '..', config.db_users);
+// Determine input path: explicit arg -> server.config.file_db -> none
+if (!inputDbPath && config.file_db) {
+    inputDbPath = path.join(__dirname, '..', '..', config.file_db);
 }
 
 // Determine output path: explicit arg -> server.config.dbdatabase -> default
 if (!outputPath) {
     if (config.dbdatabase) {
-        outputPath = path.join(__dirname, '..', config.dbdatabase);
+        outputPath = path.join(__dirname, '..', '..', config.dbdatabase);
     } else {
         outputPath = path.join(__dirname, 'andruav.db');
     }

@@ -360,7 +360,17 @@ function fn_handleStorageStatus (p_cmd)
             error: c_statusData.error || null
         };
         
-        console.log (`[INFO] Comm server ${m_communicationServersList[c_commServerGUID].m_server.m_serverId} storage status: ${c_statusData.status}`);
+        // Convert status code to readable string
+        const statusMap = {
+            'dc': 'DISCONNECTED',
+            'cg': 'CONNECTING',
+            'cd': 'CONNECTED',
+            'uh': 'UNHEALTHY',
+            'er': 'ERROR'
+        };
+        const readableStatus = statusMap[c_statusData.status] || c_statusData.status;
+        
+        console.log (`[INFO] Comm server ${m_communicationServersList[c_commServerGUID].m_server.m_serverId} storage status: ${readableStatus}`);
     }
     catch (ex)
     {

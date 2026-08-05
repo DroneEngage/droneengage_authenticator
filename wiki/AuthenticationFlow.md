@@ -12,12 +12,12 @@ The authenticator server handles user and vehicle authentication, assigns them t
 
 | Module | File | Purpose |
 |--------|------|---------|
-| Auth Server | `auth_server/js_auth_server.js` | Main authentication orchestration |
-| Session Manager | `auth_server/js_session_manager.js` | Session and login card management |
-| Account Manager | `auth_server/js_account_manager.js` | Account and access code operations |
-| Database Manager | `auth_server/js_database_manager.js` | Database operations (file/MySQL) |
-| Comm Server Manager | `auth_server/js_comm_server_manager.js` | Communication server selection and management |
-| S2S Auth | `auth_server/js_s2s_auth.js` | Server-to-server authentication |
+| Auth Server | `src/auth_server/js_auth_server.js` | Main authentication orchestration |
+| Session Manager | `src/auth_server/js_session_manager.js` | Session and login card management |
+| Account Manager | `src/auth_server/js_account_manager.js` | Account and access code operations |
+| Database Manager | `src/auth_server/js_database_manager.js` | Database operations (file/SQLite) |
+| Comm Server Manager | `src/auth_server/js_comm_server_manager.js` | Communication server selection and management |
+| S2S Auth | `src/auth_server/js_s2s_auth.js` | Server-to-server authentication |
 
 ## Authentication Flow
 
@@ -254,7 +254,7 @@ Communication Server                    Authenticator
 
 ### Validation Errors
 
-All requests are validated by `js_input_validator.js` before processing:
+All requests are validated by `src/auth_server/js_input_validator.js` before processing:
 - Field normalization (trim, case conversion)
 - Required field checks
 - Format validation (email, session ID format)

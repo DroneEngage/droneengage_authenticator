@@ -41,7 +41,7 @@ The user management interface varies based on the `account_storage_type` configu
 
 #### File-Based Storage (`account_storage_type: "file"`)
 - Access via "Users" link in navigation
-- View and manage users stored in JSON file (`db_users`)
+- View and manage users stored in JSON file (`file_db`)
 - CRUD operations for user accounts
 
 #### Database Storage (`account_storage_type: "db"`)

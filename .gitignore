@@ -9,10 +9,8 @@ checks.json
 server.home.config
 
 
-db_*.db
+*.db
 *.old
-
-db_users.db
 *.code-workspace
 database/database.db
 scripts/*.pem

@@ -16,7 +16,7 @@ const os = require('os');
 const path = require('path');
 
 const { installFakeGlobals, restoreGlobals } = require('../../test/helpers/test_globals.js');
-const c_s2s_auth = require('../../auth_server/js_s2s_auth.js');
+const c_s2s_auth = require('../../src/auth_server/js_s2s_auth.js');
 
 let g_tempDir = null;
 

@@ -30,7 +30,7 @@ function init(configFileNameParam) {
     }
 
     try {
-        const fileContent = fs.readFileSync(path.join(__dirname, configFileName), 'utf8');
+        const fileContent = fs.readFileSync(path.join(__dirname, '..', configFileName), 'utf8');
         configuration = JSON.parse(stripJsonComments(fileContent));
     } catch (err) {
         console.error(`FATAL: Error processing configuration file '${configFileName}':`, err.message);

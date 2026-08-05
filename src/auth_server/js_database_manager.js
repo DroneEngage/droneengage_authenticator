@@ -1,4 +1,5 @@
 "use strict";
+const path = require('path');
 const hlp_db = require("../helpers/hlp_db.js");
 const hlp_string = require("../helpers/hlp_string.js");
 const hlp_validation = require("../helpers/hlp_validation.js");
@@ -21,12 +22,12 @@ function fn_initialize()
     } 
 
     if (m_serverconfig.m_configuration.account_storage_type.toLowerCase() === 'file') {
-        if (m_serverconfig.m_configuration.hasOwnProperty('db_users') === true) {
+        if (m_serverconfig.m_configuration.hasOwnProperty('file_db') === true) {
             // users database
-            global.db_users = new v_users.db_user(global.m_serverconfig.m_configuration.db_users);
-            console.log ("Users Database File  " + global.Colors.BSuccess + global.m_serverconfig.m_configuration.db_users + global.Colors.Reset);
-            if (!fs.existsSync(global.m_serverconfig.m_configuration.db_users)) {
-                console.log (global.Colors.Warn +  "[WARN] Database file not found: " + global.m_serverconfig.m_configuration.db_users + " - will be created on first user registration" + global.Colors.Reset);
+            global.db_users = new v_users.db_user(global.m_serverconfig.m_configuration.file_db);
+            console.log ("Users Database File  " + global.Colors.BSuccess + global.m_serverconfig.m_configuration.file_db + global.Colors.Reset);
+            if (!fs.existsSync(global.m_serverconfig.m_configuration.file_db)) {
+                console.log (global.Colors.Warn +  "[WARN] Database file not found: " + global.m_serverconfig.m_configuration.file_db + " - will be created on first user registration" + global.Colors.Reset);
             } else {
                 console.log (global.Colors.Success +  "[OK] Database file exists and loaded" + global.Colors.Reset);
             }
@@ -39,10 +40,11 @@ function fn_initialize()
         try
         {
             const sqlite3 = require('sqlite3');
-            const dbPath = m_serverconfig.m_configuration.dbdatabase || 'database/andruav.db';
+            const rawDbPath = m_serverconfig.m_configuration.dbdatabase || 'database/andruav.db';
+            const dbPath = path.isAbsolute(rawDbPath) ? rawDbPath : path.resolve(__dirname, '..', rawDbPath);
             
             // Ensure directory exists
-            const dbDir = require('path').dirname(dbPath);
+            const dbDir = path.dirname(dbPath);
             if (!fs.existsSync(dbDir)) {
                 fs.mkdirSync(dbDir, { recursive: true });
             }
@@ -74,7 +76,7 @@ function fn_initialize()
         return ;
     }
 
-    console.log (global.Colors.BError + "FATAL ERROR:" + global.Colors.FgYellow + " account_storage_type or db_users or db connection" +  global.Colors.Reset + " are not specified in config file. ");
+    console.log (global.Colors.BError + "FATAL ERROR:" + global.Colors.FgYellow + " account_storage_type or file_db or db connection" +  global.Colors.Reset + " are not specified in config file. ");
     process.exit(0);
 }
 
@@ -347,7 +349,7 @@ function fn_createNewAccessCode (p_accountName, p_newAccessCode, fn_callback, p_
     
     // local database is active only when there is a valid login.
     // cannot access local database from Global Account page.
-    if ((p_loginCard!=null) && (m_serverconfig.m_configuration.hasOwnProperty('db_users') === true)) {
+    if ((p_loginCard!=null) && (m_serverconfig.m_configuration.hasOwnProperty('file_db') === true)) {
      
         const p_reply = {};
         const user_data = {

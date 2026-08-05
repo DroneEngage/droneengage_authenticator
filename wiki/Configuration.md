@@ -40,7 +40,7 @@ The server is configured via `server.config` (JSON format). You can create envir
 |-------|-------------|
 | `single` | Single hardcoded account (testing only) |
 | `file` | JSON file storage (LowDB) |
-| `db` | MySQL database storage |
+| `db` | SQLite database storage |
 
 ### Single Account Mode
 
@@ -57,32 +57,26 @@ The server is configured via `server.config` (JSON format). You can create envir
 ```json
 {
     "account_storage_type": "file",
-    "db_users": "./db_users.db"
+    "file_db": "./file_db.json"
 }
 ```
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `db_users` | string | "./db_users.db" | Path to JSON database file |
+| `file_db` | string | "./file_db.json" | Path to JSON database file |
 
-### MySQL Database Storage
+### SQLite Database Storage
 
 ```json
 {
     "account_storage_type": "db",
-    "dbIP": "localhost",
-    "dbuser": "USERNAME",
-    "dbpassword": "PASSWORD",
-    "dbdatabase": "andruav"
+    "dbdatabase": "database/andruav.db"
 }
 ```
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `dbIP` | string | MySQL server IP address |
-| `dbuser` | string | MySQL username |
-| `dbpassword` | string | MySQL password |
-| `dbdatabase` | string | MySQL database name |
+| `dbdatabase` | string | SQLite database file path |
 
 ## Server-to-Server (S2S) Configuration
 
@@ -201,7 +195,7 @@ The server is configured via `server.config` (JSON format). You can create envir
     "server_port": 19408,
     "health_utl": "/h",
     "account_storage_type": "file",
-    "db_users": "./db_users.db",
+    "file_db": "./file_db.json",
     "enableLog": true,
     "log_directory": "./logs/",
     "log_timeZone": "GMT",
@@ -307,10 +301,9 @@ export ANDRUAV_DBPASSWORD=secure_password
 
 ### Database Connection Failed
 
-- Verify MySQL is running
-- Check database credentials
-- Ensure database exists
-- Test network connectivity
+- Verify SQLite database file is accessible
+- Check `dbdatabase` path in config
+- Ensure database directory exists and is writable
 
 ### S2S Authentication Fails
 

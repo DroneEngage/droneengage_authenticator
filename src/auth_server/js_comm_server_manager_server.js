@@ -152,8 +152,8 @@ function fn_startWebSocketListener() {
     let wserver;
 
     if (global.m_serverconfig.m_configuration.enable_SSL === true) {
-        const v_keyPath = path.isAbsolute(global.m_serverconfig.m_configuration.ssl_key_file) ? global.m_serverconfig.m_configuration.ssl_key_file : path.join(__dirname, "../" + global.m_serverconfig.m_configuration.ssl_key_file);
-        const v_certPath = path.isAbsolute(global.m_serverconfig.m_configuration.ssl_cert_file) ? global.m_serverconfig.m_configuration.ssl_cert_file : path.join(__dirname, "../" + global.m_serverconfig.m_configuration.ssl_cert_file);
+        const v_keyPath = path.isAbsolute(global.m_serverconfig.m_configuration.ssl_key_file) ? global.m_serverconfig.m_configuration.ssl_key_file : path.join(__dirname, "../../" + global.m_serverconfig.m_configuration.ssl_key_file);
+        const v_certPath = path.isAbsolute(global.m_serverconfig.m_configuration.ssl_cert_file) ? global.m_serverconfig.m_configuration.ssl_cert_file : path.join(__dirname, "../../" + global.m_serverconfig.m_configuration.ssl_cert_file);
         let error = false;
 
         // Check if SSL files exist before attempting to read them

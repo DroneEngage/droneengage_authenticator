@@ -137,7 +137,7 @@ function fn_getAccountNameByAccessCode(p_accessCode, fn_callback) {
     }
 
     if (m_serverconfig.m_configuration.account_storage_type.toLowerCase() === 'file') {
-        if (m_serverconfig.m_configuration.hasOwnProperty('db_users') === true) {
+        if (m_serverconfig.m_configuration.hasOwnProperty('file_db') === true) {
 
             const account_record = global.db_users.fn_get_user_by_accesscode(p_accessCode);
             if (account_record == null) {
@@ -178,7 +178,7 @@ function fn_getAccountNameByAccessCode(p_accessCode, fn_callback) {
         return;
     }
 
-    console.log(global.Colors.BError + "FATAL ERROR:" + global.Colors.FgYellow + " account_storage_type or db_users or db connection" + global.Colors.Reset + " are not specified in config file. ");
+    console.log(global.Colors.BError + "FATAL ERROR:" + global.Colors.FgYellow + " account_storage_type or file_db or db connection" + global.Colors.Reset + " are not specified in config file. ");
 }
 
 

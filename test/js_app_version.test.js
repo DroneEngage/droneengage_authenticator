@@ -3,8 +3,8 @@
 const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
 const { setupTestGlobals } = require("./test_helpers");
-const appVersion = require("../auth_server/js_app_version");
-const c_CONSTANTS = require("../js_constants");
+const appVersion = require("../src/auth_server/js_app_version");
+const c_CONSTANTS = require("../src/js_constants");
 
 setupTestGlobals();
 

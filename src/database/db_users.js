@@ -15,7 +15,7 @@ class db_user {
         // Handle both absolute and relative paths
         const file = path.isAbsolute(database_file) 
             ? database_file 
-            : path.join(__dirname, '..', database_file);
+            : path.join(__dirname, '..', '..', database_file);
         const adapter = new JSONFile(file);
         
         // Read file synchronously to work with LowDB v7's async requirement

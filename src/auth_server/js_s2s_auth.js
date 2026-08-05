@@ -40,7 +40,7 @@ function fn_isEnabled() {
 
 
 function fn_resolvePath(p_path) {
-    return c_path.resolve(__dirname, '..', p_path);
+    return c_path.resolve(__dirname, '..', '..', p_path);
 }
 
 

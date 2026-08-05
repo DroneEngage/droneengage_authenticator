@@ -1,5 +1,6 @@
 "use strict";
-const v_pjson = require('../package.json');
+const path = require('path');
+const v_pjson = require('../../package.json');
 let v_express = require('express');
 let v_router = v_express.Router();
 
@@ -33,7 +34,7 @@ function fn_create(app) {
 
     
 
-    app.use('/public', v_express.static('public'));
+    app.use('/public', v_express.static(path.join(__dirname, '..', 'public')));
 
     app.use(global.c_CONSTANTS.CONST_ADMIN_FUNCTION, require('./js_router_admin'));
     app.use(global.c_CONSTANTS.CONST_WEB_FUNCTION, require('./js_router_web'));

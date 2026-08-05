@@ -13,6 +13,30 @@ The authenticator server provides:
 - Server-to-Server (S2S) authentication for secure connections
 - Admin web interface for management
 
+### Project Structure
+
+```
+andruav_authenticator/
+├── server.config          # Server configuration (JSON)
+├── package.json
+├── Dockerfile
+├── src/                   # Application source code
+│   ├── server.js          # Entry point
+│   ├── js_constants.js    # Shared constants
+│   ├── js_serverConfig.js # Config loader
+│   ├── dumperror.js       # Error helper
+│   ├── auth_server/       # Auth core modules
+│   ├── database/          # Storage modules (LowDB, SQLite migrations)
+│   ├── helpers/           # Utility helpers
+│   ├── routes/            # Express route handlers
+│   ├── views/             # EJS view templates
+│   └── public/            # Static assets
+├── ssl_local/             # SSL certificates & S2S keys
+├── scripts/               # S2S key generation script
+├── test/                  # Unit tests
+└── wiki/                  # Documentation
+```
+
 The following diagram shows the main function of this module:
 
 [![Authentication Sequence Diagram](https://github.com/DroneEngage/droneegnage_authenticator/blob/master/resources/seq_diagram_authentication.png?raw=true)](https://github.com/DroneEngage/droneegnage_authenticator/blob/master/resources/seq_diagram_authentication.png?raw=true)
@@ -22,7 +46,7 @@ The following diagram shows the main function of this module:
 ### Prerequisites
 
 - Node.js >= 18
-- MySQL (if using database storage)
+- SQLite (if using database storage, bundled with Node.js)
 - OpenSSL (for SSL certificates)
 
 ### Setup
@@ -79,7 +103,7 @@ File-based settings:
 ```json
 {
     "account_storage_type": "file",
-    "db_users": "./db_users.db"
+    "file_db": "./file_db.json"
 }
 ```
 
@@ -251,9 +275,9 @@ See [wiki/S2SAuthentication.md](wiki/S2SAuthentication.md) for complete guide.
 - Ensure server IDs match key filenames
 
 ### Database Connection Issues
-- Verify MySQL is running
-- Check database credentials in config
-- Ensure database exists
+- Verify SQLite database file is accessible
+- Check `dbdatabase` path in config
+- Ensure database directory exists and is writable
 
 ## Documentation
 

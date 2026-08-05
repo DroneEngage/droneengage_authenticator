@@ -18,23 +18,45 @@ Three independent servers running simultaneously:
 2. **Views Server** (port 8089): Admin web interface with EJS templating
 3. **S2S WebSocket Server** (port 19001): Server-to-Server communication with Ed25519 auth
 
+## Project Structure
+```
+andruav_authenticator/
+├── server.config          # JSON configuration (supports --config override)
+├── package.json           # Dependencies and scripts
+├── src/                   # Application source code
+│   ├── server.js          # Main entry point, spawns all three servers
+│   ├── js_constants.js    # API endpoints, error codes, message types
+│   ├── js_serverConfig.js # Config loader
+│   ├── dumperror.js       # Error helper
+│   ├── auth_server/       # Auth core modules
+│   ├── database/          # Storage modules (LowDB, SQLite migrations)
+│   ├── helpers/           # Utility helpers
+│   ├── routes/            # Express route handlers
+│   ├── views/             # EJS view templates
+│   └── public/            # Static assets
+├── ssl_local/             # SSL certificates & S2S keys
+├── scripts/               # S2S key generation script
+├── test/                  # Unit tests
+└── wiki/                  # Documentation
+```
+
 ## Key Files
-- `server.js` - Main entry point, spawns all three servers
+- `src/server.js` - Main entry point, spawns all three servers
 - `server.config` - JSON configuration (supports --config override)
 - `package.json` - Dependencies and scripts
-- `auth_server/js_auth_server.js` - Main auth server controller
-- `auth_server/js_account_manager.js` - User account CRUD operations
-- `auth_server/js_comm_server_manager.js` - Communication server management
-- `auth_server/js_session_manager.js` - Session/token management
-- `auth_server/js_s2s_auth.js` - Server-to-Server Ed25519 authentication
-- `auth_server/js_database_manager.js` - Database operations layer
-- `routes/js_router.js` - Main router setup
-- `routes/js_router_admin.js` - Admin interface routes
-- `routes/js_router_agent.js` - Agent/drone routes
-- `routes/js_router_web.js` - Web client routes
-- `database/db_users.js` - User database operations
-- `database/migrations/` - SQL migration files
-- `js_constants.js` - API endpoints, error codes, message types
+- `src/auth_server/js_auth_server.js` - Main auth server controller
+- `src/auth_server/js_account_manager.js` - User account CRUD operations
+- `src/auth_server/js_comm_server_manager.js` - Communication server management
+- `src/auth_server/js_session_manager.js` - Session/token management
+- `src/auth_server/js_s2s_auth.js` - Server-to-Server Ed25519 authentication
+- `src/auth_server/js_database_manager.js` - Database operations layer
+- `src/routes/js_router.js` - Main router setup
+- `src/routes/js_router_admin.js` - Admin interface routes
+- `src/routes/js_router_agent.js` - Agent/drone routes
+- `src/routes/js_router_web.js` - Web client routes
+- `src/database/db_users.js` - User database operations
+- `src/database/migrations/` - SQL migration files
+- `src/js_constants.js` - API endpoints, error codes, message types
 
 ## Configuration
 Configuration is centralized in `server.config` (JSON format). Key sections:
@@ -47,10 +69,10 @@ Configuration is centralized in `server.config` (JSON format). Key sections:
 
 ## Coding Standards
 - Use `global.m_logger` for logging (if enabled)
-- All inputs must pass `auth_server/js_input_validator.js`
-- Use `auth_server/js_database_manager.js` for all DB operations
-- Use `auth_server/js_session_manager.js` for token operations
-- Reuse utilities in `helpers/` directory
+- All inputs must pass `src/auth_server/js_input_validator.js`
+- Use `src/auth_server/js_database_manager.js` for all DB operations
+- Use `src/auth_server/js_session_manager.js` for token operations
+- Reuse utilities in `src/helpers/` directory
 - Several modules attached to `global` for easy access
 - Error handling: check `global.m_logger` existence before use
 

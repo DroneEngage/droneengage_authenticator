@@ -1,6 +1,6 @@
 # Database Schema
 
-This document describes the database schema for the Andruav Authenticator server, which supports three storage modes: single, file (JSON), and MySQL database.
+This document describes the database schema for the Andruav Authenticator server, which supports three storage modes: single, file (JSON), and SQLite database.
 
 ## Storage Modes
 
@@ -10,7 +10,7 @@ The authenticator supports three account storage modes configured via `account_s
 |------|-------------|----------|
 | `single` | Single hardcoded account | Testing/development |
 | `file` | JSON file storage (LowDB) | Small deployments, no database server |
-| `db` | MySQL database | Production, multi-user deployments |
+| `db` | SQLite database | Production, multi-user deployments |
 
 ## File-Based Storage (LowDB)
 
@@ -19,7 +19,7 @@ The authenticator supports three account storage modes configured via `account_s
 ```json
 {
     "account_storage_type": "file",
-    "db_users": "./db_users.db"
+    "file_db": "./file_db.json"
 }
 ```
 
@@ -61,7 +61,7 @@ The JSON file uses LowDB with the following structure:
 
 ### Database Operations
 
-The `database/db_users.js` module provides:
+The `src/database/db_users.js` module provides:
 
 - `fn_add_record(user_email, user_data)` - Add new user
 - `fn_update_record(user_email, user_data)` - Update existing user
@@ -73,17 +73,14 @@ The `database/db_users.js` module provides:
 - `fn_get_all_users_including_admins()` - Get all users
 - `fn_sync_to_disk()` - Persist changes to disk
 
-## MySQL Database Storage
+## SQLite Database Storage
 
 ### Configuration
 
 ```json
 {
     "account_storage_type": "db",
-    "dbIP": "localhost",
-    "dbuser": "USERNAME",
-    "dbpassword": "PASSWORD",
-    "dbdatabase": "andruav"
+    "dbdatabase": "database/andruav.db"
 }
 ```
 
@@ -236,7 +233,7 @@ Permissions are stored as hexadecimal strings:
 - File permissions should be restricted (0600)
 - Regular backups recommended
 
-### MySQL Storage
+### SQLite Storage
 
 - Use parameterized queries to prevent SQL injection
 - Access codes are stored in plain text (consider hashing)
@@ -246,12 +243,10 @@ Permissions are stored as hexadecimal strings:
 
 ### Migration
 
-To migrate from file to MySQL:
-1. Export JSON data to SQL INSERT statements
-2. Create MySQL tables using schema above
-3. Import data
-4. Update `account_storage_type` to `db`
-5. Restart server
+To migrate from file to SQLite:
+1. Run the migration script: `node src/database/migrate_file_db.js`
+2. Update `account_storage_type` to `db`
+3. Restart server
 
 ## Related Documentation
 

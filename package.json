@@ -1,6 +1,6 @@
 {
   "name": "DE_AUTH",
-  "version": "6.1.1",
+  "version": "7.0.0",
   "author": {
     "name": "Mohammad Said Hefny",
     "email": "mohammad.hefny@gmail.com"
@@ -13,11 +13,11 @@
   "description": "Andruav Authentication Server",
   "main": "andruav_auth.js",
   "scripts": {
-    "start": "node ./server.js",
+    "start": "node ./src/server.js",
     "test": "node --test test/*.test.js"
   },
   "bin": {
-    "andruavauth": "server.js"
+    "andruavauth": "src/server.js"
   },
   "dependencies": {
     "commander": "^2.11.0",

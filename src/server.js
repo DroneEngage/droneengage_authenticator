@@ -49,7 +49,7 @@ function fn_startApiServer ()
 
 
     //settings
-    c_app.set('port', global.m_serverconfig.m_configuration.server_port);
+    c_app.set('port', process.env.de_auth_server_port || global.m_serverconfig.m_configuration.server_port);
     c_app.set('views', v_path.join(__dirname, 'views'));
     c_app.set('view engine', 'ejs');
 
@@ -130,7 +130,7 @@ function fn_startViewsServer ()
     }))
 
     //settings
-    const webadminPort = global.m_serverconfig.m_configuration.webadmin_port || 19409;
+    const webadminPort = process.env.de_auth_webadminport || global.m_serverconfig.m_configuration.webadmin_port || 19409;
     const webadminIP = global.m_serverconfig.m_configuration.webadmin_listening_ip;
     if (!webadminIP) {
         console.log (global.Colors.BError + "FATAL ERROR:" + global.Colors.FgYellow + " webadmin_listening_ip " +  global.Colors.Reset + " is not specified in config file. ");

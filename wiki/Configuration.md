@@ -134,19 +134,27 @@ The server is configured via `server.config` (JSON format). You can create envir
 
 ```json
 {
+    "webadmin_enable": true,
     "admin_username": "admin",
     "admin_password": "admin123",
     "session_secret": "change-this-secret-in-production",
-    "webadmin_port": 8089
+    "webadmin_port": 8089,
+    "webadmin_listening_ip": "0.0.0.0",
+    "servers_admin_url_guid": "",
+    "webadmin_terminal_enabled": true
 }
 ```
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
+| `webadmin_enable` | boolean | true | Enable the admin web interface |
 | `admin_username` | string | "admin" | Admin username for web interface |
 | `admin_password` | string | "admin123" | Admin password for web interface |
 | `session_secret` | string | required | Secret for session encryption (change in production) |
 | `webadmin_port` | number | 8089 | Port for admin web interface |
+| `webadmin_listening_ip` | string | "0.0.0.0" | IP address to bind admin web interface |
+| `servers_admin_url_guid` | string | "" | Secret GUID prefix for admin URLs. When set, entire admin interface is hidden behind /admin/<guid>/* |
+| `webadmin_terminal_enabled` | boolean | true | Enable web terminal for remote shell access. Commands run with server process privileges |
 
 **Security Note:** Always change `admin_username`, `admin_password`, and `session_secret` in production.
 
@@ -173,8 +181,7 @@ The server is configured via `server.config` (JSON format). You can create envir
 ```json
 {
     "skip_hardware_validation": true,
-    "andruavSecurityEx": "Andruav Web Panel, Andruav Geo Fence Manager, DRONE ENGAGE Web Client, Andruav Mobile, uavos",
-    "APPVERSION": "{\"andruav\": \"4.00.00\", \"uavos\": \"1.0.0\", \"de\": \"1.0.0\"}"
+    "andruavSecurityEx": "Andruav Web Panel, Andruav Geo Fence Manager, DRONE ENGAGE Web Client, Andruav Mobile, uavos"
 }
 ```
 
@@ -182,7 +189,6 @@ The server is configured via `server.config` (JSON format). You can create envir
 |-----------|------|---------|-------------|
 | `skip_hardware_validation` | boolean | true | Skip hardware ID validation |
 | `andruavSecurityEx` | string | - | Allowed client applications |
-| `APPVERSION` | string | - | JSON string with version info for each app |
 
 ## Example Configuration Files
 
@@ -205,10 +211,14 @@ The server is configured via `server.config` (JSON format). You can create envir
     "s2s_ws_listening_port": 19001,
     "s2s_auth_enabled": false,
     "enable_SSL": false,
+    "webadmin_enable": true,
     "admin_username": "admin",
     "admin_password": "admin123",
     "session_secret": "dev-secret",
     "webadmin_port": 8089,
+    "webadmin_listening_ip": "0.0.0.0",
+    "servers_admin_url_guid": "",
+    "webadmin_terminal_enabled": true,
     "skip_hardware_validation": true
 }
 ```
@@ -222,10 +232,7 @@ The server is configured via `server.config` (JSON format). You can create envir
     "server_port": 19408,
     "health_utl": "/h",
     "account_storage_type": "db",
-    "dbIP": "localhost",
-    "dbuser": "andruav_user",
-    "dbpassword": "secure_password",
-    "dbdatabase": "andruav",
+    "dbdatabase": "database/andruav.db",
     "enableLog": true,
     "log_directory": "/var/log/andruav_auth/",
     "log_timeZone": "UTC",
@@ -241,23 +248,34 @@ The server is configured via `server.config` (JSON format). You can create envir
     "enable_SSL": true,
     "ssl_key_file": "/etc/ssl/private/domain.key",
     "ssl_cert_file": "/etc/ssl/certs/domain.crt",
+    "webadmin_enable": true,
     "admin_username": "admin",
     "admin_password": "secure_password",
     "session_secret": "random_long_secret_string",
     "webadmin_port": 8089,
+    "webadmin_listening_ip": "127.0.0.1",
+    "servers_admin_url_guid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "webadmin_terminal_enabled": false,
     "skip_hardware_validation": false
 }
 ```
 
 ## Environment Variables
 
-You can override configuration values using environment variables. Prefix with `ANDRUAV_` and use underscores:
+You can override configuration values using environment variables:
+
+| Variable | Description |
+|----------|-------------|
+| `de_auth_server_port` | Overrides `server_port` |
+| `de_auth_webadminport` | Overrides `webadmin_port` |
+| `de_auth_servers_status_guid` | Overrides `servers_admin_url_guid` |
+| `de_auth_webadmin_terminal_enabled` | Overrides `webadmin_terminal_enabled` (`"true"`/`"1"` = enabled) |
 
 ```bash
-export ANDRUAV_SERVER_PORT=19408
-export ANDRUAV_DBIP=localhost
-export ANDRUAV_DBUSER=andruav_user
-export ANDRUAV_DBPASSWORD=secure_password
+export de_auth_server_port=19408
+export de_auth_webadminport=8089
+export de_auth_servers_status_guid=a1b2c3d4-e5f6-7890-abcd-ef1234567890
+export de_auth_webadmin_terminal_enabled=false
 ```
 
 ## Security Best Practices
@@ -324,4 +342,5 @@ export ANDRUAV_DBPASSWORD=secure_password
 - [Authentication Flow](AuthenticationFlow.md)
 - [Database Schema](DatabaseSchema.md)
 - [API Endpoints](APIEndpoints.md)
-- [S2S Authentication](../andruav_server/wiki/S2SAuthentication.md)
+- [S2S Authentication](S2SAuthentication.md) - Server-to-server authentication guide
+- [Architecture](Architecture.md) - DroneEngage system architecture

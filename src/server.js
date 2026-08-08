@@ -174,13 +174,21 @@ function fn_startViewsServer ()
     // start listening
     v_server.listen(c_app.get('port'), webadminIP);
 
+    // Attach WebSocket terminal handler to the views server
+    if (global.m_serverconfig.m_configuration.webadmin_terminal_enabled !== false) {
+        const webTerminal = require('./routes/js_web_terminal');
+        webTerminal.attachWebSocketServer(v_server);
+    }
+
     console.log (global.Colors.Success + "[OK] Views Server Started" + global.Colors.Reset);
     const protocol = global.m_serverconfig.m_configuration.enable_SSL ? 'https' : 'http';
     const host = webadminIP;
     const port = webadminPort;
     const baseUrl = `${protocol}://${host}:${port}`;
 
-    console.log (global.Colors.Log + "Admin Routes:" + global.Colors.BSuccess + "  " + baseUrl + global.c_CONSTANTS.CONST_ADMIN_FUNCTION + "/dashboard" + global.Colors.Reset + " - Admin Dashboard");
+    const guid = global.m_serverconfig.m_configuration.servers_admin_url_guid || '';
+    const adminPath = guid ? `${global.c_CONSTANTS.CONST_ADMIN_FUNCTION}/${guid}/login` : `${global.c_CONSTANTS.CONST_ADMIN_FUNCTION}/login`;
+    console.log (global.Colors.Log + "Admin Routes:" + global.Colors.BSuccess + "  " + baseUrl + adminPath + global.Colors.Reset + " - Admin Login" + (guid ? " (GUID mode)" : ""));
 }
 
 

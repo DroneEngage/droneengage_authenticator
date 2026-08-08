@@ -95,34 +95,7 @@
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-custom">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="/admin/servers">Server Status</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="/admin/dashboard">Dashboard</a>
-                    </li>
-                    <% if (accountStorageType === 'file') { %>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/admin/users">Users</a>
-                    </li>
-                    <% } else if (accountStorageType === 'db') { %>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/admin/sql-management">Teams & Logins</a>
-                    </li>
-                    <% } %>
-                </ul>
-                <span class="navbar-text me-3 text-white">Welcome, <%= adminUsername %></span>
-                <form method="POST" action="/admin/logout" class="d-inline">
-                    <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
-                </form>
-            </div>
-        </div>
-    </nav>
+    <%- include('../common/navbar', { activePage: 'servers', navbarFixed: false }) %>
 
     <div class="container-fluid mt-4">
         <div class="card mb-4">

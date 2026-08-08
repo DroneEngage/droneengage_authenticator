@@ -34,9 +34,11 @@
     "helmet": "^3.21.2",
     "inherits": "^2.0.4",
     "lowdb": "^7.0.1",
-    "sqlite3": "^5.1.7",
+    "marked": "^18.0.9",
     "node-file-logger": "^0.9.5",
+    "node-pty": "^1.1.0",
     "randomstring": "^1.3.0",
+    "sqlite3": "^5.1.7",
     "uuid": "^9.0.0",
     "validator": "^13.9.0",
     "ws": "^8.16.0"

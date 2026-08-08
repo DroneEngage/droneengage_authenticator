@@ -1,0 +1,68 @@
+<%
+// Common admin navbar partial.
+//
+// Expects these locals (passed from the parent view or route):
+//   activePage         — string: 'dashboard' | 'users' | 'sql-management' | 'servers' | 'terminal' | 'wiki'
+//   navbarFixed        — boolean: true adds Bootstrap 'fixed-top' (for full-viewport pages like terminal)
+//   serversStatusGuid  — string|null: GUID prefix for admin URLs
+//   accountStorageType — string: 'single' | 'file' | 'db'
+//   adminUsername      — string|null: logged-in admin username
+//
+// All nav items are shown consistently on every page.  The active page is
+// highlighted with the 'active' class.  The brand text/link matches the
+// active page.
+
+const guidPrefix = serversStatusGuid ? '/' + serversStatusGuid : '';
+
+const brandMap = {
+    'dashboard':      { text: 'Admin Dashboard',  link: '/dashboard'      },
+    'users':          { text: 'User Management',  link: '/users'          },
+    'sql-management': { text: 'Teams & Logins',   link: '/sql-management' },
+    'servers':        { text: 'Server Status',    link: '/servers'        },
+    'terminal':       { text: 'Web Terminal',     link: '/terminal'       },
+    'wiki':           { text: 'Wiki / Help',      link: '/wiki'           }
+};
+const brand = brandMap[activePage] || brandMap['dashboard'];
+const navClass = navbarFixed
+    ? 'navbar navbar-expand-lg navbar-custom fixed-top'
+    : 'navbar navbar-expand-lg navbar-custom';
+%>
+<nav class="<%= navClass %>">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/admin<%= guidPrefix %><%= brand.link %>"><%= brand.text %></a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link<%= activePage === 'dashboard' ? ' active' : '' %>" href="/admin<%= guidPrefix %>/dashboard">Dashboard</a>
+                </li>
+                <% if (accountStorageType === 'file' || accountStorageType === 'single') { %>
+                <li class="nav-item">
+                    <a class="nav-link<%= activePage === 'users' ? ' active' : '' %>" href="/admin<%= guidPrefix %>/users">Users</a>
+                </li>
+                <% } else if (accountStorageType === 'db') { %>
+                <li class="nav-item">
+                    <a class="nav-link<%= activePage === 'sql-management' ? ' active' : '' %>" href="/admin<%= guidPrefix %>/sql-management">Teams & Logins</a>
+                </li>
+                <% } %>
+                <li class="nav-item">
+                    <a class="nav-link<%= activePage === 'servers' ? ' active' : '' %>" href="/admin<%= guidPrefix %>/servers">Servers</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link<%= activePage === 'terminal' ? ' active' : '' %>" href="/admin<%= guidPrefix %>/terminal">Terminal</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link<%= activePage === 'wiki' ? ' active' : '' %>" href="/admin<%= guidPrefix %>/wiki">Help</a>
+                </li>
+            </ul>
+            <% if (adminUsername) { %>
+            <span class="navbar-text me-3 text-white">Welcome, <%= adminUsername %></span>
+            <form method="POST" action="/admin/logout" class="d-inline">
+                <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
+            </form>
+            <% } %>
+        </div>
+    </div>
+</nav>

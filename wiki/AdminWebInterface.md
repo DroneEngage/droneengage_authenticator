@@ -20,6 +20,15 @@ To access the admin interface:
 - Username: `admin`
 - Password: `admin123`
 
+### GUID Mode (Hidden Admin)
+
+When `servers_admin_url_guid` is set in the configuration, the entire admin interface is hidden:
+- All `/admin/*` routes return 404 (except when the GUID is in the path)
+- Access is only via `/admin/<guid>/login` (e.g., `/admin/abc123/login`)
+- The GUID acts as a secret URL prefix — users must still authenticate with username/password
+- After login, the session carries `adminAuthenticated` so API calls work without the GUID in every request
+- Leave `servers_admin_url_guid` empty/null for default behavior (admin at `/admin/login`)
+
 ## Features
 
 ### Dashboard
@@ -74,6 +83,34 @@ Servers auto-refresh every 30 seconds. Click on a server card to view its connec
 
 ![Server Status](https://raw.githubusercontent.com/DroneEngage/droneengage_authenticator/refs/heads/release/wiki/images/_new_airgap_auth_site.png)
 
+### Web Terminal
+
+The "Terminal" page provides a full interactive shell terminal in the browser:
+
+- **Real PTY shell**: Uses node-pty to spawn a real pseudo-terminal (bash by default)
+- **WebSocket-based**: Connects via WebSocket for real-time bidirectional communication
+- **Full terminal support**: ANSI colors, tab completion, arrow keys, command history
+- **Interactive commands**: Supports `sudo` password prompts, curses apps (htop, vim), and other interactive programs
+- **xterm.js frontend**: Uses xterm.js for a professional terminal emulator experience
+- **Root access**: Commands run with the server process privileges (root if server runs as root)
+
+**Security warning**: The terminal executes commands with the server's privileges. Disable `webadmin_terminal_enabled` in production if remote shell access is not needed.
+
+The terminal is guarded by:
+- Admin session authentication (requireAuth)
+- GUID gate (when `servers_admin_url_guid` is configured)
+- Explicit config flag (`webadmin_terminal_enabled`)
+
+### Wiki / Help
+
+The "Help" link in the navigation opens a built-in wiki browser that renders the local markdown documentation:
+
+- **Sidebar navigation**: Lists all wiki pages with active page highlighted
+- **Markdown rendering**: Uses `marked` library with GFM table support
+- **Inter-link navigation**: Markdown links between documents are rewritten to work in the browser
+- **Image support**: Wiki images are served through the admin interface
+- **Dark theme**: Styled to match the admin interface theme
+
 ## Configuration
 
 The admin interface is configured in `server.config`:
@@ -85,7 +122,9 @@ The admin interface is configured in `server.config`:
     "admin_password": "admin123",
     "session_secret": "change-this-secret-in-production",
     "webadmin_port": 8089,
-    "webadmin_listening_ip": "0.0.0.0"
+    "webadmin_listening_ip": "0.0.0.0",
+    "servers_admin_url_guid": "",
+    "webadmin_terminal_enabled": true
 }
 ```
 
@@ -99,6 +138,8 @@ The admin interface is configured in `server.config`:
 | `session_secret` | string | required | Secret for session encryption |
 | `webadmin_port` | number | 8089 | Port for admin web interface |
 | `webadmin_listening_ip` | string | "0.0.0.0" | IP address to bind to |
+| `servers_admin_url_guid` | string | "" | Secret GUID prefix for admin URLs |
+| `webadmin_terminal_enabled` | boolean | true | Enable web terminal |
 
 ## Security Considerations
 
@@ -134,6 +175,12 @@ The admin interface uses internal API endpoints:
 - `GET /admin/api/users` - List users (file storage)
 - `GET /admin/api/sql/teams` - List teams (database storage)
 - `GET /admin/api/servers` - List communication servers
+- `GET /admin/terminal` - Web terminal page (requires terminal enabled)
+- `POST /admin/api/terminal/exec` - Execute shell command (removed - now WebSocket-based)
+- `WS /admin/api/terminal/ws` - WebSocket terminal connection
+- `GET /admin/wiki` - Wiki index page
+- `GET /admin/wiki/:page` - View wiki page
+- `GET /admin/wiki/images/:filename` - Serve wiki images
 
 These endpoints require admin session authentication.
 
@@ -173,3 +220,5 @@ These endpoints require admin session authentication.
 - [Authentication Flow](AuthenticationFlow.md) - How authentication works
 - [Database Schema](DatabaseSchema.md) - Database structure for storage modes
 - [API Endpoints](APIEndpoints.md) - Public API reference
+- [S2S Authentication](S2SAuthentication.md) - Server-to-server authentication guide
+- [Architecture](Architecture.md) - DroneEngage system architecture

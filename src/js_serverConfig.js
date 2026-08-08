@@ -32,6 +32,14 @@ function init(configFileNameParam) {
     try {
         const fileContent = fs.readFileSync(path.join(__dirname, '..', configFileName), 'utf8');
         configuration = JSON.parse(stripJsonComments(fileContent));
+
+        // Environment variable overrides
+        if (process.env.de_auth_servers_status_guid !== undefined) {
+            configuration.servers_admin_url_guid = process.env.de_auth_servers_status_guid;
+        }
+        if (process.env.de_auth_webadmin_terminal_enabled !== undefined) {
+            configuration.webadmin_terminal_enabled = (process.env.de_auth_webadmin_terminal_enabled === 'true' || process.env.de_auth_webadmin_terminal_enabled === '1');
+        }
     } catch (err) {
         console.error(`FATAL: Error processing configuration file '${configFileName}':`, err.message);
         dumpError.dumperror(err);

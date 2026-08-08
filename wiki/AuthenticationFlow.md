@@ -248,9 +248,15 @@ Communication Server                    Authenticator
 | Error Code | Constant | Description |
 |------------|---------|-------------|
 | 0 | `CONST_ERROR_NON` | Success |
-| 1 | `CONST_ERROR_NO_PERMISSION` | Insufficient permissions |
-| 2 | `CONST_ERROR_SERVER_NOT_AVAILABLE` | No communication server available |
-| 3 | `CONST_ERROR_SESSION_NOT_FOUND` | Invalid session ID |
+| 1 | `CONST_ERROR_INVALID_DATA` | Invalid input data |
+| 2 | `CONST_ERROR_ACCOUNT_NOT_FOUND` | Account not found |
+| 3 | `CONST_ERROR_DATA_DATABASE_ERROR` | Database error |
+| 5 | `CONST_ERROR_SERVER_NOT_AVAILABLE` | No communication server available |
+| 6 | `CONST_ERROR_NO_PERMISSION` | Insufficient permissions |
+| 7 | `CONST_ERROR_SESSION_NOT_FOUND` | Invalid session ID (relogin required) |
+| 8 | `CONST_ERROR_HARDWARE_NOT_FOUND` | Hardware not found |
+| 9 | `CONST_ERROR_ACCOUNT_DISABLED` | Account is disabled |
+| 10 | `CONST_ERROR_NOT_FOUND` | Resource not found |
 
 ### Validation Errors
 
@@ -275,4 +281,6 @@ All requests are validated by `src/auth_server/js_input_validator.js` before pro
 - [Database Schema](DatabaseSchema.md)
 - [API Endpoints](APIEndpoints.md)
 - [Configuration](Configuration.md)
+- [S2S Authentication](S2SAuthentication.md) - Server-to-server authentication guide
+- [Architecture](Architecture.md) - DroneEngage system architecture
 - [S2S Authentication](../andruav_server/wiki/S2SAuthentication.md)

@@ -86,132 +86,156 @@ The `src/database/db_users.js` module provides:
 
 ### Database Schema
 
-#### account Table
+The schema is initialized via `src/database/migrations/002_init_schema.sql`.
 
-Main account information.
+#### teams Table
+
+Main team information. Each team represents an organization/group that can have multiple logins and registered hardware.
 
 ```sql
-CREATE TABLE account (
-    Account_SID INT AUTO_INCREMENT PRIMARY KEY,
-    Name VARCHAR(255) UNIQUE NOT NULL,
-    Enabled TINYINT(1) DEFAULT 1,
-    Instance_Limit INT DEFAULT 10
+CREATE TABLE IF NOT EXISTS teams (
+    TeamID INTEGER PRIMARY KEY AUTOINCREMENT,
+    TeamName TEXT NOT NULL UNIQUE,
+    Email TEXT,
+    InstanceLimit INTEGER DEFAULT 999,
+    Enabled INTEGER DEFAULT 1,
+    CreatedAt TEXT DEFAULT (datetime('now')),
+    UpdatedAt TEXT DEFAULT (datetime('now'))
 );
 ```
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `Account_SID` | INT (PK) | Unique account identifier |
-| `Name` | VARCHAR(255) | Account name/email (unique) |
-| `Enabled` | TINYINT(1) | Account enabled flag (0=disabled, 1=enabled) |
-| `Instance_Limit` | INT | Maximum concurrent instances |
+| `TeamID` | INTEGER (PK) | Unique team identifier (auto-increment) |
+| `TeamName` | TEXT | Team name (unique) |
+| `Email` | TEXT | Team email |
+| `InstanceLimit` | INTEGER | Maximum concurrent instances (default 999) |
+| `Enabled` | INTEGER | Team enabled flag (0=disabled, 1=enabled) |
+| `CreatedAt` | TEXT | Creation timestamp |
+| `UpdatedAt` | TEXT | Last update timestamp |
 
-#### account_details Table
+#### logins Table
 
-Access codes and permissions for accounts.
+Access codes and permissions for a team. A team can have multiple logins with different permissions.
 
 ```sql
-CREATE TABLE account_details (
-    Account_SID INT NOT NULL,
-    AccessCode VARCHAR(255) NOT NULL,
-    Permission VARCHAR(255) DEFAULT '0xffffffff',
-    PRIMARY KEY (Account_SID, AccessCode),
-    FOREIGN KEY (Account_SID) REFERENCES account(Account_SID)
+CREATE TABLE IF NOT EXISTS logins (
+    LoginID INTEGER PRIMARY KEY AUTOINCREMENT,
+    TeamID INTEGER NOT NULL,
+    LoginName TEXT NOT NULL,
+    AccessCode TEXT NOT NULL UNIQUE,
+    Permissions INTEGER NOT NULL DEFAULT 4294967295,
+    IsAdmin INTEGER DEFAULT 0,
+    CreatedAt TEXT DEFAULT (datetime('now')),
+    LastLogin TEXT,
+    FOREIGN KEY (TeamID) REFERENCES teams(TeamID) ON DELETE CASCADE
 );
 ```
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `Account_SID` | INT (FK) | Reference to account table |
-| `AccessCode` | VARCHAR(255) | Access code/password |
-| `Permission` | VARCHAR(255) | Permission mask (hex string) |
+| `LoginID` | INTEGER (PK) | Unique login identifier (auto-increment) |
+| `TeamID` | INTEGER (FK) | Reference to teams table (cascade delete) |
+| `LoginName` | TEXT | Login name/username |
+| `AccessCode` | TEXT | Access code (unique) |
+| `Permissions` | INTEGER | Permission bitmask (default 0xFFFFFFFF = 4294967295) |
+| `IsAdmin` | INTEGER | Admin flag (0=no, 1=yes) |
+| `CreatedAt` | TEXT | Creation timestamp |
+| `LastLogin` | TEXT | Last login timestamp |
 
-**Note:** One account can have multiple access codes (sub-logins) with different permissions.
+**Note:** One team can have multiple logins (sub-logins) with different permissions. Deleting a team cascades to delete all its logins.
 
-#### account_hw_info Table
+#### team_hardware Table
 
-Hardware verification information for accounts.
+Hardware verification information registered to a team.
 
 ```sql
-CREATE TABLE account_hw_info (
-    SID INT AUTO_INCREMENT PRIMARY KEY,
-    Account_SID INT NOT NULL,
-    HW_ID VARCHAR(255) NOT NULL,
-    HW_Type VARCHAR(255),
-    register_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (Account_SID) REFERENCES account(Account_SID)
+CREATE TABLE IF NOT EXISTS team_hardware (
+    HardwareSID INTEGER PRIMARY KEY AUTOINCREMENT,
+    TeamID INTEGER NOT NULL,
+    HardwareID TEXT NOT NULL,
+    HardwareType TEXT NOT NULL,
+    RegisteredAt TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (TeamID) REFERENCES teams(TeamID) ON DELETE CASCADE,
+    UNIQUE(TeamID, HardwareID)
 );
 ```
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `SID` | INT (PK) | Hardware record identifier |
-| `Account_SID` | INT (FK) | Reference to account table |
-| `HW_ID` | VARCHAR(255) | Hardware identifier (e.g., serial number) |
-| `HW_Type` | VARCHAR(255) | Hardware type (e.g., "Pixhawk", "Cube") |
-| `register_time` | TIMESTAMP | Registration timestamp |
+| `HardwareSID` | INTEGER (PK) | Unique hardware record identifier |
+| `TeamID` | INTEGER (FK) | Reference to teams table (cascade delete) |
+| `HardwareID` | TEXT | Hardware identifier (e.g., serial number) |
+| `HardwareType` | TEXT | Hardware type (e.g., "Pixhawk", "Cube") |
+| `RegisteredAt` | TEXT | Registration timestamp |
+
+**Note:** The combination of `TeamID` and `HardwareID` is unique, preventing duplicate hardware registrations for the same team.
 
 ## Database Operations
 
 ### Login Query
 
+Authenticate a login by access code and login name, joining with teams to check enabled status and instance limit:
+
 ```sql
-SELECT 
-    account.Account_SID, 
-    account.Enabled, 
-    account.Instance_Limit, 
-    account_details.Permission 
-FROM account_details, account 
-WHERE account_details.AccessCode = ? 
-  AND account.Account_SID = account_details.Account_SID 
-  AND account.Name = ?
+SELECT * FROM logins WHERE AccessCode = ? AND LoginName = ?
 ```
 
-### Get Account by Access Code
+The result is then joined with `teams` to verify `Enabled` and `InstanceLimit`:
 
 ```sql
-SELECT account.Name 
-FROM account_details, account 
-WHERE account_details.AccessCode = ? 
-  AND account.Account_SID = account_details.Account_SID
+SELECT t.Enabled, t.InstanceLimit, l.Permissions, l.IsAdmin
+FROM logins l
+JOIN teams t ON l.TeamID = t.TeamID
+WHERE l.AccessCode = ? AND l.LoginName = ?
 ```
 
-### Create Sub-Login
+### Get Teams (Paginated)
+
+Retrieve a paginated list of teams with optional filtering:
 
 ```sql
-INSERT INTO account_details (Account_SID, AccessCode, Permission)
-SELECT account.Account_SID, ?, ? 
-FROM account 
-WHERE account.Name = ?
+SELECT * FROM teams WHERE ... ORDER BY ... LIMIT ? OFFSET ?
 ```
 
-### Create New Account
+### Get Logins for Team
+
+Retrieve all logins belonging to a specific team:
 
 ```sql
-INSERT INTO account (Account_SID, Name) 
-VALUES (NULL, ?)
+SELECT * FROM logins WHERE TeamID = ? ORDER BY LoginID
 ```
 
-### Delete Sub-Logins
+### Create Team
+
+Create a new team:
 
 ```sql
-DELETE FROM account_details 
-WHERE Account_SID IN (
-    SELECT Account_SID FROM account WHERE Name LIKE ?
-) 
-AND Permission LIKE ?
+INSERT INTO teams (TeamName, Email, InstanceLimit, Enabled) VALUES (?, ?, ?, ?)
 ```
 
-### Get Hardware by Account
+### Create Login
+
+Create a new login for a team:
 
 ```sql
-SELECT 
-    account_hw_info.SID, 
-    account_hw_info.HW_ID, 
-    account_hw_info.HW_Type, 
-    account_hw_info.register_time 
-FROM account_hw_info 
-WHERE account_hw_info.Account_SID = ?
+INSERT INTO logins (TeamID, LoginName, AccessCode, Permissions, IsAdmin) VALUES (?, ?, ?, ?, ?)
+```
+
+### Delete Team
+
+Delete a team (cascades to delete associated logins and hardware):
+
+```sql
+DELETE FROM teams WHERE TeamID = ?
+```
+
+### Delete Login
+
+Delete a specific login:
+
+```sql
+DELETE FROM logins WHERE LoginID = ?
 ```
 
 ## Permission Masks
@@ -248,8 +272,12 @@ To migrate from file to SQLite:
 2. Update `account_storage_type` to `db`
 3. Restart server
 
+The SQLite schema is initialized via SQL migration files in `src/database/migrations/`. The main schema definition is in `src/database/migrations/002_init_schema.sql`, which creates the `teams`, `logins`, and `team_hardware` tables. These migrations run automatically when the database is first created or when the server starts with `account_storage_type` set to `db`.
+
 ## Related Documentation
 
 - [Authentication Flow](AuthenticationFlow.md)
 - [Configuration](Configuration.md)
 - [API Endpoints](APIEndpoints.md)
+- [S2S Authentication](S2SAuthentication.md) - Server-to-server authentication guide
+- [Architecture](Architecture.md) - DroneEngage system architecture

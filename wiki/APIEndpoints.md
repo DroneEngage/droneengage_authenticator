@@ -20,7 +20,7 @@ Health check endpoint for monitoring.
 ```json
 {
     "status": "OK",
-    "version": "4.4.2",
+    "version": "7.0.1",
     "server_id": "AndruavAuth"
 }
 ```
@@ -178,6 +178,52 @@ Get status of all communication servers.
     ]
 }
 ```
+
+#### GET /admin/terminal
+
+Web terminal page (requires authentication and `webadmin_terminal_enabled`).
+
+#### WS /admin/api/terminal/ws
+
+WebSocket endpoint for the interactive web terminal. Requires admin session authentication via cookie. Spawns a PTY shell and pipes input/output bidirectionally.
+
+#### GET /admin/wiki
+
+Wiki index page listing all available documentation pages (requires authentication).
+
+#### GET /admin/wiki/:page
+
+View a specific wiki page rendered as HTML (requires authentication).
+
+#### GET /admin/wiki/images/:filename
+
+Serve wiki images (requires authentication, image files only).
+
+#### GET /admin/api/sql/teams
+
+Get paginated teams with logins (database storage mode only).
+
+**Query Parameters:** `page`, `limit`, `search`, `sortBy`, `sortDir`
+
+#### GET /admin/api/sql/stats
+
+Get total counts of logins and teams (database storage mode only).
+
+#### POST /admin/api/sql/teams
+
+Create a new team (database storage mode only).
+
+#### DELETE /admin/api/sql/teams/:id
+
+Delete a team (database storage mode only).
+
+#### POST /admin/api/sql/logins
+
+Create a new login under a team (database storage mode only).
+
+#### DELETE /admin/api/sql/logins/:id
+
+Delete a login (database storage mode only).
 
 ## Agent Endpoints
 
@@ -343,15 +389,16 @@ Logout and invalidate session.
 | Error Code | Constant | Description |
 |------------|----------|-------------|
 | 0 | `CONST_ERROR_NON` | Success |
-| 1 | `CONST_ERROR_NO_PERMISSION` | Insufficient permissions |
-| 2 | `CONST_ERROR_SERVER_NOT_AVAILABLE` | No communication server available |
-| 3 | `CONST_ERROR_SESSION_NOT_FOUND` | Invalid session ID |
-| 4 | `CONST_ERROR_ACCOUNT_NOT_FOUND` | Account not found |
-| 5 | `CONST_ERROR_ACCOUNT_DISABLED` | Account is disabled |
-| 6 | `CONST_ERROR_DATA_DATABASE_ERROR` | Database error |
-| 7 | `CONST_ERROR_INVALID_DATA` | Invalid input data |
+| 1 | `CONST_ERROR_INVALID_DATA` | Invalid input data |
+| 2 | `CONST_ERROR_ACCOUNT_NOT_FOUND` | Account not found |
+| 3 | `CONST_ERROR_DATA_DATABASE_ERROR` | Database error |
+| 5 | `CONST_ERROR_SERVER_NOT_AVAILABLE` | No communication server available |
+| 6 | `CONST_ERROR_NO_PERMISSION` | Insufficient permissions |
+| 7 | `CONST_ERROR_SESSION_NOT_FOUND` | Invalid session ID (relogin required) |
 | 8 | `CONST_ERROR_HARDWARE_NOT_FOUND` | Hardware not found |
-| 9 | `CONST_ERROR_NOT_FOUND` | Resource not found |
+| 9 | `CONST_ERROR_ACCOUNT_DISABLED` | Account is disabled |
+| 10 | `CONST_ERROR_NOT_FOUND` | Resource not found |
+| 999 | `CONST_ERROR_UNKNOWN` | Unknown error |
 
 ## Response Format
 
@@ -374,7 +421,7 @@ All API responses follow this format:
 - CSRF protection on all forms
 - Rate limiting on login (5 attempts per 15 minutes)
 - Secure cookie configuration (httpOnly, secure)
-- 24-hour session expiration
+- 2-hour session expiration
 
 ### Agent/Web Endpoints
 - Input validation on all parameters
@@ -412,3 +459,5 @@ fetch('/admin/login', {
 - [Authentication Flow](AuthenticationFlow.md)
 - [Database Schema](DatabaseSchema.md)
 - [Configuration](Configuration.md)
+- [S2S Authentication](S2SAuthentication.md) - Server-to-server authentication guide
+- [Architecture](Architecture.md) - DroneEngage system architecture

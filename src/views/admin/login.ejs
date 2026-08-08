@@ -61,7 +61,7 @@
             <div class="alert alert-danger" role="alert"><%= error %></div>
         <% } %>
 
-        <form method="POST" action="/admin/login">
+        <form method="POST" action="<%= adminPath %>/login">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
             <div class="mb-3">

@@ -32,7 +32,6 @@ const v_sessionManager = require("./js_session_manager");
 const v_account_manager = require("./js_account_manager");
 const v_database_manager = require("./js_database_manager");
 const v_inputValidator = require("./js_input_validator");
-const v_appVersion = require("./js_app_version");
 
 function invokeError(fn_error) {
     if (fn_error != null) {
@@ -102,12 +101,6 @@ function fn_newLoginCard(
 
     if (!v_inputValidator.validateLoginRequest(fields)) {
         invokeError(fn_error);
-        return;
-    }
-
-    const versionReply = v_appVersion.checkAppVersion(fields.app, fields.version);
-    if (versionReply != null) {
-        fn_callback(versionReply);
         return;
     }
 
@@ -245,13 +238,6 @@ function fn_accountOperationFromAgent(
 ) {
     if (!v_inputValidator.validateAgentMetadata({ app: p_app, version: p_version, extra: p_extra })) {
         invokeError(fn_error);
-        return;
-    }
-
-    const versionReply = v_appVersion.checkAppVersion(p_app, p_version);
-    if (versionReply != null) {
-        versionReply[global.c_CONSTANTS.CONST_SUB_COMMAND] = p_subCommand;
-        fn_callback(versionReply);
         return;
     }
 

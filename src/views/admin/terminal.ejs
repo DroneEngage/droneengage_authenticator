@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link href="/public/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/public/xterm/xterm.css" rel="stylesheet">
+    <style>
+        body {
+            background: #1a1a1a;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        .navbar-custom {
+            background: #343a40;
+        }
+        .navbar-custom .navbar-brand,
+        .navbar-custom .nav-link {
+            color: #f8f9fa !important;
+        }
+        #terminalContainer {
+            position: absolute;
+            top: 56px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #000;
+            padding: 8px;
+        }
+        #terminal {
+            height: 100%;
+            width: 100%;
+        }
+        .terminal-status-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #1a1a1a;
+            border-top: 1px solid #333;
+            padding: 4px 12px;
+            font-size: 12px;
+            color: #adb5bd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: 'Consolas', 'Monaco', monospace;
+            z-index: 10;
+        }
+        .terminal-status-bar .status-connected {
+            color: #66bb6a;
+        }
+        .terminal-status-bar .status-disconnected {
+            color: #ef5350;
+        }
+        .terminal-status-bar .status-connecting {
+            color: #ffa726;
+        }
+        .badge-warn {
+            background: #dc3545;
+            color: #fff;
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+        }
+        .btn-tiny {
+            padding: 1px 8px;
+            font-size: 11px;
+        }
+        .btn-outline-light {
+            border-color: #f8f9fa;
+            color: #f8f9fa;
+        }
+        .btn-outline-light:hover {
+            background: #f8f9fa;
+            color: #212529;
+        }
+        .reconnect-overlay {
+            position: absolute;
+            top: 56px;
+            left: 0;
+            right: 0;
+            bottom: 28px;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .reconnect-overlay.show {
+            display: flex;
+        }
+        .reconnect-overlay .btn {
+            font-size: 16px;
+            padding: 8px 24px;
+        }
+    </style>
+</head>
+<body>
+    <%- include('../common/navbar', { activePage: 'terminal', navbarFixed: true }) %>
+
+    <div id="terminalContainer">
+        <div id="terminal"></div>
+    </div>
+
+    <div class="reconnect-overlay" id="reconnectOverlay">
+        <div style="color:#ef5350;font-size:18px;">Terminal disconnected</div>
+        <button class="btn btn-outline-light" onclick="connectTerminal()">Reconnect</button>
+    </div>
+
+    <div class="terminal-status-bar">
+        <div>
+            <span id="connStatus" class="status-connecting">Connecting...</span>
+            <span class="ms-3">User: <span class="text-white"><%= adminUsername || 'admin' %></span></span>
+            <span class="ms-3">Shell: <span id="shellInfo" class="text-white">-</span></span>
+        </div>
+        <div>
+            <span class="badge-warn me-2">ROOT ACCESS</span>
+            <button class="btn btn-outline-light btn-tiny me-1" onclick="clearTerminal()">Clear</button>
+            <button class="btn btn-outline-light btn-tiny" onclick="fitTerminal()">Fit</button>
+        </div>
+    </div>
+
+    <script src="/public/xterm/xterm.min.js"></script>
+    <script src="/public/xterm/addon-fit.min.js"></script>
+    <script src="/public/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // ── xterm.js terminal ─────────────────────────────────────────────
+        const term = new Terminal({
+            cursorBlink: true,
+            fontSize: 14,
+            fontFamily: 'Consolas, Monaco, "Courier New", monospace',
+            theme: {
+                background: '#0c0c0c',
+                foreground: '#e0e0e0',
+                cursor: '#4fc3f7',
+                selectionBackground: 'rgba(79, 195, 247, 0.3)'
+            },
+            scrollback: 5000,
+            convertEol: false
+        });
+
+        const fitAddon = new FitAddon.FitAddon();
+        term.loadAddon(fitAddon);
+
+        term.open(document.getElementById('terminal'));
+        fitTerminal();
+
+        let ws = null;
+        let connected = false;
+
+        function fitTerminal() {
+            try {
+                fitAddon.fit();
+                if (connected && ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                        type: 'resize',
+                        cols: term.cols,
+                        rows: term.rows
+                    }));
+                }
+            } catch (e) {
+                // Fit can fail if terminal is not yet visible
+            }
+        }
+
+        function setConnStatus(text, cls) {
+            const el = document.getElementById('connStatus');
+            el.textContent = text;
+            el.className = cls;
+        }
+
+        function showReconnect() {
+            document.getElementById('reconnectOverlay').classList.add('show');
+        }
+
+        function hideReconnect() {
+            document.getElementById('reconnectOverlay').classList.remove('show');
+        }
+
+        function clearTerminal() {
+            term.clear();
+        }
+
+        // ── WebSocket connection ──────────────────────────────────────────
+        function connectTerminal() {
+            if (ws) {
+                try { ws.close(); } catch (e) {}
+                ws = null;
+            }
+
+            connected = false;
+            setConnStatus('Connecting...', 'status-connecting');
+            hideReconnect();
+
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = protocol + '//' + window.location.host + '/admin<%= serversStatusGuid ? '/' + serversStatusGuid : '' %>/api/terminal/ws';
+
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = function () {
+                connected = true;
+                setConnStatus('Connected', 'status-connected');
+                // Send initial terminal size
+                ws.send(JSON.stringify({
+                    type: 'resize',
+                    cols: term.cols,
+                    rows: term.rows
+                }));
+                term.focus();
+            };
+
+            ws.onmessage = function (event) {
+                try {
+                    const msg = JSON.parse(event.data);
+                    if (msg.type === 'output') {
+                        term.write(msg.data);
+                    } else if (msg.type === 'ready') {
+                        document.getElementById('shellInfo').textContent = msg.shell || 'shell';
+                    } else if (msg.type === 'exit') {
+                        term.write('\r\n\x1b[33m[Process exited with code ' + msg.exitCode + ']\x1b[0m\r\n');
+                        connected = false;
+                        setConnStatus('Disconnected', 'status-disconnected');
+                        showReconnect();
+                    } else if (msg.type === 'error') {
+                        term.write('\r\n\x1b[31m' + msg.message + '\x1b[0m\r\n');
+                    }
+                } catch (e) {
+                    // Non-JSON message — ignore
+                }
+            };
+
+            ws.onerror = function () {
+                setConnStatus('Error', 'status-disconnected');
+            };
+
+            ws.onclose = function () {
+                if (connected) {
+                    term.write('\r\n\x1b[31m[Connection closed]\x1b[0m\r\n');
+                }
+                connected = false;
+                setConnStatus('Disconnected', 'status-disconnected');
+                showReconnect();
+            };
+        }
+
+        // ── Terminal input → WebSocket ────────────────────────────────────
+        term.onData(function (data) {
+            if (connected && ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'input', data: data }));
+            }
+        });
+
+        // ── Window resize handling ────────────────────────────────────────
+        window.addEventListener('resize', function () {
+            fitTerminal();
+        });
+
+        // Resize observer for the terminal container
+        if (typeof ResizeObserver !== 'undefined') {
+            const ro = new ResizeObserver(function () {
+                fitTerminal();
+            });
+            ro.observe(document.getElementById('terminalContainer'));
+        }
+
+        // ── Start ─────────────────────────────────────────────────────────
+        connectTerminal();
+    </script>
+</body>
+</html>

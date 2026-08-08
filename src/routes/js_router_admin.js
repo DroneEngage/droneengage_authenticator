@@ -7,18 +7,10 @@ const rateLimit = require('express-rate-limit');
 const csrf = require('csurf');
 const helmet = require('helmet');
 const { isValidAdminUsername, isValidAdminPassword } = require('../helpers/hlp_validation');
+const { sessionMiddleware } = require('../helpers/js_admin_session');
 
-// Configure session
-router.use(session({
-    secret: global.m_serverconfig.m_configuration.session_secret || 'change-this-secret-in-production',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        secure: global.m_serverconfig.m_configuration.enable_SSL || false, // HTTPS only when SSL enabled
-        httpOnly: true,
-        maxAge: 2 * 60 * 60 * 1000 // 2 hours
-    }
-}));
+// Configure session (shared store — also used by WebSocket terminal handler)
+router.use(sessionMiddleware);
 
 // Configure Content Security Policy
 router.use(helmet.contentSecurityPolicy({
@@ -79,20 +71,63 @@ function clearFailedAttempts(ip, username) {
 // CSRF protection
 const csrfProtection = csrf({ cookie: true });
 
-// Authentication middleware
+// Helper: build an admin URL that includes the GUID prefix when configured
+function adminPath(path) {
+    const guid = global.m_serverconfig.m_configuration.servers_admin_url_guid;
+    if (guid) {
+        return '/admin/' + guid + path;
+    }
+    return '/admin' + path;
+}
+
+// Authentication middleware — requires admin login
 function requireAuth(req, res, next) {
     if (req.session && req.session.adminAuthenticated) {
         return next();
     }
-    return res.redirect('/admin/login');
+    return res.redirect(adminPath('/login'));
 }
+
+// GUID gate middleware — when servers_admin_url_guid is configured, the entire
+// admin site is hidden behind a secret URL.  The GUID acts as a hidden path
+// to the login page; users must still authenticate with username/password.
+// After login, the session carries adminAuthenticated so API calls work.
+router.use((req, res, next) => {
+    const configuredGuid = global.m_serverconfig.m_configuration.servers_admin_url_guid;
+
+    // GUID mode not enabled — normal behaviour
+    if (!configuredGuid) {
+        return next();
+    }
+
+    const guidPrefix = '/' + configuredGuid;
+
+    // Request includes the GUID in the path — strip it and continue
+    if (req.path === guidPrefix || req.path.startsWith(guidPrefix + '/')) {
+        req.url = req.url.substring(guidPrefix.length) || '/';
+        // Root after strip → redirect to login
+        if (req.url === '/') {
+            return res.redirect(adminPath('/login'));
+        }
+        return next();
+    }
+
+    // No GUID in path — allow if already authenticated (API calls after login)
+    if (req.session && req.session.adminAuthenticated) {
+        return next();
+    }
+
+    // Hidden — return 404
+    return res.status(404).render('pages/404', { title: '404', message: 'Not found.' });
+});
 
 // Login page
 router.get('/login', csrfProtection, (req, res) => {
     res.render('admin/login', {
         csrfToken: req.csrfToken(),
         error: req.session.error,
-        title: 'Admin Login'
+        title: 'Admin Login',
+        adminPath: adminPath('')
     });
     req.session.error = null;
 });
@@ -106,18 +141,18 @@ router.post('/login', loginLimiter, csrfProtection, (req, res) => {
     // Input validation
     if (!isValidAdminUsername(username)) {
         req.session.error = 'Invalid username format';
-        return res.redirect('/admin/login');
+        return res.redirect(adminPath('/login'));
     }
 
     if (!isValidAdminPassword(password)) {
         req.session.error = 'Invalid password format';
-        return res.redirect('/admin/login');
+        return res.redirect(adminPath('/login'));
     }
 
     // Check account lockout
     if (isAccountLocked(clientIp, username)) {
         req.session.error = 'Account temporarily locked due to too many failed attempts. Please try again later.';
-        return res.redirect('/admin/login');
+        return res.redirect(adminPath('/login'));
     }
 
     if (username === config.admin_username && password === config.admin_password) {
@@ -125,12 +160,12 @@ router.post('/login', loginLimiter, csrfProtection, (req, res) => {
         clearFailedAttempts(clientIp, username);
         req.session.adminAuthenticated = true;
         req.session.adminUsername = username;
-        return res.redirect('/admin/dashboard');
+        return res.redirect(adminPath('/dashboard'));
     } else {
         // Failed login - record attempt
         recordFailedAttempt(clientIp, username);
         req.session.error = 'Invalid username or password';
-        return res.redirect('/admin/login');
+        return res.redirect(adminPath('/login'));
     }
 });
 
@@ -140,7 +175,7 @@ router.post('/logout', (req, res) => {
         if (err) {
             console.error('Error destroying session:', err);
         }
-        res.redirect('/admin/login');
+        res.redirect(adminPath('/login'));
     });
 });
 
@@ -149,7 +184,8 @@ router.get('/dashboard', requireAuth, (req, res) => {
     res.render('admin/dashboard', {
         title: 'Admin Dashboard',
         adminUsername: req.session.adminUsername,
-        accountStorageType: global.m_serverconfig.m_configuration.account_storage_type
+        accountStorageType: global.m_serverconfig.m_configuration.account_storage_type,
+        serversStatusGuid: global.m_serverconfig.m_configuration.servers_admin_url_guid || null
     });
 });
 
@@ -157,8 +193,9 @@ router.get('/dashboard', requireAuth, (req, res) => {
 router.get('/users', requireAuth, (req, res) => {
     res.render('admin/users', {
         title: 'User Management',
-        adminUsername: req.session.adminUsername,
-        accountStorageType: global.m_serverconfig.m_configuration.account_storage_type
+        adminUsername: req.session.adminUsername || null,
+        accountStorageType: global.m_serverconfig.m_configuration.account_storage_type,
+        serversStatusGuid: global.m_serverconfig.m_configuration.servers_admin_url_guid || null
     });
 });
 
@@ -166,8 +203,9 @@ router.get('/users', requireAuth, (req, res) => {
 router.get('/servers', requireAuth, (req, res) => {
     res.render('admin/servers', {
         title: 'Server Status',
-        adminUsername: req.session.adminUsername,
-        accountStorageType: global.m_serverconfig.m_configuration.account_storage_type
+        adminUsername: req.session.adminUsername || null,
+        accountStorageType: global.m_serverconfig.m_configuration.account_storage_type,
+        serversStatusGuid: global.m_serverconfig.m_configuration.servers_admin_url_guid || null
     });
 });
 
@@ -175,8 +213,9 @@ router.get('/servers', requireAuth, (req, res) => {
 router.get('/sql-management', requireAuth, (req, res) => {
     res.render('admin/sql-management', {
         title: 'Teams & Logins Management',
-        adminUsername: req.session.adminUsername,
-        accountStorageType: global.m_serverconfig.m_configuration.account_storage_type
+        adminUsername: req.session.adminUsername || null,
+        accountStorageType: global.m_serverconfig.m_configuration.account_storage_type,
+        serversStatusGuid: global.m_serverconfig.m_configuration.servers_admin_url_guid || null
     });
 });
 
@@ -600,6 +639,191 @@ router.delete('/api/sql/logins/:id', requireAuth, (req, res) => {
     } catch (error) {
         console.error('Error in DELETE /api/sql/logins:', error);
         res.json({ error: 1, errorMessage: 'Failed to delete login' });
+    }
+});
+
+// ─── Web Terminal ─────────────────────────────────────────────────────────────
+// The terminal page is served here; the actual PTY + WebSocket handling lives
+// in js_web_terminal.js (attached to the HTTP server in server.js).
+// Guarded by requireAuth + GUID gate + an explicit config flag.
+
+// Helper: check whether the terminal feature is enabled in config
+function isTerminalEnabled() {
+    const cfg = global.m_serverconfig.m_configuration;
+    return cfg && cfg.webadmin_terminal_enabled !== false;
+}
+
+// Middleware: require terminal feature to be enabled
+function requireTerminalEnabled(req, res, next) {
+    if (isTerminalEnabled()) return next();
+    return res.status(404).render('pages/404', { title: '404', message: 'Not found.' });
+}
+
+// Terminal page (protected)
+router.get('/terminal', requireAuth, requireTerminalEnabled, (req, res) => {
+    res.render('admin/terminal', {
+        title: 'Web Terminal',
+        adminUsername: req.session.adminUsername || null,
+        accountStorageType: global.m_serverconfig.m_configuration.account_storage_type,
+        serversStatusGuid: global.m_serverconfig.m_configuration.servers_admin_url_guid || null
+    });
+});
+
+// ─── Wiki / Help ──────────────────────────────────────────────────────────────
+// Serves the local wiki markdown files rendered as HTML inside the admin panel.
+// Images are served as static files.  Inter-document links (Foo.md) are
+// rewritten to /admin/wiki/Foo so navigation works in the browser.
+
+const fs = require('fs');
+const pathModule = require('path');
+const { marked } = require('marked');
+
+const WIKI_DIR = pathModule.join(__dirname, '..', '..', 'wiki');
+
+// Configure marked: add GFM tables, rewrite .md links to wiki routes
+marked.setOptions({
+    gfm: true,
+    breaks: false
+});
+
+// Custom renderer to rewrite markdown links to wiki page routes.
+// marked v5+ passes a single object argument to renderer methods.
+const renderer = new marked.Renderer();
+const origLink = renderer.link.bind(renderer);
+renderer.link = function ({ href, title, tokens }) {
+    if (href && typeof href === 'string' && !href.startsWith('http') && !href.startsWith('#') && !href.startsWith('mailto:')) {
+        // Handle links like "Configuration.md" or "../andruav_server/wiki/Foo.md"
+        if (href.endsWith('.md')) {
+            if (!href.includes('../')) {
+                const baseName = pathModule.basename(href, '.md');
+                const guidPrefix = global.m_serverconfig.m_configuration.servers_admin_url_guid
+                    ? '/' + global.m_serverconfig.m_configuration.servers_admin_url_guid : '';
+                href = '/admin' + guidPrefix + '/wiki/' + baseName;
+            } else {
+                // External repo links — render as plain text with a note
+                const text = this.parser.parseInline(tokens);
+                return text + ' <small class="text-muted">(external)</small>';
+            }
+        }
+        // Rewrite image paths (images/xxx.png) to wiki/images/xxx.png
+        if (href.startsWith('images/')) {
+            const guidPrefix = global.m_serverconfig.m_configuration.servers_admin_url_guid
+                ? '/' + global.m_serverconfig.m_configuration.servers_admin_url_guid : '';
+            href = '/admin' + guidPrefix + '/wiki/images/' + href.substring(7);
+        }
+    }
+    return origLink({ href, title, tokens });
+};
+
+const origImage = renderer.image.bind(renderer);
+renderer.image = function ({ href, title, text, tokens }) {
+    if (href && typeof href === 'string' && !href.startsWith('http') && !href.startsWith('data:')) {
+        if (href.startsWith('images/')) {
+            const guidPrefix = global.m_serverconfig.m_configuration.servers_admin_url_guid
+                ? '/' + global.m_serverconfig.m_configuration.servers_admin_url_guid : '';
+            href = '/admin' + guidPrefix + '/wiki/images/' + href.substring(7);
+        }
+    }
+    return origImage({ href, title, text, tokens });
+};
+
+// Helper: get list of wiki pages (sorted by title)
+function getWikiPages() {
+    try {
+        const files = fs.readdirSync(WIKI_DIR).filter(f => f.endsWith('.md'));
+        return files.map(f => {
+            const baseName = pathModule.basename(f, '.md');
+            // Read first H1 heading as title, fallback to filename
+            const content = fs.readFileSync(pathModule.join(WIKI_DIR, f), 'utf8');
+            const h1Match = content.match(/^#\s+(.+)$/m);
+            return {
+                name: baseName,
+                title: h1Match ? h1Match[1].trim() : baseName
+            };
+        }).sort((a, b) => a.title.localeCompare(b.title));
+    } catch (e) {
+        return [];
+    }
+}
+
+// Helper: render a wiki markdown file to HTML
+function renderWikiPage(pageName) {
+    const filePath = pathModule.join(WIKI_DIR, pageName + '.md');
+    // Prevent path traversal
+    if (!filePath.startsWith(WIKI_DIR)) return null;
+    try {
+        const content = fs.readFileSync(filePath, 'utf8');
+        return marked.parse(content, { renderer: renderer });
+    } catch (e) {
+        return null;
+    }
+}
+
+// Wiki index page (protected)
+router.get('/wiki', requireAuth, (req, res) => {
+    const pages = getWikiPages();
+    res.render('admin/wiki', {
+        title: 'Wiki / Help',
+        adminUsername: req.session.adminUsername || null,
+        accountStorageType: global.m_serverconfig.m_configuration.account_storage_type,
+        serversStatusGuid: global.m_serverconfig.m_configuration.servers_admin_url_guid || null,
+        wikiPages: pages,
+        wikiContent: null,
+        activeWikiPage: null
+    });
+});
+
+// Wiki page view (protected)
+router.get('/wiki/:page', requireAuth, (req, res) => {
+    const pageName = req.params.page;
+    const pages = getWikiPages();
+    const html = renderWikiPage(pageName);
+
+    if (html === null) {
+        return res.status(404).render('pages/404', { title: '404', message: 'Wiki page not found.' });
+    }
+
+    // Find the page title
+    const pageInfo = pages.find(p => p.name === pageName);
+
+    res.render('admin/wiki', {
+        title: pageInfo ? pageInfo.title : pageName,
+        adminUsername: req.session.adminUsername || null,
+        accountStorageType: global.m_serverconfig.m_configuration.account_storage_type,
+        serversStatusGuid: global.m_serverconfig.m_configuration.servers_admin_url_guid || null,
+        wikiPages: pages,
+        wikiContent: html,
+        activeWikiPage: pageName
+    });
+});
+
+// Wiki images (protected) — serve static image files
+router.get('/wiki/images/:filename', requireAuth, (req, res) => {
+    const filename = pathModule.basename(req.params.filename);
+    const filePath = pathModule.join(WIKI_DIR, 'images', filename);
+    // Prevent path traversal
+    if (!filePath.startsWith(pathModule.join(WIKI_DIR, 'images'))) {
+        return res.status(404).render('pages/404', { title: '404', message: 'Not found.' });
+    }
+    // Only serve image files
+    const ext = pathModule.extname(filename).toLowerCase();
+    const allowedExts = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp'];
+    if (!allowedExts.includes(ext)) {
+        return res.status(404).render('pages/404', { title: '404', message: 'Not found.' });
+    }
+    try {
+        const mimeType = {
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.gif': 'image/gif',
+            '.svg': 'image/svg+xml',
+            '.webp': 'image/webp'
+        }[ext] || 'application/octet-stream';
+        res.setHeader('Content-Type', mimeType);
+        res.sendFile(filePath);
+    } catch (e) {
+        res.status(404).render('pages/404', { title: '404', message: 'Not found.' });
     }
 });
 

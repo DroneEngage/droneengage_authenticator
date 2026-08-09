@@ -17,7 +17,6 @@ describe("js_input_validator", () => {
                 actorType: "g",
                 group: "group1",
                 app: "andruav",
-                version: "4.00.00",
                 extra: "device info 123",
             }),
             true
@@ -32,7 +31,6 @@ describe("js_input_validator", () => {
                 actorType: "g",
                 group: "group1",
                 app: "andruav",
-                version: "4.00.00",
                 extra: "device info 123",
             }),
             false
@@ -47,7 +45,6 @@ describe("js_input_validator", () => {
                 actorType: "g",
                 group: "group1",
                 app: "andruav",
-                version: "4.00.00",
                 extra: "device info 123",
             }),
             false

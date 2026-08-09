@@ -113,10 +113,6 @@ v_router.m_Router.post(C.CONST_WEB_FUNCTION + C.CONST_WEB_LOGIN_COMMAND, functio
         if (c_body.hasOwnProperty(C.CONST_APP_NAME_PARAMETER) === false) {
             v_router.fn_errorPage(v_response);
             return;
-        }
-        if (c_body.hasOwnProperty(C.CONST_APP_VER_PARAMETER) === false) {
-            v_router.fn_errorPage(v_response);
-            return;
         } if (c_body.hasOwnProperty(C.CONST_EXTRA_PARAMETER) === false) {
             v_router.fn_errorPage(v_response);
             return;
@@ -130,7 +126,6 @@ v_router.m_Router.post(C.CONST_WEB_FUNCTION + C.CONST_WEB_LOGIN_COMMAND, functio
             'g',
             c_body[C.CONST_APP_GROUP_PARAMETER],
             c_body[C.CONST_APP_NAME_PARAMETER],
-            c_body[C.CONST_APP_VER_PARAMETER],
             c_body[C.CONST_EXTRA_PARAMETER],
             true,
             function (p_data) {

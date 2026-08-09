@@ -83,7 +83,6 @@ function fn_newLoginCard(
     p_actorType,
     p_group,
     p_app,
-    p_version,
     p_extra,
     p_mustGCS,
     fn_callback,
@@ -95,7 +94,6 @@ function fn_newLoginCard(
         actorType: p_actorType,
         group: p_group,
         app: p_app,
-        version: p_version,
         extra: p_extra,
     });
 
@@ -231,12 +229,11 @@ function fn_accountOperationFromAgent(
     p_accountName,
     p_accessCode,
     p_app,
-    p_version,
     p_extra,
     fn_callback,
     fn_error
 ) {
-    if (!v_inputValidator.validateAgentMetadata({ app: p_app, version: p_version, extra: p_extra })) {
+    if (!v_inputValidator.validateAgentMetadata({ app: p_app, extra: p_extra })) {
         invokeError(fn_error);
         return;
     }

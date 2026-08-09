@@ -25,7 +25,6 @@ function validateLoginRequest({
     actorType,
     group,
     app,
-    version,
     extra,
 }) {
     const trimmedAccount = trim(accountName);
@@ -44,9 +43,6 @@ function validateLoginRequest({
         return false;
     }
     if (isInvalidAlphanumeric(app, c_CONSTANTS.CONST_ACCESSCODE_MAX_LENGTH)) {
-        return false;
-    }
-    if (version == null || !hlp_string.fn_isVersionFormat(version)) {
         return false;
     }
     if (extra == null || !hlp_string.fn_isAlphanumericSentence(extra)) {
@@ -85,11 +81,8 @@ function validateAccountOperation({
     return true;
 }
 
-function validateAgentMetadata({ app, version, extra }) {
+function validateAgentMetadata({ app, extra }) {
     if (app == null || typeof app !== "string" || !hlp_string.fn_isAlphanumeric(app)) {
-        return false;
-    }
-    if (version == null || !hlp_string.fn_isVersionFormat(version)) {
         return false;
     }
     if (extra == null || !hlp_string.fn_isAlphanumericSentence(extra)) {
@@ -129,7 +122,6 @@ function normalizeLoginFields(fields) {
         actorType: fields.actorType,
         group: fields.group,
         app: fields.app,
-        version: fields.version,
         extra: fields.extra,
     };
 }

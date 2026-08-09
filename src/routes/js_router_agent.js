@@ -124,11 +124,6 @@ v_router.m_Router.post(C.CONST_AGENT_FUNCTION + C.CONST_AGENT_LOGIN_COMMAND, fun
             v_router.fn_errorPage (v_response, true);
             return;
         }
-        if (c_body.hasOwnProperty (C.CONST_APP_VER_PARAMETER) === false)
-        {
-            v_router.fn_errorPage (v_response, true);
-            return;
-        }
         if (c_body.hasOwnProperty (C.CONST_EXTRA_PARAMETER) === false)
         {
             v_router.fn_errorPage (v_response, true);
@@ -145,7 +140,6 @@ v_router.m_Router.post(C.CONST_AGENT_FUNCTION + C.CONST_AGENT_LOGIN_COMMAND, fun
             'd',
             c_body[C.CONST_APP_GROUP_PARAMETER],
             c_body[C.CONST_APP_NAME_PARAMETER],
-            c_body[C.CONST_APP_VER_PARAMETER],
             c_body[C.CONST_EXTRA_PARAMETER],
             false,
             function (p_data)
@@ -217,11 +211,6 @@ v_router.m_Router.post(C.CONST_AGENT_FUNCTION + C.CONST_AGENT_ACCOUNT_MANAGMENT,
             v_router.fn_errorPage (v_response, true);
             return;
         }
-        if (c_body.hasOwnProperty (C.CONST_APP_VER_PARAMETER) === false)
-        {
-            v_router.fn_errorPage (v_response, true);
-            return;
-        }
         if (c_body.hasOwnProperty (C.CONST_EXTRA_PARAMETER) === false)
         {
             v_router.fn_errorPage (v_response, true);
@@ -234,7 +223,6 @@ v_router.m_Router.post(C.CONST_AGENT_FUNCTION + C.CONST_AGENT_ACCOUNT_MANAGMENT,
             v_req.body[C.CONST_ACCOUNT_NAME_PARAMETER],
             v_req.body[C.CONST_ACCESS_CODE_PARAMETER],
             v_req.body[C.CONST_APP_NAME_PARAMETER],
-            v_req.body[C.CONST_APP_VER_PARAMETER],
             v_req.body[C.CONST_EXTRA_PARAMETER],
             function (p_data)
             {

@@ -16,3 +16,4 @@ database/database.db
 scripts/*.pem
 
 *.tmp
+build/

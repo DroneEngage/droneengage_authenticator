@@ -1,3 +1,5 @@
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/DroneEngage/droneengage_authenticator)
+
 # Andruav Authenticator
 
 Andruav Authenticator is the authentication server responsible for registering users and vehicles and assigning them to [communication servers](https://github.com/HefnySco/andruav_server).

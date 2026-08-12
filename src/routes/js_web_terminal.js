@@ -105,6 +105,30 @@ function attachWebSocketServer(httpServer) {
             return;
         }
 
+        // Origin check — prevent Cross-Site WebSocket Hijacking (CSWSH).
+        // Browsers always send the Origin header on WebSocket upgrades; if it
+        // is missing or does not match the Host header, reject the request.
+        const origin = request.headers.origin;
+        const host = request.headers.host;
+        if (!origin || !host) {
+            socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+            socket.destroy();
+            return;
+        }
+        let originHost;
+        try {
+            originHost = new URL(origin).host;
+        } catch (e) {
+            socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+            socket.destroy();
+            return;
+        }
+        if (originHost !== host) {
+            socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+            socket.destroy();
+            return;
+        }
+
         // Authenticate via session cookie
         authenticateUpgrade(request, function (err, session) {
             if (err || !session || !session.adminAuthenticated) {

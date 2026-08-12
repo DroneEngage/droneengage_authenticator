@@ -23,6 +23,7 @@ const sessionMiddleware = session({
     cookie: {
         secure: global.m_serverconfig.m_configuration.enable_SSL || false,
         httpOnly: true,
+        sameSite: 'strict',
         maxAge: 2 * 60 * 60 * 1000 // 2 hours
     }
 });

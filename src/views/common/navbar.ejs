@@ -60,9 +60,38 @@ const navClass = navbarFixed
             <% if (adminUsername) { %>
             <span class="navbar-text me-3 text-white">Welcome, <%= adminUsername %></span>
             <form method="POST" action="/admin/logout" class="d-inline">
+                <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
                 <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
             </form>
             <% } %>
         </div>
     </div>
 </nav>
+
+<% if (typeof csrfToken !== 'undefined' && csrfToken) { %>
+<script>
+    // Expose CSRF token to client-side JS and auto-inject it into all
+    // state-changing fetch() calls via the X-CSRF-Token header.
+    window.CSRF_TOKEN = <%- JSON.stringify(csrfToken) %>;
+    (function() {
+        const originalFetch = window.fetch;
+        window.fetch = function(input, init) {
+            init = init || {};
+            const method = (init.method || 'GET').toUpperCase();
+            if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method) && window.CSRF_TOKEN) {
+                init.headers = init.headers || {};
+                if (init.headers instanceof Headers) {
+                    if (!init.headers.has('X-CSRF-Token')) {
+                        init.headers.set('X-CSRF-Token', window.CSRF_TOKEN);
+                    }
+                } else {
+                    if (!init.headers['X-CSRF-Token']) {
+                        init.headers['X-CSRF-Token'] = window.CSRF_TOKEN;
+                    }
+                }
+            }
+            return originalFetch(input, init);
+        };
+    })();
+</script>
+<% } %>

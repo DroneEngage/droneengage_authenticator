@@ -121,8 +121,18 @@ router.use((req, res, next) => {
     return res.status(404).render('pages/404', { title: '404', message: 'Not found.' });
 });
 
+// CSRF protection — applied globally so every state-changing route (POST/PUT/
+// DELETE) is protected.  GET requests simply get a token generated.  The token
+// is exposed to all views via res.locals so EJS partials (navbar, etc.) can
+// embed it without each route having to pass it explicitly.
+router.use(csrfProtection);
+router.use((req, res, next) => {
+    res.locals.csrfToken = req.csrfToken();
+    next();
+});
+
 // Login page
-router.get('/login', csrfProtection, (req, res) => {
+router.get('/login', (req, res) => {
     res.render('admin/login', {
         csrfToken: req.csrfToken(),
         error: req.session.error,
@@ -133,7 +143,7 @@ router.get('/login', csrfProtection, (req, res) => {
 });
 
 // Login authentication
-router.post('/login', loginLimiter, csrfProtection, (req, res) => {
+router.post('/login', loginLimiter, (req, res) => {
     const { username, password } = req.body;
     const config = global.m_serverconfig.m_configuration;
     const clientIp = req.ip || req.connection.remoteAddress;
@@ -158,9 +168,25 @@ router.post('/login', loginLimiter, csrfProtection, (req, res) => {
     if (username === config.admin_username && password === config.admin_password) {
         // Successful login - clear failed attempts
         clearFailedAttempts(clientIp, username);
-        req.session.adminAuthenticated = true;
-        req.session.adminUsername = username;
-        return res.redirect(adminPath('/dashboard'));
+        // Regenerate the session to prevent session fixation attacks.
+        // The old session ID is discarded; auth flags are set on the fresh
+        // session and explicitly saved before redirecting.
+        req.session.regenerate(function(err) {
+            if (err) {
+                console.error('Error regenerating session:', err);
+                req.session.error = 'Login failed, please try again';
+                return res.redirect(adminPath('/login'));
+            }
+            req.session.adminAuthenticated = true;
+            req.session.adminUsername = username;
+            req.session.save(function(saveErr) {
+                if (saveErr) {
+                    console.error('Error saving regenerated session:', saveErr);
+                }
+                return res.redirect(adminPath('/dashboard'));
+            });
+        });
+        return;
     } else {
         // Failed login - record attempt
         recordFailedAttempt(clientIp, username);
@@ -825,6 +851,19 @@ router.get('/wiki/images/:filename', requireAuth, (req, res) => {
     } catch (e) {
         res.status(404).render('pages/404', { title: '404', message: 'Not found.' });
     }
+});
+
+// ─── CSRF Error Handler ──────────────────────────────────────────────────────
+// Returns JSON for API routes, redirects to login for page routes.
+router.use(function(err, req, res, next) {
+    if (err.code !== 'EBADCSRFTOKEN') {
+        return next(err);
+    }
+    if (req.path.startsWith('/api/')) {
+        return res.status(403).json({ error: 1, errorMessage: 'Invalid or missing CSRF token' });
+    }
+    req.session.error = 'Session expired, please log in again';
+    return res.redirect(adminPath('/login'));
 });
 
 module.exports = router;

@@ -8,6 +8,8 @@ const csrf = require('csurf');
 const helmet = require('helmet');
 const { isValidAdminUsername, isValidAdminPassword } = require('../helpers/hlp_validation');
 const { sessionMiddleware } = require('../helpers/js_admin_session');
+const { isBcryptHash } = require('../helpers/js_config_handler');
+const bcrypt = require('bcryptjs');
 
 // Configure session (shared store — also used by WebSocket terminal handler)
 router.use(sessionMiddleware);
@@ -36,22 +38,34 @@ const loginLimiter = rateLimit({
     message: { error: 'Too many login attempts, please try again later' }
 });
 
+// Per-IP rate limiter for all admin API routes.  Authenticated or not, a
+// single client (or a CSRF-driven browser) should not be able to hammer the
+// user/team/login CRUD endpoints.  Applied to every /api/* route below.
+const apiLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minute
+    max: 60, // 60 requests per IP per minute
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 1, errorMessage: 'Too many API requests, please slow down.' }
+});
+
 // Account lockout tracking
 const failedAttempts = new Map(); // key: "ip:username", value: { count, lastAttempt }
+const LOCKOUT_DURATION = 30 * 60 * 1000; // 30 minutes
+const FAILED_ATTEMPTS_MAX_ENTRIES = 10000; // cap to prevent unbounded growth
 
 function isAccountLocked(ip, username) {
     const key = `${ip}:${username}`;
     const record = failedAttempts.get(key);
     if (!record) return false;
-    
-    const lockoutDuration = 30 * 60 * 1000; // 30 minutes
+
     const timeSinceLastAttempt = Date.now() - record.lastAttempt;
-    
-    if (timeSinceLastAttempt > lockoutDuration) {
+
+    if (timeSinceLastAttempt > LOCKOUT_DURATION) {
         failedAttempts.delete(key);
         return false;
     }
-    
+
     return record.count >= 5;
 }
 
@@ -61,11 +75,38 @@ function recordFailedAttempt(ip, username) {
     record.count++;
     record.lastAttempt = Date.now();
     failedAttempts.set(key, record);
+    enforceFailedAttemptsCap();
 }
 
 function clearFailedAttempts(ip, username) {
     const key = `${ip}:${username}`;
     failedAttempts.delete(key);
+}
+
+// Periodic sweep — evicts stale entries so the map cannot grow without bound
+// under a distributed/many-distinct-probe attack.  Runs every 5 minutes and
+// drops any entry whose last attempt is older than the lockout window.
+setInterval(function sweepFailedAttempts() {
+    const now = Date.now();
+    for (const [key, record] of failedAttempts) {
+        if (now - record.lastAttempt > LOCKOUT_DURATION) {
+            failedAttempts.delete(key);
+        }
+    }
+}, 5 * 60 * 1000).unref();
+
+// Safety net: if the map ever exceeds the cap (e.g. a burst before the sweep
+// fires), drop the oldest entries first so memory stays bounded.
+function enforceFailedAttemptsCap() {
+    if (failedAttempts.size <= FAILED_ATTEMPTS_MAX_ENTRIES) return;
+    // Build a sorted array of [key, lastAttempt] and remove the oldest.
+    const entries = Array.from(failedAttempts.entries())
+        .map(([key, record]) => [key, record.lastAttempt])
+        .sort((a, b) => a[1] - b[1]);
+    const excess = failedAttempts.size - FAILED_ATTEMPTS_MAX_ENTRIES;
+    for (let i = 0; i < excess; i++) {
+        failedAttempts.delete(entries[i][0]);
+    }
 }
 
 // CSRF protection
@@ -165,7 +206,26 @@ router.post('/login', loginLimiter, (req, res) => {
         return res.redirect(adminPath('/login'));
     }
 
-    if (username === config.admin_username && password === config.admin_password) {
+    if (username === config.admin_username) {
+        // Compare against bcrypt hash, or fall back to plaintext for
+        // configs that haven't been migrated yet.
+        const stored = config.admin_password;
+        const match = isBcryptHash(stored)
+            ? bcrypt.compareSync(password, stored)
+            : (password === stored);
+
+        if (!match) {
+            recordFailedAttempt(clientIp, username);
+            req.session.error = 'Invalid username or password';
+            return res.redirect(adminPath('/login'));
+        }
+
+        if (!isBcryptHash(stored)) {
+            console.warn(global.Colors.FgYellow +
+                '[WARN] admin_password is stored in plaintext. ' +
+                'Use $$HASH$$(\'...\') in server.config and restart to hash it.' +
+                global.Colors.Reset);
+        }
         // Successful login - clear failed attempts
         clearFailedAttempts(clientIp, username);
         // Regenerate the session to prevent session fixation attacks.
@@ -187,12 +247,12 @@ router.post('/login', loginLimiter, (req, res) => {
             });
         });
         return;
-    } else {
-        // Failed login - record attempt
-        recordFailedAttempt(clientIp, username);
-        req.session.error = 'Invalid username or password';
-        return res.redirect(adminPath('/login'));
     }
+
+    // Failed login - record attempt
+    recordFailedAttempt(clientIp, username);
+    req.session.error = 'Invalid username or password';
+    return res.redirect(adminPath('/login'));
 });
 
 // Logout
@@ -244,6 +304,10 @@ router.get('/sql-management', requireAuth, (req, res) => {
         serversStatusGuid: global.m_serverconfig.m_configuration.servers_admin_url_guid || null
     });
 });
+
+// Apply per-IP rate limiting to every admin API route (GET/POST/PUT/DELETE).
+// Mounted here so all /api/* routes below are covered uniformly.
+router.use('/api', apiLimiter);
 
 // API: Get all users
 router.get('/api/users', requireAuth, async (req, res) => {

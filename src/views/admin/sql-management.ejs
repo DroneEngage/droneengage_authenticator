@@ -7,23 +7,24 @@
     <link href="/public/bootstrap/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
-            background: #212529;
+            background: #1a1d21;
             color: #f8f9fa;
         }
         .navbar-custom {
-            background: #343a40;
+            background: #2a2e33;
+            border-bottom: 2px solid #0d6efd;
         }
         .navbar-custom .navbar-brand,
         .navbar-custom .nav-link {
             color: #f8f9fa !important;
         }
         .card {
-            background: #2c3034;
-            border: 1px solid #495057;
+            background: #262b30;
+            border: 1px solid #3a4148;
         }
         .card-header {
-            background: #2c3034;
-            border-bottom: 1px solid #495057;
+            background: #2c3338;
+            border-bottom: 1px solid #3a4148;
             color: #f8f9fa;
         }
         .card-header h5,
@@ -32,7 +33,7 @@
         }
         .form-control {
             background: #2c3034;
-            border: 1px solid #495057;
+            border: 1px solid #3a4148;
             color: #f8f9fa;
         }
         .form-control:focus {
@@ -43,7 +44,7 @@
         }
         .form-select {
             background: #2c3034;
-            border: 1px solid #495057;
+            border: 1px solid #3a4148;
             color: #f8f9fa;
         }
         .form-label {
@@ -51,11 +52,11 @@
         }
         .team-card {
             border-left: 4px solid #0d6efd;
-            background: #2c3034;
+            background: #262b30;
         }
         .pagination .page-link {
             background: #2c3034;
-            border: 1px solid #495057;
+            border: 1px solid #3a4148;
             color: #f8f9fa;
         }
         .pagination .page-link:hover {
@@ -71,7 +72,7 @@
             color: #6c757d;
         }
         .login-card {
-            border-left: 4px solid #6f42c1;
+            border-left: 4px solid #fd7e14;
             margin-left: 20px;
             background: #2c3034;
         }
@@ -85,15 +86,15 @@
             color: #adb5bd;
         }
         .modal-content {
-            background: #2c3034;
-            border: 1px solid #495057;
+            background: #262b30;
+            border: 1px solid #3a4148;
             color: #f8f9fa;
         }
         .modal-header {
-            border-bottom: 1px solid #495057;
+            border-bottom: 1px solid #3a4148;
         }
         .modal-footer {
-            border-top: 1px solid #495057;
+            border-top: 1px solid #3a4148;
         }
         .btn-close {
             filter: invert(1) grayscale(100%) brightness(200%);
@@ -122,10 +123,77 @@
         }
         .btn-outline-light:hover {
             background: #f8f9fa;
-            color: #212529;
+            color: #1a1d21;
         }
         .bg-primary {
             background: #0d6efd !important;
+        }
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+        }
+        .stat-value-teams {
+            color: #0d6efd;
+        }
+        .stat-value-users {
+            color: #fd9c47;
+        }
+        .stat-card-teams {
+            border-top: 3px solid #0d6efd;
+        }
+        .stat-card-users {
+            border-top: 3px solid #fd7e14;
+        }
+        .table {
+            color: #f8f9fa;
+            margin-bottom: 0;
+        }
+        .table thead th {
+            color: #fd9c47;
+            border-bottom: 2px solid #fd7e14;
+            background: #2c3338;
+        }
+        .table td {
+            border-color: #3a4148;
+            vertical-align: middle;
+        }
+        .table tbody tr.text-success td {
+            color: #2dd470;
+            background: #1f2329;
+        }
+        .table tbody tr.text-success:hover td {
+            background: #262b30;
+        }
+        .table tbody tr:hover {
+            background: #2f363b;
+        }
+        .logins-table-card {
+            background: #262b30;
+            border: 1px solid #3a4148;
+            border-left: 4px solid #fd7e14;
+        }
+        .badge-admin {
+            background: #fd7e14;
+            color: #fff;
+        }
+        .badge-user {
+            background: #0d6efd;
+            color: #fff;
+        }
+        h2 {
+            color: #f8f9fa;
+        }
+        .card-header.bg-primary {
+            background: #0d6efd !important;
+        }
+        /* Team card field labels and values in green */
+        .team-field-label {
+            color: #2dd470;
+            font-weight: 600;
+        }
+        .team-field-value {
+            color: #2dd470;
+            font-weight: 700;
         }
     </style>
 </head>
@@ -137,6 +205,28 @@
             <div class="col-12">
                 <h2>Teams & Logins Management (SQL)</h2>
                 <p class="text-muted">Manage teams and their associated logins in SQLite database</p>
+            </div>
+        </div>
+
+        <!-- Stats Row -->
+        <div class="row mb-4">
+            <div class="col-md-3 mb-3">
+                <div class="card stat-card-teams">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Teams</h5>
+                        <div class="stat-value stat-value-teams" id="statTotalTeams">-</div>
+                        <p class="text-muted">Registered teams</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card stat-card-users">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Users</h5>
+                        <div class="stat-value stat-value-users" id="statTotalLogins">-</div>
+                        <p class="text-muted">Registered logins</p>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -292,6 +382,25 @@
         let currentSortBy = 'TeamID';
         let currentSortDir = 'asc';
 
+        function loadStats() {
+            fetch('/admin/api/sql/stats')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        document.getElementById('statTotalTeams').textContent = 'N/A';
+                        document.getElementById('statTotalLogins').textContent = 'N/A';
+                        return;
+                    }
+                    document.getElementById('statTotalTeams').textContent = data.totalTeams || 0;
+                    document.getElementById('statTotalLogins').textContent = data.totalLogins || 0;
+                })
+                .catch(error => {
+                    console.error('Error loading stats:', error);
+                    document.getElementById('statTotalTeams').textContent = 'N/A';
+                    document.getElementById('statTotalLogins').textContent = 'N/A';
+                });
+        }
+
         function loadTeams(page) {
             if (page) currentPage = page;
             const search = document.getElementById('teamSearch').value.trim();
@@ -355,11 +464,11 @@
                                 <div>
                                     <h6 class="card-title">${team.TeamName}</h6>
                                     <p class="card-text mb-1">
-                                        <small class="text-muted">Team ID: ${team.TeamID}</small><br>
-                                        <small class="text-muted">Email: ${team.Email || 'N/A'}</small><br>
-                                        <small class="text-muted">Instance Limit: ${team.InstanceLimit}</small><br>
-                                        <small class="text-muted">Enabled: ${team.Enabled ? 'Yes' : 'No'}</small><br>
-                                        <small class="text-muted">Created: ${team.CreatedAt || 'N/A'}</small>
+                                        <small><span class="team-field-label">Team ID:</span> <span class="team-field-value">${team.TeamID}</span></small><br>
+                                        <small><span class="team-field-label">Email:</span> <span class="team-field-value">${team.Email || 'N/A'}</span></small><br>
+                                        <small><span class="team-field-label">Instance Limit:</span> <span class="team-field-value">${team.InstanceLimit}</span></small><br>
+                                        <small><span class="team-field-label">Enabled:</span> <span class="team-field-value">${team.Enabled ? 'Yes' : 'No'}</span></small><br>
+                                        <small><span class="team-field-label">Created:</span> <span class="team-field-value">${team.CreatedAt || 'N/A'}</span></small>
                                     </p>
                                 </div>
                                 <div>
@@ -388,29 +497,40 @@
                 return '<p class="text-muted mb-0">No logins for this team</p>';
             }
 
-            let html = '<div class="row">';
+            let html = `
+                <div class="table-responsive logins-table-card">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Login ID</th>
+                                <th>Access Code</th>
+                                <th>Permissions</th>
+                                <th>Role</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
             logins.forEach(login => {
                 html += `
-                    <div class="col-md-6 mb-2">
-                        <div class="card login-card">
-                            <div class="card-body py-2">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <small><strong>${login.LoginName}</strong></small><br>
-                                        <small class="text-muted">AccessCode: ${login.AccessCode}</small><br>
-                                        <small class="text-muted">Permissions: ${login.Permissions}</small>
-                                        ${login.IsAdmin ? '<span class="badge bg-danger ms-1">Admin</span>' : ''}
-                                    </div>
-                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteLogin(${login.LoginID}, ${teamId})">
-                                        Delete
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <tr class="text-success">
+                        <td><strong>${login.LoginName}</strong></td>
+                        <td>${login.AccessCode}</td>
+                        <td>${login.Permissions}</td>
+                        <td>${login.IsAdmin ? '<span class="badge badge-admin">Admin</span>' : '<span class="badge badge-user">User</span>'}</td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteLogin(${login.LoginID}, ${teamId})">
+                                Delete
+                            </button>
+                        </td>
+                    </tr>
                 `;
             });
-            html += '</div>';
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
             return html;
         }
 
@@ -520,6 +640,7 @@
                 } else {
                     const modal = bootstrap.Modal.getInstance(document.getElementById('createLoginModal'));
                     modal.hide();
+                    loadStats();
                     loadTeams();
                 }
             })
@@ -542,6 +663,7 @@
                 if (data.error) {
                     alert('Error deleting team: ' + data.error);
                 } else {
+                    loadStats();
                     loadTeams();
                 }
             })
@@ -564,6 +686,7 @@
                 if (data.error) {
                     alert('Error deleting login: ' + data.error);
                 } else {
+                    loadStats();
                     loadTeams();
                 }
             })
@@ -599,6 +722,7 @@
                     document.getElementById('createTeamForm').reset();
                     document.getElementById('instanceLimit').value = '999';
                     document.getElementById('teamEnabled').value = '1';
+                    loadStats();
                     loadTeams();
                 }
             })
@@ -609,7 +733,9 @@
         });
 
         // Load teams on page load
+        loadStats();
         loadTeams();
+        setInterval(loadStats, 30000);
     </script>
 </body>
 </html>

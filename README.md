@@ -29,7 +29,7 @@ andruav_authenticator/
 │   ├── dumperror.js       # Error helper
 │   ├── auth_server/       # Auth core modules
 │   ├── database/          # Storage modules (LowDB, SQLite migrations)
-│   ├── helpers/           # Utility helpers
+│   ├── helpers/           # Utility helpers (config handler, validation, session, colors)
 │   ├── routes/            # Express route handlers
 │   ├── views/             # EJS view templates
 │   └── public/            # Static assets
@@ -150,12 +150,14 @@ See [wiki/S2SAuthentication.md](wiki/S2SAuthentication.md) for detailed setup.
 {
     "webadmin_enable": true,
     "admin_username": "admin",
-    "admin_password": "admin123",
+    "admin_password": "$$HASH$$('admin123')",
     "session_secret": "change-this-secret-in-production",
     "webadmin_port": 8089,
     "webadmin_listening_ip": "0.0.0.0"
 }
 ```
+
+> **Password hashing:** The `$$HASH$$('plaintext')` directive is automatically replaced with a bcrypt hash on first startup and persisted back to the config file. See [wiki/Configuration.md](wiki/Configuration.md#sensitive-value-hashing) for details. Plaintext passwords are still accepted as a fallback (a warning is logged).
 
 ## Running the Server
 
@@ -257,6 +259,7 @@ See [wiki/S2SAuthentication.md](wiki/S2SAuthentication.md) for complete guide.
 ## Security Best Practices
 
 - Change default admin credentials in production
+- Use the `$$HASH$$('password')` directive for `admin_password` so it is stored as a bcrypt hash instead of plaintext (see [wiki/Configuration.md](wiki/Configuration.md#sensitive-value-hashing))
 - Use strong `session_secret` in production
 - Enable SSL/TLS for all connections
 - Restrict file permissions on private keys (0600)

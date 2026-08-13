@@ -1,16 +1,16 @@
 # DroneEngage Authenticator
 
 ## Project Summary
-DroneEngage Authenticator is the central authentication and authorization server for the DroneEngage/Andruav drone management ecosystem. It handles user registration, vehicle registration, authentication token generation, and assigns users/vehicles to communication servers using Ed25519 cryptographic authentication for server-to-server communication.
+DroneEngage Authenticator is the central authentication and authorization server for the DroneEngage/Andruav drone management ecosystem. It handles user registration, vehicle registration, authentication token generation, and assigns users/vehicles to communication servers using Ed25519 cryptographic authentication for server-to-server communication. It also provides a secured admin web interface (with optional web terminal) for managing users, communication servers, and SQL storage.
 
 ## Tech Stack
 - **Runtime**: Node.js >= 18
 - **Web Framework**: Express.js
-- **Database**: SQLite3 with migration support
-- **Authentication**: Custom token-based + Ed25519 S2S authentication
-- **Real-time**: WebSocket (ws library)
+- **Database**: SQLite3 with migration support (file-based LowDB and single-account modes also supported)
+- **Authentication**: Custom token-based + Ed25519 S2S authentication + bcrypt-hashed admin passwords
+- **Real-time**: WebSocket (ws library) for S2S, xterm.js over WebSocket for web terminal
 - **Templates**: EJS with express-ejs-layouts
-- **Security**: Helmet, CORS, CSRF protection, express-rate-limit
+- **Security**: Helmet, CORS, CSRF protection (csurf), express-rate-limit, bcryptjs, session secrets
 
 ## Architecture
 Three independent servers running simultaneously:
@@ -21,22 +21,24 @@ Three independent servers running simultaneously:
 ## Project Structure
 ```
 andruav_authenticator/
-├── server.config          # JSON configuration (supports --config override)
+├── server.config          # JSON configuration (supports --config override, C-style comments allowed)
 ├── package.json           # Dependencies and scripts
+├── checks.json            # Build/check metadata
 ├── src/                   # Application source code
 │   ├── server.js          # Main entry point, spawns all three servers
 │   ├── js_constants.js    # API endpoints, error codes, message types
-│   ├── js_serverConfig.js # Config loader
+│   ├── js_serverConfig.js # Config loader (with $$HASH$$ + env override handling)
 │   ├── dumperror.js       # Error helper
 │   ├── auth_server/       # Auth core modules
-│   ├── database/          # Storage modules (LowDB, SQLite migrations)
-│   ├── helpers/           # Utility helpers
-│   ├── routes/            # Express route handlers
-│   ├── views/             # EJS view templates
-│   └── public/            # Static assets
+│   ├── database/          # Storage modules (LowDB, SQLite migrations, CSV import)
+│   ├── helpers/           # Utility helpers (args, db, string, validation, session, colors, config handler, json comment stripper)
+│   ├── routes/            # Express route handlers (incl. web terminal)
+│   ├── views/             # EJS view templates (admin, common, pages)
+│   └── public/            # Static assets (bootstrap, xterm)
 ├── ssl_local/             # SSL certificates & S2S keys
-├── scripts/               # S2S key generation script
-├── test/                  # Unit tests
+├── scripts/               # S2S key generation + build script
+├── test/                  # Unit tests (unit/, fixtures/, helpers/)
+├── resources/             # Diagrams and static resources
 └── wiki/                  # Documentation
 ```
 
@@ -47,29 +49,54 @@ andruav_authenticator/
 - `src/auth_server/js_auth_server.js` - Main auth server controller
 - `src/auth_server/js_account_manager.js` - User account CRUD operations
 - `src/auth_server/js_comm_server_manager.js` - Communication server management
+- `src/auth_server/js_comm_server_manager_server.js` - Per comm-server instance handling
 - `src/auth_server/js_session_manager.js` - Session/token management
 - `src/auth_server/js_s2s_auth.js` - Server-to-Server Ed25519 authentication
 - `src/auth_server/js_database_manager.js` - Database operations layer
+- `src/auth_server/js_input_validator.js` - Input validation for all requests
+- `src/auth_server/js_permisson_validator.js` - Permission/authorization checks
+- `src/auth_server/js_andruavMessages.js` - Andruav message definitions
+- `src/auth_server/js_config.js` - Auth server runtime config
 - `src/routes/js_router.js` - Main router setup
 - `src/routes/js_router_admin.js` - Admin interface routes
 - `src/routes/js_router_agent.js` - Agent/drone routes
 - `src/routes/js_router_web.js` - Web client routes
+- `src/routes/js_web_terminal.js` - Web terminal (shell over WebSocket via node-pty)
 - `src/database/db_users.js` - User database operations
+- `src/database/migrate_file_db.js` - Migrate file-based DB to SQLite (CSV import)
 - `src/database/migrations/` - SQL migration files
+- `src/helpers/js_config_handler.js` - $$HASH$$ directive processing + persistence
+- `src/helpers/js_admin_session.js` - Admin session helpers
+- `src/helpers/hlp_args.js` - CLI argument helpers
+- `src/helpers/hlp_db.js` - DB helpers
+- `src/helpers/hlp_string.js` - String helpers
+- `src/helpers/hlp_validation.js` - Validation helpers
 - `src/js_constants.js` - API endpoints, error codes, message types
+- `src/js_serverConfig.js` - Config loader with env var overrides
 
 ## Configuration
-Configuration is centralized in `server.config` (JSON format). Key sections:
-- Server identity (server_id, server_ip, server_port)
-- Account storage (single/file/db modes)
-- S2S authentication (trusted Ed25519 public keys)
-- SSL/TLS certificates
-- Admin interface credentials
-- Logging configuration
+Configuration is centralized in `server.config` (JSON format with C-style comments). Key sections:
+- Server identity (server_id, server_ip, server_port, health_utl)
+- Account storage (single/file/db modes) + skip_hardware_validation
+- S2S authentication (trusted Ed25519 public keys, s2s_ws_listening_ip/port)
+- SSL/TLS certificates (enable_SSL, ssl_key_file, ssl_cert_file)
+- Admin interface (webadmin_enable, admin_username, admin_password, session_secret, webadmin_port, webadmin_listening_ip)
+- `servers_admin_url_guid` - When set, the default /admin/* routes return 404 and the admin login is only reachable via the secret `/admin/<guid>/login` URL
+- `webadmin_terminal_enabled` - Enables/disables the remote web terminal (runs with server process privileges)
+- `andruavSecurityEx` - Whitelist of allowed client application names
+
+### Sensitive Value Hashing
+The `$$HASH$$('plaintext')` directive in `admin_password` is automatically replaced with a bcrypt hash on first startup and persisted back to the config file. Plaintext passwords are still accepted as a fallback (a warning is logged).
+
+### Environment Variable Overrides
+- `de_auth_servers_status_guid` overrides `servers_admin_url_guid`
+- `de_auth_webadmin_terminal_enabled` overrides `webadmin_terminal_enabled`
+- Server and webadmin ports can also be overridden via environment variables.
 
 ## Coding Standards
 - Use `global.m_logger` for logging (if enabled)
 - All inputs must pass `src/auth_server/js_input_validator.js`
+- All permissions checked via `src/auth_server/js_permisson_validator.js`
 - Use `src/auth_server/js_database_manager.js` for all DB operations
 - Use `src/auth_server/js_session_manager.js` for token operations
 - Reuse utilities in `src/helpers/` directory
@@ -80,11 +107,12 @@ Configuration is centralized in `server.config` (JSON format). Key sections:
 1. User registration → access code generation → email (unless ignoreEmail)
 2. User login → session token generation → client uses token
 3. S2S: WebSocket connection → Ed25519 challenge → signature verification → connection established
+4. Admin: login with username/password (bcrypt-hashed) → CSRF-protected session → dashboard/servers/users/terminal
 
 ## API Endpoints
 - Authentication: `/api/login`, `/api/register`, `/api/logout`, `/api/verify`
 - S2S: `/api/s2s/register`, `/api/s2s/servers`, WebSocket `/s2s`
-- Admin: `/admin/dashboard`, `/admin/servers`, `/admin/users`
+- Admin: `/admin` (or `/admin/<guid>`), `/admin/dashboard`, `/admin/servers`, `/admin/users`, `/admin/api/servers`, `/admin/sql`, `/admin/terminal`
 - Agent: `/agent/register`, `/agent/authenticate`, `/agent/servers`
 
 ## Database Schema
@@ -92,15 +120,19 @@ SQLite database with tables:
 - `users` (id, username, email, password_hash, access_code, created_at)
 - `comm_servers` (id, server_id, ip_address, port, public_key, registered_at)
 
+A migration tool (`src/database/migrate_file_db.js`) imports legacy file-based (CSV) accounts into SQLite.
+
 ## Security Features
 - Helmet.js for HTTP security headers
 - CORS configuration
-- CSRF protection
+- CSRF protection (csurf) on admin interface
 - Rate limiting on API endpoints
 - SSL/TLS for all connections
 - Ed25519 cryptographic S2S authentication
-- Secure password hashing
-- Configurable session secrets
+- bcrypt password hashing for admin credentials ($$HASH$$ directive)
+- Secure session secrets
+- Optional secret admin URL guid to hide the admin login
+- Configurable web terminal (disabled by default in hardened deployments)
 
 ## Development
 ```bash
@@ -115,7 +147,11 @@ npm start
 ## Testing
 ```bash
 npm test
+node --test test/unit/s2s_auth.test.js
+node --test test/unit/router_security.test.js
 node --test test/js_session_manager.test.js
+node --test test/js_input_validator.test.js
+node --test test/js_permisson_validator.test.js
 ```
 
 ## S2S Key Generation
@@ -124,15 +160,21 @@ cd scripts
 ./gen_s2s_keys.sh <server_id>
 ```
 
+## Build
+```bash
+npm run build   # runs scripts/build.js
+```
+
 ## Related Projects
-- droneengage_communication - Communication server
-- droneengage_server - Main DroneEngage server
-- droneengage_webclient_react - React web client
-- droneengage_mavlink - MAVLink integration
+- andruav_server - Communication server
+- andruav_webclient_react - React web client
+- Mavlink3DMap2 - MAVLink 3D map integration
+- droneengage_storage_server - Storage server
+- droneengage_performance_monitor - Performance monitor
 
 ## Documentation
 - README.md - User-facing documentation
-- wiki/ - Detailed documentation (AuthenticationFlow, DatabaseSchema, APIEndpoints, Configuration, S2SAuthentication)
+- wiki/ - Detailed documentation (AuthenticationFlow, DatabaseSchema, APIEndpoints, Configuration, S2SAuthentication, AdminWebInterface, Architecture)
 
 ## Version
-5.0.0
+7.4.0

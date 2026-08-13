@@ -12,6 +12,7 @@
 
 
 const stripJsonComments = require("./helpers/js_3rd_StripJsonComments.js");
+const configHandler = require("./helpers/js_config_handler.js");
 const dumpError = require("./dumperror.js");
 const fs = require('fs');
 const path = require('path');
@@ -30,8 +31,13 @@ function init(configFileNameParam) {
     }
 
     try {
-        const fileContent = fs.readFileSync(path.join(__dirname, '..', configFileName), 'utf8');
+        const configFilePath = path.join(__dirname, '..', configFileName);
+        const fileContent = fs.readFileSync(configFilePath, 'utf8');
         configuration = JSON.parse(stripJsonComments(fileContent));
+
+        // Process $$HASH$$('...') directives — replace with bcrypt hashes
+        // in memory and persist the hashes back to the config file.
+        configHandler.handleConfig(configuration, configFilePath);
 
         // Environment variable overrides
         if (process.env.de_auth_servers_status_guid !== undefined) {

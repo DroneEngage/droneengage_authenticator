@@ -136,7 +136,7 @@ The server is configured via `server.config` (JSON format). You can create envir
 {
     "webadmin_enable": true,
     "admin_username": "admin",
-    "admin_password": "admin123",
+    "admin_password": "$$HASH$$('admin123')",
     "session_secret": "change-this-secret-in-production",
     "webadmin_port": 8089,
     "webadmin_listening_ip": "0.0.0.0",
@@ -149,14 +149,65 @@ The server is configured via `server.config` (JSON format). You can create envir
 |-----------|------|---------|-------------|
 | `webadmin_enable` | boolean | true | Enable the admin web interface |
 | `admin_username` | string | "admin" | Admin username for web interface |
-| `admin_password` | string | "admin123" | Admin password for web interface |
+| `admin_password` | string | "$$HASH$$('admin123')" | Admin password — supports `$$HASH$$('plaintext')` directive (see [Sensitive Value Hashing](#sensitive-value-hashing)) |
 | `session_secret` | string | required | Secret for session encryption (change in production) |
 | `webadmin_port` | number | 8089 | Port for admin web interface |
 | `webadmin_listening_ip` | string | "0.0.0.0" | IP address to bind admin web interface |
 | `servers_admin_url_guid` | string | "" | Secret GUID prefix for admin URLs. When set, entire admin interface is hidden behind /admin/<guid>/* |
 | `webadmin_terminal_enabled` | boolean | true | Enable web terminal for remote shell access. Commands run with server process privileges |
 
-**Security Note:** Always change `admin_username`, `admin_password`, and `session_secret` in production.
+**Security Note:** Always change `admin_username`, `admin_password`, and `session_secret` in production. Use the `$$HASH$$('...')` directive for `admin_password` so the plaintext is not stored in the config file.
+
+## Sensitive Value Hashing
+
+The config handler (`src/helpers/js_config_handler.js`) automatically detects the `$$HASH$$('plaintext')` directive in string config values and replaces it with a bcrypt hash.
+
+### How It Works
+
+1. You write the directive in `server.config`:
+   ```json
+   {
+       "admin_password": "$$HASH$$('mySecretPassword')"
+   }
+   ```
+2. On startup, the config handler:
+   - Detects the `$$HASH$$('...')` pattern in the parsed config
+   - Computes a bcrypt hash (10 salt rounds) of the plaintext
+   - Replaces the value **in memory** so the running server uses the hash
+   - Persists the hash back to the config **file**, replacing only the `$$HASH$$('...')` substring — all comments, whitespace, and other values are preserved exactly as-is
+3. After the first run, the file contains the raw hash directly:
+   ```json
+   {
+       "admin_password": "$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"
+   }
+   ```
+4. Subsequent starts are a no-op — the value is already a hash, so nothing changes.
+
+### Changing the Password
+
+To change the admin password, replace the hash with a new directive and restart:
+```json
+{
+    "admin_password": "$$HASH$$('newPassword')"
+}
+```
+The handler will hash the new plaintext and persist it on the next startup.
+
+### Backward Compatibility
+
+Plaintext passwords are still accepted as a fallback. If `admin_password` does not start with `$2` (the bcrypt hash prefix), it is compared directly as plaintext and a warning is logged:
+```
+[WARN] admin_password is stored in plaintext. Use $$HASH$$('...') in server.config and restart to hash it.
+```
+
+### Supported Directives
+
+| Directive | Description |
+|-----------|-------------|
+| `$$HASH$$('plaintext')` | Replaced with `bcrypt.hashSync(plaintext, 10)` on first startup |
+| `$$HASH$$("plaintext")` | Same as above (double quotes also accepted) |
+
+The directive works on any top-level string config value, not just `admin_password`.
 
 ## Logging Configuration
 
@@ -213,7 +264,7 @@ The server is configured via `server.config` (JSON format). You can create envir
     "enable_SSL": false,
     "webadmin_enable": true,
     "admin_username": "admin",
-    "admin_password": "admin123",
+    "admin_password": "$$HASH$$('admin123')",
     "session_secret": "dev-secret",
     "webadmin_port": 8089,
     "webadmin_listening_ip": "0.0.0.0",
@@ -250,7 +301,7 @@ The server is configured via `server.config` (JSON format). You can create envir
     "ssl_cert_file": "/etc/ssl/certs/domain.crt",
     "webadmin_enable": true,
     "admin_username": "admin",
-    "admin_password": "secure_password",
+    "admin_password": "$$HASH$$('secure_password')",
     "session_secret": "random_long_secret_string",
     "webadmin_port": 8089,
     "webadmin_listening_ip": "127.0.0.1",
@@ -283,6 +334,7 @@ export de_auth_webadmin_terminal_enabled=false
 1. **Change Default Credentials**
    - Always change `admin_username` and `admin_password`
    - Use strong, unique passwords
+   - Use the `$$HASH$$('...')` directive for `admin_password` so it is stored as a bcrypt hash (see [Sensitive Value Hashing](#sensitive-value-hashing))
 
 2. **Session Secret**
    - Use a long, random string for `session_secret`

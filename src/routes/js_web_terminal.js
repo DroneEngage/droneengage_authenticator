@@ -20,12 +20,12 @@
 const pty = require('node-pty');
 const WebSocket = require('ws');
 const cookieParser = require('cookie-parser');
-const { store } = require('../helpers/js_admin_session');
+const { store, sessionSecret } = require('../helpers/js_admin_session');
 
 // Cookie parser configured WITH the session secret so that signed cookies
 // (the s:VALUE.SIG format used by express-session) are automatically
-// unsigned and placed in req.signedCookies.
-const sessionSecret = global.m_serverconfig.m_configuration.session_secret || 'change-this-secret-in-production';
+// unsigned and placed in req.signedCookies.  The secret is validated at
+// module-load time in js_admin_session.js (fail-hard on missing/default).
 const parseCookies = cookieParser(sessionSecret);
 
 // Session cookie name — express-session default
@@ -101,6 +101,30 @@ function attachWebSocketServer(httpServer) {
         // Feature disabled
         if (!isTerminalEnabled()) {
             socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
+            socket.destroy();
+            return;
+        }
+
+        // Origin check — prevent Cross-Site WebSocket Hijacking (CSWSH).
+        // Browsers always send the Origin header on WebSocket upgrades; if it
+        // is missing or does not match the Host header, reject the request.
+        const origin = request.headers.origin;
+        const host = request.headers.host;
+        if (!origin || !host) {
+            socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+            socket.destroy();
+            return;
+        }
+        let originHost;
+        try {
+            originHost = new URL(origin).host;
+        } catch (e) {
+            socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+            socket.destroy();
+            return;
+        }
+        if (originHost !== host) {
+            socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
             socket.destroy();
             return;
         }

@@ -20,6 +20,8 @@ To access the admin interface:
 - Username: `admin`
 - Password: `admin123`
 
+> **Password hashing:** The `admin_password` config value supports the `$$HASH$$('plaintext')` directive, which is automatically replaced with a bcrypt hash on first startup. See [Configuration > Sensitive Value Hashing](Configuration.md#sensitive-value-hashing) for details.
+
 ### GUID Mode (Hidden Admin)
 
 When `servers_admin_url_guid` is set in the configuration, the entire admin interface is hidden:
@@ -119,7 +121,7 @@ The admin interface is configured in `server.config`:
 {
     "webadmin_enable": true,
     "admin_username": "admin",
-    "admin_password": "admin123",
+    "admin_password": "$$HASH$$('admin123')",
     "session_secret": "change-this-secret-in-production",
     "webadmin_port": 8089,
     "webadmin_listening_ip": "0.0.0.0",
@@ -134,7 +136,7 @@ The admin interface is configured in `server.config`:
 |-----------|------|---------|-------------|
 | `webadmin_enable` | boolean | true | Enable/disable admin web interface |
 | `admin_username` | string | "admin" | Admin username for login |
-| `admin_password` | string | "admin123" | Admin password for login |
+| `admin_password` | string | "$$HASH$$('admin123')" | Admin password — supports `$$HASH$$('plaintext')` directive (auto-hashed to bcrypt on startup, see [Configuration > Sensitive Value Hashing](Configuration.md#sensitive-value-hashing)) |
 | `session_secret` | string | required | Secret for session encryption |
 | `webadmin_port` | number | 8089 | Port for admin web interface |
 | `webadmin_listening_ip` | string | "0.0.0.0" | IP address to bind to |
@@ -148,6 +150,7 @@ The admin interface is configured in `server.config`:
 1. **Change Default Credentials**
    - Always change `admin_username` and `admin_password`
    - Use strong, unique passwords
+   - Use the `$$HASH$$('...')` directive for `admin_password` so it is stored as a bcrypt hash instead of plaintext (see [Configuration > Sensitive Value Hashing](Configuration.md#sensitive-value-hashing))
 
 2. **Session Secret**
    - Use a long, random string for `session_secret`

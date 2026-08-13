@@ -3,6 +3,7 @@ const path = require('path');
 const hlp_db = require("../helpers/hlp_db.js");
 const hlp_string = require("../helpers/hlp_string.js");
 const hlp_validation = require("../helpers/hlp_validation.js");
+const hlp_password = require("../helpers/hlp_password.js");
 const v_users = require('../database/db_users');
 
 
@@ -112,53 +113,71 @@ function fn_do_loginAccount (p_accountName, p_accessCode, fn_callback)
         return ;
     }
     
-    const c_sql = "select teams.TeamID, teams.Enabled, teams.InstanceLimit, logins.Permissions from logins, teams WHERE logins.AccessCode=? and teams.TeamID = logins.TeamID and logins.LoginName=?";
-    
-    hlp_db.fn_genericSelect_w_Params (m_db, c_sql,[hlp_string.fn_protectedFromInjection(p_accessCode), hlp_string.fn_protectedFromInjection(p_accountName)],
+    // SECURITY: AccessCode is now stored as a bcrypt hash, so we can no longer
+    // filter by it in SQL. Select candidate rows by LoginName only, then verify
+    // the supplied plaintext with bcrypt.compare in JS.
+    const c_sql = "SELECT logins.LoginID, logins.AccessCode, teams.TeamID, teams.Enabled, teams.InstanceLimit, logins.Permissions FROM logins JOIN teams ON teams.TeamID = logins.TeamID WHERE logins.LoginName = ?";
+
+    hlp_db.fn_genericSelect_w_Params (m_db, c_sql,[hlp_string.fn_protectedFromInjection(p_accountName)],
     function (rows) {
-        if ((rows == null) || (rows.length != 1))
-        {  
-            const c_reply = {};
+        const c_reply = {};
+        if ((rows == null) || (rows.length === 0))
+        {
             c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Account Not Found.";
             c_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
             fn_callback (c_reply);
+            return;
+        }
+
+        // Find the row whose stored AccessCode (hash or legacy plaintext)
+        // matches the supplied credential.
+        let matchedRow = null;
+        for (let i = 0; i < rows.length; ++i) {
+            if (hlp_password.verify(p_accessCode, rows[i]['AccessCode']) === true) {
+                matchedRow = rows[i];
+                break;
+            }
+        }
+
+        if (matchedRow == null) {
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Account Not Found.";
+            c_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
+            fn_callback (c_reply);
+            return;
+        }
+
+        // Lazy upgrade: if the stored value was a legacy plaintext code,
+        // re-hash it and persist so future logins use bcrypt.compare.
+        if (!hlp_password.isHashed(matchedRow['AccessCode'])) {
+            const c_hash = hlp_password.hash(p_accessCode);
+            const c_up = "UPDATE `logins` SET `AccessCode` = ? WHERE `LoginID` = ?";
+            hlp_db.fn_genericInsert_w_Params(m_db, c_up,
+                [c_hash, matchedRow['LoginID']],
+                function () { /* best-effort upgrade */ },
+                function (uerr) { console.error("[login] lazy hash upgrade failed:", uerr); });
+        }
+
+        c_reply.m_data = {};
+        c_reply.m_data.m_sid = matchedRow['TeamID'];
+        c_reply.m_data.m_permission = 'D1G1T3R4V5C6';
+        c_reply.m_data.m_prm = matchedRow['Permissions'];
+        if (c_reply.m_data.m_prm == 'D1G1T3R4V5C6')
+        { // backward compatibility to be deleted in the next version.
+            c_reply.m_data.m_prm ='0xffffffff';
+        }
+        c_reply.m_data.m_enabled = matchedRow['Enabled'];
+        c_reply.m_data.m_instance_limit = matchedRow['InstanceLimit'];
+        if (c_reply.m_data.m_enabled == 0)
+        {
+            c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_ACCOUNT_DISABLED;
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Account is Disabled.";
         }
         else
         {
-            console.log (rows);
-            const c_reply = {};
-            if (rows.length == 0)
-            {
-                c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Account Not Found.";
-                c_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
-            
-            }
-            else
-            {
-                c_reply.m_data = {};
-                c_reply.m_data.m_sid = rows[0]['TeamID'];
-                c_reply.m_data.m_permission = 'D1G1T3R4V5C6';
-                c_reply.m_data.m_prm = rows[0]['Permissions'];
-                if (c_reply.m_data.m_prm == 'D1G1T3R4V5C6')
-                { // backward compatibility to be deleted in the next version.
-                    c_reply.m_data.m_prm ='0xffffffff'; 
-                }
-                c_reply.m_data.m_enabled = rows[0]['Enabled'];
-                c_reply.m_data.m_instance_limit = rows[0]['InstanceLimit'];
-                if (c_reply.m_data.m_enabled==0)
-                {
-                    c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_ACCOUNT_DISABLED;
-                    c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Account is Disabled.";
-                }
-                else
-                {
-                    c_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_NON;
-                }
-            }
-            
-            fn_callback (c_reply);
+            c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_NON;
         }
 
+        fn_callback (c_reply);
         return ;
     },
     function (error)
@@ -193,38 +212,43 @@ function fn_do_getAccountNameByAccessCode (p_accessCode, fn_callback)
         return ;
     }
     
-    const c_sql = "select teams.TeamName from logins, teams WHERE logins.AccessCode=? and teams.TeamID = logins.TeamID ";
-    console.log (c_sql);
-    hlp_db.fn_genericSelect_w_Params (m_db, c_sql,[hlp_string.fn_protectedFromInjection(p_accessCode)],
+    // SECURITY: AccessCode is hashed, so we cannot filter by it in SQL.
+    // Fetch all logins joined with their team name and verify in JS.
+    // NOTE: This iterates all logins — acceptable for the expected number of
+    // accounts in a DroneEngage deployment. If the account table grows very
+    // large, consider an additional deterministic lookup index (e.g. HMAC).
+    const c_sql = "SELECT logins.AccessCode, teams.TeamName FROM logins JOIN teams ON teams.TeamID = logins.TeamID";
+
+    hlp_db.fn_genericSelect_w_Params (m_db, c_sql,[],
     function (rows) {
-        if ((rows == null) || (rows.length != 1))
-        {  
-            const c_reply = {};
+        const c_reply = {};
+        if (rows == null || rows.length === 0)
+        {
             c_reply[global.c_CONSTANTS.CONST_ERROR_MSG.toString()] =  "Account Not Found.";
             c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] =  global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
             fn_callback (c_reply);
+            return;
         }
-        else
-        {
-            console.log (rows);
-            const c_reply = {};
-            if (rows.length == 0)
-            {
-                c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Account Not Found.";
-                c_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
-            
-            }
-            else
-            {
-                c_reply.m_data = {};
-                c_reply.m_data.m_accountName = rows[0]['TeamName'];
-                c_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_NON;
 
+        let matchedName = null;
+        for (let i = 0; i < rows.length; ++i) {
+            if (hlp_password.verify(p_accessCode, rows[i]['AccessCode']) === true) {
+                matchedName = rows[i]['TeamName'];
+                break;
             }
-            
+        }
+
+        if (matchedName == null) {
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG.toString()] =  "Account Not Found.";
+            c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] =  global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
             fn_callback (c_reply);
+            return;
         }
 
+        c_reply.m_data = {};
+        c_reply.m_data.m_accountName = matchedName;
+        c_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_NON;
+        fn_callback (c_reply);
         return ;
     },
     function (error)
@@ -281,9 +305,10 @@ function fn_createSubLogin(p_accountName, p_newAccessCode, p_permission, fn_call
             const v_teamId = rows[0]['TeamID'];
             const c_sql = "INSERT INTO `logins`(`TeamID`, `LoginName`, `AccessCode`, `Permissions`) VALUES (?, ?, ?, ?)";
 
-            console.log ("prv_do_createSubLogin: " + c_sql);
+            // SECURITY: hash the access code before storing it.
+            const c_hashedAccessCode = hlp_password.hash(p_newAccessCode);
 
-            hlp_db.fn_genericInsert_w_Params (m_db, c_sql, [v_teamId, hlp_string.fn_protectedFromInjection(p_accountName), hlp_string.fn_protectedFromInjection(p_newAccessCode), hlp_string.fn_protectedFromInjection(p_permission)],
+            hlp_db.fn_genericInsert_w_Params (m_db, c_sql, [v_teamId, hlp_string.fn_protectedFromInjection(p_accountName), c_hashedAccessCode, hlp_string.fn_protectedFromInjection(p_permission)],
                 function (err,res)
                 {
                     const c_reply = {};

@@ -12,6 +12,7 @@ const c_uuidv4 = require('uuid');
 const v_database_manager = require("./js_database_manager");
 const c_permission = require("./js_permisson_validator.js");
 const { getConfiguration } = require("./js_config");
+const hlp_password = require("../helpers/hlp_password");
 
 
 const m_loginCardList = {};
@@ -80,7 +81,7 @@ function fn_createLoginCard (p_accountName, p_accessCode, p_actorType, p_group, 
             const p_reply = {};
 
             if ((getConfiguration().single_account_user_name != p_accountName)
-            || (getConfiguration().single_account_access_code != p_accessCode))
+            || (hlp_password.verify(p_accessCode, getConfiguration().single_account_access_code) !== true))
             {
                 p_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Account Not Found.";
                 p_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
@@ -124,12 +125,28 @@ function fn_createLoginCard (p_accountName, p_accessCode, p_actorType, p_group, 
 
             const accessCode = account_record.AccessCode || account_record.pwd;
             if ((!accessCode)
-            ||  (accessCode != p_accessCode)){
+            ||  (hlp_password.verify(p_accessCode, accessCode) !== true)){
 
                 p_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Account Not Found.";
                 p_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
                 fn_callback (p_reply);
                 return ;
+            }
+
+            // Lazy upgrade: if the stored value was a legacy plaintext code,
+            // re-hash it and persist so future logins use bcrypt.compare.
+            if (!hlp_password.isHashed(accessCode)) {
+                try {
+                    const c_hash = hlp_password.hash(p_accessCode);
+                    global.db_users.fn_update_record(p_accountName, {
+                        sid: account_record.sid,
+                        AccessCode: c_hash,
+                        prm: account_record.prm,
+                        isadmin: account_record.isadmin
+                    });
+                } catch (e) {
+                    console.error("[session] lazy hash upgrade failed:", e);
+                }
             }
 
             p_reply.m_data ={};

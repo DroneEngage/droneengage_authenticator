@@ -4,8 +4,7 @@ const { Low } = require('lowdb');
 const { JSONFile } = require('lowdb/node');
 const path = require('path');
 const fs = require('fs');
-// Optional: Uncomment for password hashing
-// const bcrypt = require('bcrypt');
+const hlp_password = require('../helpers/hlp_password');
 
 const info_field = 'db_info';
 
@@ -131,11 +130,19 @@ class db_user {
      */
     async fn_add_record(user_email, user_data, fn_callback) {
         if (!user_data || user_email === info_field) {
+            let c_reply = {};
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Invalid parameters.";
+            c_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
+            if (fn_callback) fn_callback(c_reply);
             return;
         }
 
         // Validate required fields (sid, AccessCode, prm) to match data structure
         if (!user_data.sid || !user_data.AccessCode || !user_data.prm) {
+            let c_reply = {};
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Missing required fields (sid, AccessCode, or prm).";
+            c_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
+            if (fn_callback) fn_callback(c_reply);
             return;
         }
 
@@ -176,11 +183,16 @@ class db_user {
             permissions = '0xffffffff';
         }
 
+        // SECURITY: hash the access code before storing it.
+        const storedAccessCode = hlp_password.isHashed(user_data.AccessCode)
+            ? user_data.AccessCode
+            : hlp_password.hash(user_data.AccessCode);
+
         this.db.data.logins[user_email] = {
             LoginID: loginID,
             TeamID: teamID,
             LoginName: user_email,
-            AccessCode: user_data.AccessCode,
+            AccessCode: storedAccessCode,
             Permissions: permissions,
             IsAdmin: user_data.isadmin
         };
@@ -212,11 +224,19 @@ class db_user {
      */
     async fn_update_record(user_email, user_data, fn_callback) {
         if (!user_data || user_email === info_field) {
+            let c_reply = {};
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Invalid parameters.";
+            c_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
+            if (fn_callback) fn_callback(c_reply);
             return;
         }
 
         // Validate required fields (sid, AccessCode, prm) to match data structure
         if (!user_data.sid || !user_data.AccessCode || !user_data.prm) {
+            let c_reply = {};
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Missing required fields (sid, AccessCode, or prm).";
+            c_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
+            if (fn_callback) fn_callback(c_reply);
             return;
         }
 
@@ -241,11 +261,16 @@ class db_user {
             permissions = '0xffffffff';
         }
 
+        // SECURITY: hash the access code before storing it.
+        const storedAccessCode = hlp_password.isHashed(user_data.AccessCode)
+            ? user_data.AccessCode
+            : hlp_password.hash(user_data.AccessCode);
+
         this.db.data.logins[user_email] = {
             ...existingLogin,
             TeamID: teamID,
             LoginName: user_email,
-            AccessCode: user_data.AccessCode,
+            AccessCode: storedAccessCode,
             Permissions: permissions,
             IsAdmin: user_data.isadmin
         };
@@ -371,14 +396,15 @@ class db_user {
      */
     fn_get_user_by_accesscode(accesscode) {
         for (const [email, login] of Object.entries(this.db.data.logins)) {
-            if (login.AccessCode === accesscode) {
+            // SECURITY: verify against hashed (or legacy plaintext) stored code.
+            if (hlp_password.verify(accesscode, login.AccessCode) === true) {
                 // Convert internal structure to public API shape
-                return { 
+                return {
                     sid: login.TeamID,
                     AccessCode: login.AccessCode,
                     prm: login.Permissions,
                     isadmin: login.IsAdmin,
-                    acc: email 
+                    acc: email
                 };
             }
         }

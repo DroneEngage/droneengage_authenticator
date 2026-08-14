@@ -54,6 +54,7 @@ The user management interface varies based on the `account_storage_type` configu
 - Access via "Users" link in navigation
 - View and manage users stored in JSON file (`file_db`)
 - CRUD operations for user accounts
+- **AccessCode handling on edit:** the stored bcrypt hash is never displayed in the AccessCode field. When editing an existing user the field is left empty — leave it blank to keep the current password, or type a new one to replace it. A **Regenerate** button (shown only in edit mode) fills the field with a random 12-character hex code using the same algorithm as the server-side generator.
 
 #### Database Storage (`account_storage_type: "db"`)
 - Access via "Teams & Logins" link in navigation

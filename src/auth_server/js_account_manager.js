@@ -1,6 +1,7 @@
 "use strict";
 const { v4: uuidv4 } = require('uuid');
 const hlp_string = require("../helpers/hlp_string.js");
+const hlp_password = require("../helpers/hlp_password");
 const v_database_manager = require("./js_database_manager");
 
 
@@ -119,7 +120,7 @@ function fn_getAccountNameByAccessCode(p_accessCode, fn_callback) {
         if ((m_serverconfig.m_configuration.hasOwnProperty('single_account_user_name') === true)
             && (m_serverconfig.m_configuration.hasOwnProperty('single_account_access_code') === true)) {
 
-            if ((m_serverconfig.m_configuration.single_account_access_code != p_accessCode)) {
+            if (hlp_password.verify(p_accessCode, m_serverconfig.m_configuration.single_account_access_code) !== true) {
                 p_reply[global.c_CONSTANTS.CONST_ERROR_MSG] = "Account Not Found.";
                 p_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
                 fn_callback(p_reply);

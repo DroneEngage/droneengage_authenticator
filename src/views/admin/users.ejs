@@ -144,8 +144,11 @@
                         </div>
                         <div class="mb-3">
                             <label for="accessCode" class="form-label">AccessCode</label>
-                            <input type="text" class="form-control" id="accessCode" name="accessCode" placeholder="Leave empty to auto-generate">
-                            <small class="text-muted">AccessCode will be generated automatically when user is created if left empty</small>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="accessCode" name="accessCode" placeholder="Leave empty to auto-generate">
+                                <button class="btn btn-outline-light" type="button" id="regenerateBtn" onclick="regenerateAccessCode()" style="display:none;">Regenerate</button>
+                            </div>
+                            <small class="text-muted" id="accessCodeHint">AccessCode will be generated automatically when user is created if left empty</small>
                         </div>
                         <div class="mb-3">
                             <label for="prm" class="form-label">Permissions (hex)</label>
@@ -234,6 +237,9 @@
             document.getElementById('editLoginId').value = '';
             document.getElementById('loginId').disabled = false;
             document.getElementById('accessCode').value = '';
+            document.getElementById('accessCode').placeholder = 'Leave empty to auto-generate';
+            document.getElementById('accessCodeHint').textContent = 'AccessCode will be generated automatically when user is created if left empty';
+            document.getElementById('regenerateBtn').style.display = 'none';
             title.textContent = 'Add New User';
         }
 
@@ -245,13 +251,27 @@
             document.getElementById('editLoginId').value = loginID;
             document.getElementById('loginId').value = loginID;
             document.getElementById('sid').value = users[loginID].sid;
-            document.getElementById('accessCode').value = users[loginID].AccessCode || '';
+            // Do NOT show the hashed AccessCode — leave empty so admin can enter a new one.
+            document.getElementById('accessCode').value = '';
+            document.getElementById('accessCode').placeholder = 'Enter new password to change, leave empty to keep current';
+            document.getElementById('accessCodeHint').textContent = 'Leave empty to keep the current password unchanged';
+            document.getElementById('regenerateBtn').style.display = 'inline-block';
             document.getElementById('prm').value = users[loginID].prm;
             document.getElementById('isadmin').checked = users[loginID].isadmin;
             document.getElementById('loginId').disabled = true;
             title.textContent = 'Edit User';
 
             userModal.show();
+        }
+
+        function regenerateAccessCode() {
+            // Generate a random 12-char access code (same algorithm as server-side)
+            const chars = '0123456789abcdef';
+            let code = '';
+            for (let i = 0; i < 12; i++) {
+                code += chars[Math.floor(Math.random() * chars.length)];
+            }
+            document.getElementById('accessCode').value = code;
         }
 
         async function deleteUser(loginID) {
@@ -305,8 +325,20 @@
                 const data = await response.json();
 
                 if (data.error === 0) {
-                    if (data.AccessCode) {
-                        alert(`User created successfully! AccessCode: ${data.AccessCode}`);
+                    if (editLoginId) {
+                        // Editing existing user
+                        if (accessCode) {
+                            alert(`User updated successfully! New AccessCode: ${data.AccessCode}`);
+                        } else {
+                            alert('User updated successfully!');
+                        }
+                    } else {
+                        // Creating new user
+                        if (data.AccessCode) {
+                            alert(`User created successfully! AccessCode: ${data.AccessCode}`);
+                        } else {
+                            alert('User created successfully!');
+                        }
                     }
                     userModal.hide();
                     loadUsers();

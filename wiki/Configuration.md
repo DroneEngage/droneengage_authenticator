@@ -150,7 +150,7 @@ The server is configured via `server.config` (JSON format). You can create envir
 | `webadmin_enable` | boolean | true | Enable the admin web interface |
 | `admin_username` | string | "admin" | Admin username for web interface |
 | `admin_password` | string | "$$HASH$$('admin123')" | Admin password — supports `$$HASH$$('plaintext')` directive (see [Sensitive Value Hashing](#sensitive-value-hashing)) |
-| `session_secret` | string | required | Secret for session encryption (change in production) |
+| `session_secret` | string | "change-this-secret-in-production" | Secret for session encryption. A missing or default value logs a startup warning (the server continues to run) but must be changed for production use |
 | `webadmin_port` | number | 8089 | Port for admin web interface |
 | `webadmin_listening_ip` | string | "0.0.0.0" | IP address to bind admin web interface |
 | `servers_admin_url_guid` | string | "" | Secret GUID prefix for admin URLs. When set, entire admin interface is hidden behind /admin/<guid>/* |

@@ -130,11 +130,19 @@ class db_user {
      */
     async fn_add_record(user_email, user_data, fn_callback) {
         if (!user_data || user_email === info_field) {
+            let c_reply = {};
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Invalid parameters.";
+            c_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
+            if (fn_callback) fn_callback(c_reply);
             return;
         }
 
         // Validate required fields (sid, AccessCode, prm) to match data structure
         if (!user_data.sid || !user_data.AccessCode || !user_data.prm) {
+            let c_reply = {};
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Missing required fields (sid, AccessCode, or prm).";
+            c_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
+            if (fn_callback) fn_callback(c_reply);
             return;
         }
 
@@ -216,11 +224,19 @@ class db_user {
      */
     async fn_update_record(user_email, user_data, fn_callback) {
         if (!user_data || user_email === info_field) {
+            let c_reply = {};
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Invalid parameters.";
+            c_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
+            if (fn_callback) fn_callback(c_reply);
             return;
         }
 
         // Validate required fields (sid, AccessCode, prm) to match data structure
         if (!user_data.sid || !user_data.AccessCode || !user_data.prm) {
+            let c_reply = {};
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Missing required fields (sid, AccessCode, or prm).";
+            c_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
+            if (fn_callback) fn_callback(c_reply);
             return;
         }
 

@@ -13,6 +13,7 @@ server.home.config
 *.old
 *.code-workspace
 database/database.db
+file_db.json
 scripts/*.pem
 
 *.tmp

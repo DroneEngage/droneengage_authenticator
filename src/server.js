@@ -41,6 +41,7 @@ function fn_startApiServer ()
                 defaultSrc: ["'self'"],
                 styleSrc: ["'self'", "'unsafe-inline'"],
                 scriptSrc: ["'self'", "'unsafe-inline'"],
+                scriptSrcAttr: ["'unsafe-inline'"],
                 upgradeInsecureRequests: true,
                 workerSrc: false
             }
@@ -123,6 +124,7 @@ function fn_startViewsServer ()
                 defaultSrc: ["'self'"],
                 styleSrc: ["'self'", "'unsafe-inline'"],
                 scriptSrc: ["'self'", "'unsafe-inline'"],
+                scriptSrcAttr: ["'unsafe-inline'"],
                 upgradeInsecureRequests: true,
                 workerSrc: false
             }

@@ -1,7 +1,7 @@
 "use strict";
 
 const c_CONSTANTS = require("../js_constants");
-const hlp_string = require("../helpers/hlp_string");
+const hlp_string = require("droneengage_server_common").helpers.strings;
 
 function trim(value) {
     return value == null ? value : value.trim();

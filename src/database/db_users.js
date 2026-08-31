@@ -4,7 +4,7 @@ const { Low } = require('lowdb');
 const { JSONFile } = require('lowdb/node');
 const path = require('path');
 const fs = require('fs');
-const hlp_password = require('../helpers/hlp_password');
+const hlp_password = require('droneengage_server_common').password;
 
 const info_field = 'db_info';
 

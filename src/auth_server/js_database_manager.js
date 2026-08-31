@@ -1,9 +1,10 @@
 "use strict";
 const path = require('path');
 const hlp_db = require("../helpers/hlp_db.js");
-const hlp_string = require("../helpers/hlp_string.js");
-const hlp_validation = require("../helpers/hlp_validation.js");
-const hlp_password = require("../helpers/hlp_password.js");
+const _common = require("droneengage_server_common");
+const hlp_string = _common.helpers.strings;
+const hlp_validation = _common.helpers.validation;
+const hlp_password = _common.password;
 const v_users = require('../database/db_users');
 
 

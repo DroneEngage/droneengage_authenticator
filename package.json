@@ -1,6 +1,6 @@
 {
   "name": "DE_AUTH",
-  "version": "7.4.1",
+  "version": "7.5.0",
   "author": {
     "name": "Mohammad Said Hefny",
     "email": "mohammad.hefny@gmail.com"
@@ -44,6 +44,7 @@
     "sqlite3": "^5.1.7",
     "uuid": "^9.0.0",
     "validator": "^13.9.0",
-    "ws": "^8.16.0"
+    "ws": "^8.16.0",
+    "droneengage_server_common": "git+ssh://git@github.com:DroneEngage/droneengage_server_common.git#v1.0.0"
   }
 }

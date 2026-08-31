@@ -1,10 +1,6 @@
 "use strict";
 
-const path = require("path");
-
 function setupTestGlobals(configOverrides = {}) {
-    require(path.join(__dirname, "../src/helpers/hlp_string.js"));
-
     global.c_CONSTANTS = require("../src/js_constants");
     global.m_serverconfig = require("../src/js_serverConfig.js");
     global.m_serverconfig.init("server.config");

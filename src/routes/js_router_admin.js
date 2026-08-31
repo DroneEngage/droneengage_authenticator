@@ -6,9 +6,9 @@ const session = require('express-session');
 const rateLimit = require('express-rate-limit');
 const csrf = require('csurf');
 const helmet = require('helmet');
-const { isValidAdminUsername, isValidAdminPassword } = require('../helpers/hlp_validation');
+const { isValidAdminUsername, isValidAdminPassword } = require('droneengage_server_common').helpers.validation;
 const { sessionMiddleware } = require('../helpers/js_admin_session');
-const { isBcryptHash } = require('../helpers/js_config_handler');
+const { isBcryptHash } = require('droneengage_server_common').configHandler;
 const bcrypt = require('bcryptjs');
 
 // Configure session (shared store — also used by WebSocket terminal handler)

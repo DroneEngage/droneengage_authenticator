@@ -12,7 +12,7 @@ const c_uuidv4 = require('uuid');
 const v_database_manager = require("./js_database_manager");
 const c_permission = require("./js_permisson_validator.js");
 const { getConfiguration } = require("./js_config");
-const hlp_password = require("../helpers/hlp_password");
+const hlp_password = require("droneengage_server_common").password;
 
 
 const m_loginCardList = {};

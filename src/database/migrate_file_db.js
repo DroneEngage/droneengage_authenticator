@@ -41,7 +41,7 @@ for (let i = 0; i < args.length; i++) {
 // -- Load server.config -------------------------------------------------------
 let config = {};
 try {
-    const stripJsonComments = require('../helpers/js_3rd_StripJsonComments.js');
+    const stripJsonComments = require('droneengage_server_common').helpers.stripJsonComments;
     const configPath = path.join(__dirname, '..', '..', 'server.config');
     const configContent = fs.readFileSync(configPath, 'utf8');
     config = JSON.parse(stripJsonComments(configContent));

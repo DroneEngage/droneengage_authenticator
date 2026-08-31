@@ -7,7 +7,7 @@ const { setupTestGlobals } = require("./test_helpers");
 
 setupTestGlobals();
 
-const hlp_password = require("../src/helpers/hlp_password");
+const hlp_password = require("droneengage_server_common").password;
 const dbUsers = require("../src/database/db_users");
 const sessionManager = require("../src/auth_server/js_session_manager");
 const accountManager = require("../src/auth_server/js_account_manager");

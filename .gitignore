@@ -8,7 +8,7 @@ logs/
 checks.json
 server.home.config
 
-
+local/
 *.db
 *.old
 *.code-workspace
@@ -18,3 +18,6 @@ scripts/*.pem
 
 *.tmp
 build/
+
+# Local config override (merged on top of server.config at runtime)
+server.config.local

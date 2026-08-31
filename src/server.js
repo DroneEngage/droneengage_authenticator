@@ -1,7 +1,7 @@
 const v_pjson = require('../package.json');
 
 global.c_CONSTANTS      = require ("./js_constants");
-global.Colors           = require ("./helpers/js_colors.js").Colors;
+global.Colors           = require ("droneengage_server_common").helpers.colors.Colors;
 global.m_serverconfig   = require ('./js_serverConfig.js'); 
 global.m_authServer     = require ('./auth_server/js_auth_server');
 
@@ -293,7 +293,7 @@ function fn_displayInfo ()
 
 function fn_parseArgs()
 {
-    const c_args = require ('./helpers/hlp_args.js');
+    const c_args = require ('droneengage_server_common').helpers.args;
     let cmds = c_args.getArgs();
     if (cmds.hasOwnProperty('h') || cmds.hasOwnProperty('help'))
     {

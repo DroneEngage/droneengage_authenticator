@@ -1,7 +1,8 @@
 "use strict";
 const { v4: uuidv4 } = require('uuid');
-const hlp_string = require("../helpers/hlp_string.js");
-const hlp_password = require("../helpers/hlp_password");
+const _common = require("droneengage_server_common");
+const hlp_string = _common.helpers.strings;
+const hlp_password = _common.password;
 const v_database_manager = require("./js_database_manager");
 
 

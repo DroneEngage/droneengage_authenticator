@@ -37,6 +37,7 @@ function fn_startApiServer ()
     // https://www.html5rocks.com/en/tutorials/security/content-security-policy/
     c_app.use(c_helmet({
         contentSecurityPolicy: {
+            loose: true,
             directives: {
                 defaultSrc: ["'self'"],
                 styleSrc: ["'self'", "'unsafe-inline'"],
@@ -120,6 +121,7 @@ function fn_startViewsServer ()
     // https://www.html5rocks.com/en/tutorials/security/content-security-policy/
     c_app.use(c_helmet({
         contentSecurityPolicy: {
+            loose: true,
             directives: {
                 defaultSrc: ["'self'"],
                 styleSrc: ["'self'", "'unsafe-inline'"],

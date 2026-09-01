@@ -16,6 +16,7 @@ router.use(sessionMiddleware);
 
 // Configure Content Security Policy
 router.use(helmet.contentSecurityPolicy({
+    loose: true,
     directives: {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'", "'unsafe-inline'"],

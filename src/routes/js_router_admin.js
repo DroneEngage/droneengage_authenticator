@@ -475,12 +475,15 @@ router.get('/api/servers', requireAuth, (req, res) => {
 
             return {
                 serverId: serverInfo.m_server.m_serverId,
+                commServerGUID: serverInfo.m_server.m_commServerGUID,
                 isOnline: serverInfo.m_server.m_isOnline,
                 public_host: serverInfo.m_server.m_serverPublicIP,
                 serverPort: serverInfo.m_server.m_serverPort,
                 version: serverInfo.m_server.m_version,
                 accounts: accounts,
-                storageStatus: serverInfo.m_server.m_storageStatus || null
+                storageStatus: serverInfo.m_server.m_storageStatus || null,
+                udpProxies: serverInfo.m_server.m_udpProxies || [],
+                udpProxiesTimestamp: serverInfo.m_server.m_udpProxiesTimestamp || null
             };
         });
 
@@ -488,6 +491,26 @@ router.get('/api/servers', requireAuth, (req, res) => {
     } catch (error) {
         console.error('Error fetching server status:', error);
         res.json({ error: 1, errorMessage: 'Failed to fetch server status' });
+    }
+});
+
+// API: Query a comm server on-demand for its currently-open UDP proxies
+router.post('/api/servers/:guid/query-udp-proxies', requireAuth, (req, res) => {
+    try {
+        const commServerManager = require('../auth_server/js_comm_server_manager');
+        const serverInfo = commServerManager.getCommunicationServersList()[req.params.guid];
+
+        if (!serverInfo) {
+            return res.json({ error: 1, errorMessage: 'Server not found' });
+        }
+
+        commServerManager.fn_requestUdpProxies(serverInfo,
+            (proxies) => res.json({ error: 0, proxies }),
+            () => res.json({ error: 1, errorMessage: 'Server did not reply (offline or timed out)' })
+        );
+    } catch (error) {
+        console.error('Error querying UDP proxies:', error);
+        res.json({ error: 1, errorMessage: 'Failed to query UDP proxies' });
     }
 });
 

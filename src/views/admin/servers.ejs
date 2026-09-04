@@ -119,6 +119,19 @@
                         </div>
                     </div>
                 </div>
+                <div class="row mt-4" id="udpProxiesPanel">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0" id="udpProxiesPanelTitle">UDP Proxies</h5>
+                                <button class="btn btn-primary btn-sm" id="udpProxiesQueryBtn" style="display:none" onclick="queryUdpProxies()">Query Now</button>
+                            </div>
+                            <div class="card-body" id="udpProxiesPanelBody">
+                                <p class="text-muted text-center mb-0">Select a server to view its UDP proxies</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -142,6 +155,7 @@
                     } else {
                         m_selectedServerId = null;
                         renderUserPanel(null);
+                        renderUdpProxiesPanel(null);
                     }
                 }
             } catch (error) {
@@ -184,7 +198,19 @@
                         <p class="card-text mb-1 text-muted"><strong>Storage:</strong> Not reported</p>
                     `;
                 }
-                
+
+                const udpProxyCount = (server.udpProxies || []).length;
+                const udpProxiesHtml = server.udpProxiesTimestamp
+                    ? `
+                        <p class="card-text mb-1 text-white">
+                            <strong>UDP Proxies:</strong>
+                            <span class="badge ${udpProxyCount > 0 ? 'bg-info' : 'bg-secondary'}">${udpProxyCount} open</span>
+                        </p>
+                    `
+                    : `
+                        <p class="card-text mb-1 text-muted"><strong>UDP Proxies:</strong> Not queried</p>
+                    `;
+
                 return `
                 <div class="col-md-6 col-lg-4 mb-4">
                     <div class="card server-card ${server.isOnline ? '' : 'offline'} ${serverId === m_selectedServerId ? 'selected' : ''}" data-server-id="${encodeURIComponent(serverId)}">
@@ -199,6 +225,7 @@
                             <p class="card-text mb-1 text-primary"><strong>Port:</strong> ${server.serverPort || 'N/A'}</p>
                             <p class="card-text mb-1 text-white"><strong>Version:</strong> ${server.version || 'N/A'}</p>
                             ${storageStatusHtml}
+                            ${udpProxiesHtml}
                         </div>
                     </div>
                 </div>
@@ -228,6 +255,7 @@
             });
 
             renderUserPanel(server);
+            renderUdpProxiesPanel(server);
         }
 
         function renderUserPanel(server) {
@@ -284,6 +312,100 @@
                     </tbody>
                 </table>
             `;
+        }
+
+        function formatUdpTime(ms) {
+            return ms ? new Date(ms).toLocaleTimeString() : 'N/A';
+        }
+
+        function renderUdpProxiesPanel(server) {
+            const title = document.getElementById('udpProxiesPanelTitle');
+            const body = document.getElementById('udpProxiesPanelBody');
+            const queryBtn = document.getElementById('udpProxiesQueryBtn');
+
+            if (!server) {
+                title.textContent = 'UDP Proxies';
+                body.innerHTML = '<p class="text-muted text-center mb-0">Select a server to view its UDP proxies</p>';
+                queryBtn.style.display = 'none';
+                return;
+            }
+
+            queryBtn.style.display = '';
+            queryBtn.disabled = !server.isOnline;
+
+            const proxies = server.udpProxies || [];
+            const queriedAt = server.udpProxiesTimestamp ? ` — as of ${formatUdpTime(server.udpProxiesTimestamp)}` : '';
+            title.textContent = `UDP Proxies (${proxies.length}) - ${server.serverId || 'Unknown'}${queriedAt}`;
+
+            if (!server.udpProxiesTimestamp) {
+                body.innerHTML = '<p class="text-muted text-center mb-0">Not queried yet — click "Query Now"</p>';
+                return;
+            }
+
+            if (proxies.length === 0) {
+                body.innerHTML = '<p class="text-muted text-center mb-0">No open UDP proxies</p>';
+                return;
+            }
+
+            const rows = proxies.map(proxy => `
+                <tr>
+                    <td>${proxy.name || 'Unknown'}</td>
+                    <td>${proxy.socket1 ? `${proxy.socket1.address}:${proxy.socket1.port}` : 'N/A'}</td>
+                    <td>${proxy.socket2 ? `${proxy.socket2.address}:${proxy.socket2.port}` : 'N/A'}</td>
+                    <td><span class="badge ${proxy.ready ? 'bg-success' : 'bg-warning'}">${proxy.ready ? 'ready' : 'not ready'}</span></td>
+                    <td>${formatUdpTime(proxy.created)}</td>
+                    <td>${formatUdpTime(proxy.last_access)}</td>
+                </tr>
+            `).join('');
+
+            body.innerHTML = `
+                <table class="table table-striped table-bordered connected-users-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Unit</th>
+                            <th>Socket 1</th>
+                            <th>Socket 2</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Last Access</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        async function queryUdpProxies() {
+            if (!m_selectedServerId) return;
+            const server = m_servers.find(s => s.serverId === m_selectedServerId);
+            if (!server || !server.commServerGUID) return;
+
+            const btn = document.getElementById('udpProxiesQueryBtn');
+            const originalLabel = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = 'Querying...';
+
+            try {
+                const response = await fetch(`/admin/api/servers/${encodeURIComponent(server.commServerGUID)}/query-udp-proxies`, { method: 'POST' });
+                const data = await response.json();
+
+                if (data.error === 0) {
+                    server.udpProxies = data.proxies || [];
+                    server.udpProxiesTimestamp = Date.now();
+                    renderServers(m_servers);
+                    renderUdpProxiesPanel(server);
+                } else {
+                    alert(data.errorMessage || 'Failed to query UDP proxies');
+                }
+            } catch (error) {
+                console.error('Error querying UDP proxies:', error);
+                alert('Error querying UDP proxies');
+            } finally {
+                btn.disabled = !server.isOnline;
+                btn.textContent = originalLabel;
+            }
         }
 
         loadServers();

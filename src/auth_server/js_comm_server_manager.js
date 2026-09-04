@@ -7,8 +7,10 @@
  */
 const c_uuidv4 = require('uuid');
 const CONST_LOGIN_REQUEST_TIMEOUT = 15000;
+const CONST_UDP_PROXIES_QUERY_TIMEOUT = 5000;
 const m_communicationServersList  = {};
 const m_waitingForServerLogin = {};
+const m_waitingForUdpProxiesQuery = {};
 let m_bestServer = null;
 let Me = this;
 const v_sessionManager = require("./js_session_manager");
@@ -380,6 +382,41 @@ function fn_handleStorageStatus (p_cmd)
 
 
 /**
+ * Handles a comm server's reply to a CONST_CS_CMD_QUERY_UDP_PROXIES request
+ * (or an unsolicited push, should a comm server ever send one unprompted).
+ * Stores the latest known proxy list for admin dashboard visibility, and
+ * resolves any pending on-demand query waiting on this request id.
+ * @param {decrypted raw command} p_cmd
+ */
+function fn_handleUdpProxiesReport (p_cmd)
+{
+    try
+    {
+        const c_commServerGUID = p_cmd.m_commServerGUID;
+        const c_proxies = (p_cmd.d && p_cmd.d.proxies) || [];
+
+        if (m_communicationServersList.hasOwnProperty(c_commServerGUID))
+        {
+            m_communicationServersList[c_commServerGUID].m_server.m_udpProxies = c_proxies;
+            m_communicationServersList[c_commServerGUID].m_server.m_udpProxiesTimestamp = Date.now();
+        }
+
+        const c_requestId = p_cmd.d ? p_cmd.d[global.c_CONSTANTS.CONST_CS_REQUEST_ID.toString()] : null;
+        if ((c_requestId != null) && m_waitingForUdpProxiesQuery.hasOwnProperty(c_requestId))
+        {
+            const c_pending = m_waitingForUdpProxiesQuery[c_requestId];
+            delete m_waitingForUdpProxiesQuery[c_requestId];
+            c_pending.m_callback (c_proxies);
+        }
+    }
+    catch (ex)
+    {
+        console.log ("err:fn_handleUdpProxiesReport:" + ex);
+    }
+}
+
+
+/**
  * Handles communication servers all messages.
  * @param {a GUID identifies connection instance. this refers to websocket client in case of using websockets.} p_conn_GUID 
  * @param {raw encrypted message from communication servers} p_msg 
@@ -411,6 +448,10 @@ function fn_commServerMessageHandler (p_conn_GUID,p_msg)
         else if (p_cmd.c === global.c_CONSTANTS.CONST_CS_CMD_STORAGE_STATUS)
         {   // handle storage server connection status from commServer
             fn_handleStorageStatus (p_cmd);
+        }
+        else if (p_cmd.c === global.c_CONSTANTS.CONST_CS_CMD_REPORT_UDP_PROXIES)
+        {   // reply to CONST_CS_CMD_QUERY_UDP_PROXIES with the comm server's currently-open UDP proxies
+            fn_handleUdpProxiesReport (p_cmd);
         }
     }
     catch (ex)
@@ -517,8 +558,62 @@ function fn_requestCommunicationLogin (p_loginCard, p_server, fn_success, fn_err
 }
 
 /**
+ * Queries a communication server for its currently-open UDP proxies, for
+ * admin dashboard display. Same request/timeout pattern as
+ * fn_requestCommunicationLogin, but fn_success receives the proxies array
+ * directly rather than a login card.
+ * @param {*} p_server comm server entry from m_communicationServersList
+ * @param {function} fn_success called with the proxies array once the comm server replies
+ * @param {function} fn_error called if the server is offline or the request times out
+ */
+function fn_requestUdpProxies (p_server, fn_success, fn_error)
+{
+    let c_requestId = null;
+    try
+    {
+        if ((p_server == null) || (p_server.m_server.m_isOnline == false))
+        {
+            fn_error ();
+
+            return ;
+        }
+
+        c_requestId = c_uuidv4.v4();
+        m_waitingForUdpProxiesQuery [c_requestId] =
+            {
+                'm_callback': fn_success,
+                'm_timestamp': new Date()
+            };
+
+        const c_query = {
+            'c': global.c_CONSTANTS.CONST_CS_CMD_QUERY_UDP_PROXIES,
+            'd': {}
+        };
+
+        c_query.d [global.c_CONSTANTS.CONST_CS_REQUEST_ID.toString()] = c_requestId;
+
+        Me.fn_sendMessage (p_server.m_server.m_commServerGUID, JSON.stringify(c_query));
+    }
+    finally
+    {
+        setTimeout (function ()
+        {
+            if (c_requestId == null) return ;
+
+            if (m_waitingForUdpProxiesQuery.hasOwnProperty(c_requestId))
+            {
+                delete m_waitingForUdpProxiesQuery [c_requestId];
+                fn_error ();
+            }
+
+        }, CONST_UDP_PROXIES_QUERY_TIMEOUT);
+    }
+}
+
+
+/**
  * @todo NOT IMPLEMENTED
- * @param {server to communicate with.} p_selectedServer 
+ * @param {server to communicate with.} p_selectedServer
  */
 function fn_removePartyCommunicationSession (p_loginCard)
 {
@@ -575,6 +670,7 @@ module.exports = {
     fn_getServerCurrentlyServerAccountID:fn_getServerCurrentlyServerAccountID,
     fn_removePartyCommunicationSession: fn_removePartyCommunicationSession,
     fn_requestCommunicationLogin:fn_requestCommunicationLogin,
+    fn_requestUdpProxies:fn_requestUdpProxies,
     fn_initialize:fn_initialize,
     getCommunicationServersList: function() {
         return m_communicationServersList;

@@ -54,7 +54,7 @@ v_router.m_Router.post(C.CONST_AGENT_FUNCTION + C.CONST_AGENT_LOGIN_COMMAND, fun
 
     try
     {
-        console.log ("debug ... " + C.CONST_AGENT_LOGIN_COMMAND + " called");
+        if (global.DEBUG_LOGGING) console.log ("debug ... " + C.CONST_AGENT_LOGIN_COMMAND + " called");
 
         // Rate limiting check
         const clientIp = v_req.ip || v_req.connection.remoteAddress;
@@ -156,7 +156,7 @@ v_router.m_Router.post(C.CONST_AGENT_FUNCTION + C.CONST_AGENT_LOGIN_COMMAND, fun
                 v_response.write(JSON.stringify(p_data), function(err) { v_response.end(); });
                 v_response.end();
 
-                console.log ("debug ... fn_newLoginCard: " + JSON.stringify(p_data));
+                if (global.DEBUG_LOGGING) console.log ("debug ... fn_newLoginCard: " + JSON.stringify(p_data));
                 
             },
             function ()
@@ -175,7 +175,7 @@ v_router.m_Router.post(C.CONST_AGENT_FUNCTION + C.CONST_AGENT_ACCOUNT_MANAGMENT,
 
     try
     {
-        console.log ("debug ... " + C.CONST_AGENT_ACCOUNT_MANAGMENT + " called");
+        if (global.DEBUG_LOGGING) console.log ("debug ... " + C.CONST_AGENT_ACCOUNT_MANAGMENT + " called");
 
         // Rate limiting check
         const clientIp = v_req.ip || v_req.connection.remoteAddress;
@@ -254,7 +254,7 @@ v_router.m_Router.post(C.CONST_AGENT_FUNCTION + C.CONST_AGENT_HARDWARE_MANAGMENT
 
     try
     {
-        console.log ("debug ... " + C.CONST_AGENT_HARDWARE_MANAGMENT + " called");
+        if (global.DEBUG_LOGGING) console.log ("debug ... " + C.CONST_AGENT_HARDWARE_MANAGMENT + " called");
 
         //https://github.com/expressjs/express/issues/3264
         Object.setPrototypeOf(v_req.body, {});

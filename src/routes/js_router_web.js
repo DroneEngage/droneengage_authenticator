@@ -50,7 +50,7 @@ function fn_checkAccountRateLimit(ip) {
 v_router.m_Router.post(C.CONST_WEB_FUNCTION + C.CONST_WEB_LOGIN_COMMAND, function (v_req, v_response, v_next) {
 
     try {
-        console.log("debug ... " + C.CONST_WEB_LOGIN_COMMAND + " called");
+        if (global.DEBUG_LOGGING) console.log("debug ... " + C.CONST_WEB_LOGIN_COMMAND + " called");
 
         // Rate limiting check
         const clientIp = v_req.ip || v_req.connection.remoteAddress;
@@ -140,7 +140,7 @@ v_router.m_Router.post(C.CONST_WEB_FUNCTION + C.CONST_WEB_LOGIN_COMMAND, functio
                 p_data[C.CONST_COMMAND.toString()] = C.CONST_WEB_LOGIN_COMMAND;
                 v_response.json(p_data);
 
-                console.log("debug ... fn_newLoginCard: " + JSON.stringify(p_data));
+                if (global.DEBUG_LOGGING) console.log("debug ... fn_newLoginCard: " + JSON.stringify(p_data));
 
             },
             function () {
@@ -157,7 +157,7 @@ v_router.m_Router.post(C.CONST_WEB_FUNCTION + C.CONST_WEB_LOGIN_COMMAND, functio
 v_router.m_Router.post(C.CONST_WEB_FUNCTION + C.CONST_ACCOUNT_MANAGMENT, function (v_req, v_response, v_next) {
 
     try {
-        console.log("debug ... " + C.CONST_ACCOUNT_MANAGMENT + " called");
+        if (global.DEBUG_LOGGING) console.log("debug ... " + C.CONST_ACCOUNT_MANAGMENT + " called");
 
         // Rate limiting check
         const clientIp = v_req.ip || v_req.connection.remoteAddress;
@@ -214,7 +214,7 @@ v_router.m_Router.post(C.CONST_WEB_FUNCTION + C.CONST_WEB_LOGOUT_COMMAND, functi
     
     try {
         
-        console.log("debug ... " + C.CONST_WEB_LOGOUT_COMMAND + " called");
+        if (global.DEBUG_LOGGING) console.log("debug ... " + C.CONST_WEB_LOGOUT_COMMAND + " called");
 
         // Sanitize request body
         Object.setPrototypeOf(v_req.body, {});

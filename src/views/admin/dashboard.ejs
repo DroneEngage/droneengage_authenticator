@@ -71,6 +71,22 @@
             <div class="col-12">
                 <div class="card">
                     <div class="card-body">
+                        <h5 class="card-title">Server Information</h5>
+                        <p class="mb-0">
+                            <strong>Authenticator Version:</strong>
+                            <span class="badge bg-info">
+                                v<%= typeof serverVersion !== 'undefined' ? serverVersion : 'N/A' %>
+                            </span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
                         <h5 class="card-title">Database Configuration</h5>
                         <p class="mb-0">
                             <strong>Storage Type:</strong> 

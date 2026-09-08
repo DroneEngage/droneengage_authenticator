@@ -2,6 +2,7 @@
 
 const express = require('express');
 const router = express.Router();
+const v_pjson = require('../../package.json');
 const session = require('express-session');
 const rateLimit = require('express-rate-limit');
 const csrf = require('csurf');
@@ -273,7 +274,8 @@ router.get('/dashboard', requireAuth, (req, res) => {
         title: 'Admin Dashboard',
         adminUsername: req.session.adminUsername,
         accountStorageType: global.m_serverconfig.m_configuration.account_storage_type,
-        serversStatusGuid: global.m_serverconfig.m_configuration.servers_admin_url_guid || null
+        serversStatusGuid: global.m_serverconfig.m_configuration.servers_admin_url_guid || null,
+        serverVersion: v_pjson.version
     });
 });
 

@@ -22,6 +22,9 @@ module.exports = common.create({
         'de_auth_servers_status_guid': 'servers_admin_url_guid',
         'de_auth_webadmin_terminal_enabled': (cfg, val) => {
             cfg.webadmin_terminal_enabled = (val === 'true' || val === '1');
+        },
+        'de_auth_debug_logging': (cfg, val) => {
+            cfg.debug_logging = (val === 'true' || val === '1');
         }
     }
 });

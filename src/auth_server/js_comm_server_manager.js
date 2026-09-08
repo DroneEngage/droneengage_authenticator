@@ -352,7 +352,10 @@ function fn_handleStorageStatus (p_cmd)
         {
             m_communicationServersList[c_commServerGUID].m_server.m_storageStatus = {};
         }
-        
+
+        // Capture previous status before overwriting so we only log on change.
+        const prevStatus = m_communicationServersList[c_commServerGUID].m_server.m_storageStatus.status || null;
+
         // Update storage status
         m_communicationServersList[c_commServerGUID].m_server.m_storageStatus = {
             status: c_statusData.status,
@@ -361,7 +364,7 @@ function fn_handleStorageStatus (p_cmd)
             timestamp: c_statusData.timestamp,
             error: c_statusData.error || null
         };
-        
+
         // Convert status code to readable string
         const statusMap = {
             'dc': 'DISCONNECTED',
@@ -371,8 +374,12 @@ function fn_handleStorageStatus (p_cmd)
             'er': 'ERROR'
         };
         const readableStatus = statusMap[c_statusData.status] || c_statusData.status;
-        
-        console.log (`[INFO] Comm server ${m_communicationServersList[c_commServerGUID].m_server.m_serverId} storage status: ${readableStatus}`);
+
+        // Only log when the status actually changes to avoid log spam on every poll.
+        if (prevStatus !== c_statusData.status)
+        {
+            console.log (`[INFO] Comm server ${m_communicationServersList[c_commServerGUID].m_server.m_serverId} storage status: ${readableStatus}`);
+        }
     }
     catch (ex)
     {

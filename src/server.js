@@ -334,6 +334,9 @@ function fn_start ()
 
     // load server configuration
     global.m_serverconfig.init(v_configFileName);
+
+    // Verbose console debug logging (router "debug ..." lines). Off by default.
+    global.DEBUG_LOGGING = (global.m_serverconfig.m_configuration.debug_logging === true);
   
 
     // display info

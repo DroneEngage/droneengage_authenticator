@@ -248,6 +248,35 @@ Permissions are stored as hexadecimal strings:
 | `D1G1T3R4V5C6` | Legacy full permission string (converted to `0xffffffff`) |
 | Custom masks | Bitwise permission flags |
 
+### Bit layout (32-bit mask)
+
+| Bit | Mask | Constant | Description |
+|-----|------|----------|-------------|
+| 0 | `0x00000001` | `CONST_ALLOW_GCS` | GCS feature permission |
+| 4 | `0x00000010` | `CONST_ALLOW_UNIT` | Unit feature permission |
+| 8 | `0x00000100` | `CONST_ALLOW_GCS_WP_CONTROL` | GCS waypoint control |
+| 9 | `0x00000200` | `CONST_ALLOW_GCS_MODES_CONTROL` | GCS mode control |
+| 10 | `0x00000400` | `CONST_ALLOW_GCS_MODES_SERVOS` | GCS servo control |
+| 12–15 | `0x0000f000` | `CONST_ALLOW_GCS_VIDEO` | GCS video access |
+| 16 | `0x00010000` | `CONST_ALLOW_SWARM` | Swarm management messages |
+| 17 | `0x00020000` | `CONST_ALLOW_TRACKING` | Tracking/AI recognition messages |
+| 18 | `0x00040000` | `CONST_ALLOW_GEOFENCE` | Geofence messages |
+| 19 | `0x00080000` | `CONST_ALLOW_SOUND` | Sound/TTS messages |
+| 20 | `0x00100000` | `CONST_ALLOW_SDR` | SDR messages |
+| 21 | `0x00200000` | `CONST_ALLOW_GPIO` | GPIO messages |
+| 22 | `0x00400000` | `CONST_ALLOW_TELNET` | Telnet messages |
+| 23 | `0x00800000` | `CONST_ALLOW_P2P` | P2P/comm-line messages |
+| 24 | `0x01000000` | `CONST_ALLOW_CHAT` | Chat messages |
+| 25 | `0x02000000` | `CONST_ALLOW_CONFIG` | Unit config messages |
+| 30 | `0x40000000` | `CONST_ALLOW_UNIT_LOGIN` | Account may login as a unit |
+| 31 | `0x80000000` | `CONST_ALLOW_GCS_LOGIN` | Account may login as a GCS |
+
+Bits 16–25 are enforced centrally in de_comm's `CAndruavParser` via a
+message-type → permission-bit lookup table
+(`andruav_permission_map.cpp`). Messages not in the table require no
+permission (telemetry/status/view). Comm-server-originated messages
+(`is_system`) always bypass the check.
+
 ## Security Considerations
 
 ### File-Based Storage

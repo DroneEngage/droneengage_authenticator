@@ -68,4 +68,20 @@ describe("js_session_manager", () => {
         assert.equal(sessionManager.fn_isAGN(agentCard), true);
         assert.equal(sessionManager.fn_isGCS(agentCard), false);
     });
+
+    it("checks GCS-login and unit-login account-type bits", () => {
+        const fullCard = { m_data: { m_prm: 0xffffffff } };
+        const gcsOnlyCard = { m_data: { m_prm: 0x80000000 } };
+        const unitOnlyCard = { m_data: { m_prm: 0x40000000 } };
+        const neitherCard = { m_data: { m_prm: 0x00000001 } };
+
+        assert.equal(sessionManager.fn_isGCSLogin(fullCard), true);
+        assert.equal(sessionManager.fn_isUnitLogin(fullCard), true);
+        assert.equal(sessionManager.fn_isGCSLogin(gcsOnlyCard), true);
+        assert.equal(sessionManager.fn_isUnitLogin(gcsOnlyCard), false);
+        assert.equal(sessionManager.fn_isGCSLogin(unitOnlyCard), false);
+        assert.equal(sessionManager.fn_isUnitLogin(unitOnlyCard), true);
+        assert.equal(sessionManager.fn_isGCSLogin(neitherCard), false);
+        assert.equal(sessionManager.fn_isUnitLogin(neitherCard), false);
+    });
 });

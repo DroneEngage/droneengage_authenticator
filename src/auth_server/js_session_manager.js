@@ -56,6 +56,26 @@ function fn_isAGN (p_loginCard)
 }
 
 /**
+ * returns true if the account is allowed to login as a GCS (bit 31).
+ */
+function fn_isGCSLogin (p_loginCard)
+{
+    if ((p_loginCard == null) || ((p_loginCard.m_data == null))) return 0;
+
+    return c_permission.fn_validatePermission(p_loginCard.m_data.m_prm, c_permission.AndruavMessageTypes.CONST_ALLOW_GCS_LOGIN);
+}
+
+/**
+ * returns true if the account is allowed to login as a Unit (bit 30).
+ */
+function fn_isUnitLogin (p_loginCard)
+{
+    if ((p_loginCard == null) || ((p_loginCard.m_data == null))) return 0;
+
+    return c_permission.fn_validatePermission(p_loginCard.m_data.m_prm, c_permission.AndruavMessageTypes.CONST_ALLOW_UNIT_LOGIN);
+}
+
+/**
  * SessionID used to communicate with Authentication server .
  */
 function fn_generateSessionID() {
@@ -269,6 +289,8 @@ module.exports =
     fn_generateLoginReplyToParty: fn_generateLoginReplyToParty,
     fn_isGCS: fn_isGCS,
     fn_isAGN: fn_isAGN,
+    fn_isGCSLogin: fn_isGCSLogin,
+    fn_isUnitLogin: fn_isUnitLogin,
     fn_getLoginCardBySessionID: fn_getLoginCardBySessionID,
     fn_getLoginCardsByAccountId: fn_getLoginCardsByAccountId,
     fn_deleteOldCard: fn_deleteOldCard,

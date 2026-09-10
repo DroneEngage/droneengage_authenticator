@@ -94,6 +94,7 @@ function fn_createLoginCard (p_accountName, p_accessCode, p_actorType, p_group, 
             p_reply.m_data.m_prm = c_permission.fn_convertPermissiontoInt('0xffffffff'); // single account should have all permissions.
             p_reply.m_data.m_permission ='D1G1T3R4V5C6';
             p_reply.m_data.m_sid = '1';
+            p_reply.m_isadmin = true; // single account is always admin
             p_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_NON;
             p_reply[global.c_CONSTANTS.CONST_CS_GROUP_ID.toString()] = p_group;
             p_reply.m_actorType = p_actorType;
@@ -154,6 +155,7 @@ function fn_createLoginCard (p_accountName, p_accessCode, p_actorType, p_group, 
             p_reply.m_data.m_prm = c_permission.fn_convertPermissiontoInt(account_record.prm); 
             p_reply.m_data.m_permission ='D1G1T3R4V5C6';
             p_reply.m_data.m_sid = account_record.sid;
+            p_reply.m_isadmin = (account_record.isadmin === true);
             p_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_NON;
             p_reply[global.c_CONSTANTS.CONST_CS_GROUP_ID.toString()] = p_group;
             p_reply.m_actorType = p_actorType;
@@ -218,6 +220,11 @@ function fn_generateLoginReplyToParty (p_loginCard)
         reply [global.c_CONSTANTS.CONST_PERMISSION] = p_loginCard.m_data.m_permission;
         reply [global.c_CONSTANTS.CONST_PERMISSION2] = p_loginCard.m_data.m_prm;
         reply [global.c_CONSTANTS.CONST_COMM_SERVER.toString()] = p_loginCard.m_serverInfo;
+        // Team administration: expose the caller's TeamID and isadmin flag so
+        // the webclient can gate its team-admin page. Additive fields — old
+        // clients ignore them.
+        reply [global.c_CONSTANTS.CONST_ACCOUNT_ID_PARAMETER.toString()] = p_loginCard.m_data.m_sid;
+        reply [global.c_CONSTANTS.CONST_IS_ADMIN_PARAMETER.toString()] = (p_loginCard.m_isadmin === true);
     }
 
     return reply;

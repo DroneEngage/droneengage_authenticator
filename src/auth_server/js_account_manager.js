@@ -244,10 +244,354 @@ function fn_do_verifyHardwareByAccountSID(p_accountSID, p_hardwareID, p_hardware
         });
 }
 
+/**
+ * Dispatcher for team user administration operations (list/add/edit/delete
+ * logins within the caller's own team, plus read-only team info).
+ *
+ * Security model:
+ *   - p_loginCard is the authenticated caller's session card.  The TeamID
+ *     is read from it and NEVER from the client request body.
+ *   - The caller must have isadmin === true on the login card.
+ *   - Every storage operation is scoped to the caller's TeamID.
+ *   - Deleting or demoting (isadmin -> false) the last admin of a team is
+ *     rejected to avoid lockout.
+ *   - Self-deletion is rejected.
+ *
+ * @param {string} p_subCommand  one of CONST_CMD_* team-admin sub-commands
+ * @param {object} p_loginCard   the caller's login card (from session manager)
+ * @param {object} p_params      { targetLoginName, permission, accessCode, isAdmin }
+ * @param {function} fn_callback reply callback
+ */
+function fn_teamUserOperation(p_subCommand, p_loginCard, p_params, fn_callback) {
+    const C = global.c_CONSTANTS;
+    const c_reply = {};
+
+    // The caller must be authenticated.
+    if (!p_loginCard || !p_loginCard.m_data || p_loginCard.m_data.m_sid == null) {
+        c_reply[C.CONST_ERROR_MSG.toString()] = 'Session not found.';
+        c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_SESSION_NOT_FOUND;
+        fn_callback(c_reply);
+        return;
+    }
+
+    // Only admins may manage team members.
+    if (p_loginCard.m_isadmin !== true) {
+        c_reply[C.CONST_ERROR_MSG.toString()] = 'You do not have admin permission.';
+        c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_NO_PERMISSION;
+        fn_callback(c_reply);
+        return;
+    }
+
+    const c_teamId = p_loginCard.m_data.m_sid;
+    const c_storageType = m_serverconfig.m_configuration.account_storage_type.toLowerCase();
+
+    // Team administration is not available in single-account mode.
+    if (c_storageType === 'single') {
+        c_reply[C.CONST_ERROR_MSG.toString()] = 'Team administration is not available in single-account mode.';
+        c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_NO_PERMISSION;
+        fn_callback(c_reply);
+        return;
+    }
+
+    const c_params = p_params || {};
+    const c_targetLoginName = c_params.targetLoginName;
+    const c_permission = c_params.permission || '0xffffffff';
+    const c_accessCode = c_params.accessCode;
+    const c_isAdmin = c_params.isAdmin === true;
+
+    // Helper: validate a login name.
+    function validLoginName(name) {
+        return name != null && hlp_string.fn_isValidAccountName(name);
+    }
+
+    // Helper: validate a permission hex string.
+    function validPermission(perm) {
+        return typeof perm === 'string' && /^0x[0-9a-fA-F]{8}$/.test(perm);
+    }
+
+    // ── GET TEAM INFO ──────────────────────────────────────────────────────
+    if (p_subCommand === C.CONST_CMD_GET_TEAM_INFO) {
+        if (c_storageType === 'file') {
+            const info = global.db_users.fn_get_team_info(c_teamId);
+            if (!info) {
+                c_reply[C.CONST_ERROR_MSG.toString()] = 'Team not found.';
+                c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_ACCOUNT_NOT_FOUND;
+            } else {
+                c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_NON;
+                c_reply.m_data = info;
+            }
+            fn_callback(c_reply);
+            return;
+        }
+        if (c_storageType === 'db') {
+            v_database_manager.fn_getTeamInfo(c_teamId, fn_callback);
+            return;
+        }
+        c_reply[C.CONST_ERROR_MSG.toString()] = 'Unsupported storage type.';
+        c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_DATA_DATABASE_ERROR;
+        fn_callback(c_reply);
+        return;
+    }
+
+    // ── LIST TEAM USERS ────────────────────────────────────────────────────
+    if (p_subCommand === C.CONST_CMD_LIST_TEAM_USERS) {
+        if (c_storageType === 'file') {
+            const logins = global.db_users.fn_get_team_logins(c_teamId);
+            c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_NON;
+            c_reply.m_data = logins;
+            fn_callback(c_reply);
+            return;
+        }
+        if (c_storageType === 'db') {
+            v_database_manager.fn_getTeamLogins(c_teamId, fn_callback);
+            return;
+        }
+        c_reply[C.CONST_ERROR_MSG.toString()] = 'Unsupported storage type.';
+        c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_DATA_DATABASE_ERROR;
+        fn_callback(c_reply);
+        return;
+    }
+
+    // ── ADD TEAM USER ──────────────────────────────────────────────────────
+    if (p_subCommand === C.CONST_CMD_ADD_TEAM_USER) {
+        if (!validLoginName(c_targetLoginName)) {
+            c_reply[C.CONST_ERROR_MSG.toString()] = 'Invalid login name.';
+            c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_INVALID_DATA;
+            fn_callback(c_reply);
+            return;
+        }
+        if (!validPermission(c_permission)) {
+            c_reply[C.CONST_ERROR_MSG.toString()] = 'Invalid permission value.';
+            c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_INVALID_DATA;
+            fn_callback(c_reply);
+            return;
+        }
+
+        if (c_storageType === 'file') {
+            global.db_users.fn_add_team_login(c_teamId, c_targetLoginName, c_accessCode, c_permission, c_isAdmin, fn_callback);
+            return;
+        }
+        if (c_storageType === 'db') {
+            v_database_manager.fn_addTeamLogin(c_teamId, c_targetLoginName, c_accessCode, c_permission, c_isAdmin, fn_callback);
+            return;
+        }
+        c_reply[C.CONST_ERROR_MSG.toString()] = 'Unsupported storage type.';
+        c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_DATA_DATABASE_ERROR;
+        fn_callback(c_reply);
+        return;
+    }
+
+    // ── UPDATE TEAM USER ───────────────────────────────────────────────────
+    if (p_subCommand === C.CONST_CMD_UPDATE_TEAM_USER) {
+        if (!validLoginName(c_targetLoginName)) {
+            c_reply[C.CONST_ERROR_MSG.toString()] = 'Invalid target login name.';
+            c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_INVALID_DATA;
+            fn_callback(c_reply);
+            return;
+        }
+        if (!validPermission(c_permission)) {
+            c_reply[C.CONST_ERROR_MSG.toString()] = 'Invalid permission value.';
+            c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_INVALID_DATA;
+            fn_callback(c_reply);
+            return;
+        }
+
+        // Last-admin protection: if demoting an admin to non-admin, ensure at
+        // least one other admin remains.  This is an async check in db mode.
+        const doUpdate = function () {
+            if (c_storageType === 'file') {
+                global.db_users.fn_update_team_login(c_teamId, c_targetLoginName, c_accessCode, c_permission, c_isAdmin, fn_callback);
+                return;
+            }
+            if (c_storageType === 'db') {
+                v_database_manager.fn_updateTeamLogin(c_teamId, c_targetLoginName, c_accessCode, c_permission, c_isAdmin, fn_callback);
+                return;
+            }
+            c_reply[C.CONST_ERROR_MSG.toString()] = 'Unsupported storage type.';
+            c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_DATA_DATABASE_ERROR;
+            fn_callback(c_reply);
+        };
+
+        // We only need the admin-count guard when demoting.  Fetch current
+        // admin status of the target first.
+        const checkLastAdmin = function (targetIsAdmin) {
+            if (targetIsAdmin === true && c_isAdmin === false) {
+                // Demoting an admin — count admins.
+                if (c_storageType === 'file') {
+                    const count = global.db_users.fn_count_team_admins(c_teamId);
+                    if (count <= 1) {
+                        c_reply[C.CONST_ERROR_MSG.toString()] = 'Cannot demote the last admin of the team.';
+                        c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_NO_PERMISSION;
+                        fn_callback(c_reply);
+                        return;
+                    }
+                    doUpdate();
+                    return;
+                }
+                if (c_storageType === 'db') {
+                    v_database_manager.fn_countTeamAdmins(c_teamId, function (cntReply) {
+                        if (cntReply[C.CONST_ERROR.toString()] !== C.CONST_ERROR_NON) {
+                            fn_callback(cntReply);
+                            return;
+                        }
+                        if (cntReply.m_count <= 1) {
+                            c_reply[C.CONST_ERROR_MSG.toString()] = 'Cannot demote the last admin of the team.';
+                            c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_NO_PERMISSION;
+                            fn_callback(c_reply);
+                            return;
+                        }
+                        doUpdate();
+                    });
+                    return;
+                }
+            } else {
+                doUpdate();
+            }
+        };
+
+        // Look up the target's current IsAdmin.
+        if (c_storageType === 'file') {
+            const logins = global.db_users.fn_get_team_logins(c_teamId);
+            const target = logins.find(function (l) { return l.LoginName === c_targetLoginName; });
+            if (!target) {
+                c_reply[C.CONST_ERROR_MSG.toString()] = 'Login not found in this team.';
+                c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_ACCOUNT_NOT_FOUND;
+                fn_callback(c_reply);
+                return;
+            }
+            checkLastAdmin(target.IsAdmin);
+            return;
+        }
+        if (c_storageType === 'db') {
+            v_database_manager.fn_getTeamLogins(c_teamId, function (listReply) {
+                if (listReply[C.CONST_ERROR.toString()] !== C.CONST_ERROR_NON) {
+                    fn_callback(listReply);
+                    return;
+                }
+                const target = (listReply.m_data || []).find(function (l) { return l.LoginName === c_targetLoginName; });
+                if (!target) {
+                    c_reply[C.CONST_ERROR_MSG.toString()] = 'Login not found in this team.';
+                    c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_ACCOUNT_NOT_FOUND;
+                    fn_callback(c_reply);
+                    return;
+                }
+                checkLastAdmin(target.IsAdmin);
+            });
+            return;
+        }
+
+        c_reply[C.CONST_ERROR_MSG.toString()] = 'Unsupported storage type.';
+        c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_DATA_DATABASE_ERROR;
+        fn_callback(c_reply);
+        return;
+    }
+
+    // ── DELETE TEAM USER ───────────────────────────────────────────────────
+    if (p_subCommand === C.CONST_CMD_DELETE_TEAM_USER) {
+        if (!validLoginName(c_targetLoginName)) {
+            c_reply[C.CONST_ERROR_MSG.toString()] = 'Invalid target login name.';
+            c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_INVALID_DATA;
+            fn_callback(c_reply);
+            return;
+        }
+
+        // Prevent self-deletion.
+        if (c_targetLoginName === p_loginCard.m_login_name) {
+            c_reply[C.CONST_ERROR_MSG.toString()] = 'You cannot delete your own account.';
+            c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_NO_PERMISSION;
+            fn_callback(c_reply);
+            return;
+        }
+
+        // Last-admin protection: if deleting an admin, ensure another admin
+        // remains.
+        const doDelete = function () {
+            if (c_storageType === 'file') {
+                global.db_users.fn_delete_team_login(c_teamId, c_targetLoginName, fn_callback);
+                return;
+            }
+            if (c_storageType === 'db') {
+                v_database_manager.fn_deleteTeamLogin(c_teamId, c_targetLoginName, fn_callback);
+                return;
+            }
+            c_reply[C.CONST_ERROR_MSG.toString()] = 'Unsupported storage type.';
+            c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_DATA_DATABASE_ERROR;
+            fn_callback(c_reply);
+        };
+
+        if (c_storageType === 'file') {
+            const logins = global.db_users.fn_get_team_logins(c_teamId);
+            const target = logins.find(function (l) { return l.LoginName === c_targetLoginName; });
+            if (!target) {
+                c_reply[C.CONST_ERROR_MSG.toString()] = 'Login not found in this team.';
+                c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_ACCOUNT_NOT_FOUND;
+                fn_callback(c_reply);
+                return;
+            }
+            if (target.IsAdmin === true) {
+                const count = global.db_users.fn_count_team_admins(c_teamId);
+                if (count <= 1) {
+                    c_reply[C.CONST_ERROR_MSG.toString()] = 'Cannot delete the last admin of the team.';
+                    c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_NO_PERMISSION;
+                    fn_callback(c_reply);
+                    return;
+                }
+            }
+            doDelete();
+            return;
+        }
+        if (c_storageType === 'db') {
+            v_database_manager.fn_getTeamLogins(c_teamId, function (listReply) {
+                if (listReply[C.CONST_ERROR.toString()] !== C.CONST_ERROR_NON) {
+                    fn_callback(listReply);
+                    return;
+                }
+                const target = (listReply.m_data || []).find(function (l) { return l.LoginName === c_targetLoginName; });
+                if (!target) {
+                    c_reply[C.CONST_ERROR_MSG.toString()] = 'Login not found in this team.';
+                    c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_ACCOUNT_NOT_FOUND;
+                    fn_callback(c_reply);
+                    return;
+                }
+                if (target.IsAdmin === true) {
+                    v_database_manager.fn_countTeamAdmins(c_teamId, function (cntReply) {
+                        if (cntReply[C.CONST_ERROR.toString()] !== C.CONST_ERROR_NON) {
+                            fn_callback(cntReply);
+                            return;
+                        }
+                        if (cntReply.m_count <= 1) {
+                            c_reply[C.CONST_ERROR_MSG.toString()] = 'Cannot delete the last admin of the team.';
+                            c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_NO_PERMISSION;
+                            fn_callback(c_reply);
+                            return;
+                        }
+                        doDelete();
+                    });
+                    return;
+                }
+                doDelete();
+            });
+            return;
+        }
+
+        c_reply[C.CONST_ERROR_MSG.toString()] = 'Unsupported storage type.';
+        c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_DATA_DATABASE_ERROR;
+        fn_callback(c_reply);
+        return;
+    }
+
+    // Unknown sub-command
+    c_reply[C.CONST_ERROR_MSG.toString()] = 'Unknown team operation.';
+    c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_INVALID_DATA;
+    fn_callback(c_reply);
+}
+
+
 module.exports =
 {
     fn_createAccessCode: fn_createAccessCode,
     fn_regenerateAccessCode: fn_regenerateAccessCode,
     fn_getAccountNameByAccessCode: fn_getAccountNameByAccessCode,
     fn_do_verifyHardwareByAccountSID: fn_do_verifyHardwareByAccountSID,
+    fn_teamUserOperation: fn_teamUserOperation,
 }

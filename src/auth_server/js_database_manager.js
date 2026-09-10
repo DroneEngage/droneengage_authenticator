@@ -117,7 +117,7 @@ function fn_do_loginAccount (p_accountName, p_accessCode, fn_callback)
     // SECURITY: AccessCode is now stored as a bcrypt hash, so we can no longer
     // filter by it in SQL. Select candidate rows by LoginName only, then verify
     // the supplied plaintext with bcrypt.compare in JS.
-    const c_sql = "SELECT logins.LoginID, logins.AccessCode, teams.TeamID, teams.Enabled, teams.InstanceLimit, logins.Permissions FROM logins JOIN teams ON teams.TeamID = logins.TeamID WHERE logins.LoginName = ?";
+    const c_sql = "SELECT logins.LoginID, logins.AccessCode, logins.IsAdmin, teams.TeamID, teams.Enabled, teams.InstanceLimit, logins.Permissions FROM logins JOIN teams ON teams.TeamID = logins.TeamID WHERE logins.LoginName = ?";
 
     hlp_db.fn_genericSelect_w_Params (m_db, c_sql,[hlp_string.fn_protectedFromInjection(p_accountName)],
     function (rows) {
@@ -168,6 +168,7 @@ function fn_do_loginAccount (p_accountName, p_accessCode, fn_callback)
         }
         c_reply.m_data.m_enabled = matchedRow['Enabled'];
         c_reply.m_data.m_instance_limit = matchedRow['InstanceLimit'];
+        c_reply.m_isadmin = (matchedRow['IsAdmin'] === 1 || matchedRow['IsAdmin'] === true);
         if (c_reply.m_data.m_enabled == 0)
         {
             c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_ACCOUNT_DISABLED;
@@ -545,6 +546,203 @@ function fn_do_getHardwareVerifyByAccountSID (p_accountSID, fn_callback)
     });
 }
  
+
+// ─── Team user administration (db/SQL mode) ──────────────────────────────────
+// All functions below are scoped to a single TeamID.  The caller (account
+// manager) derives p_teamId from the authenticated session's login card, so
+// a client can never operate on another team's data.
+
+/**
+ * Get read-only team info for a given TeamID.
+ */
+function fn_getTeamInfo(p_teamId, fn_callback) {
+    const c_sql = 'SELECT TeamID, TeamName, Email, InstanceLimit, Enabled, CreatedAt FROM teams WHERE TeamID = ?';
+    hlp_db.fn_genericSelect_w_Params(m_db, c_sql, [p_teamId],
+        function (rows) {
+            const c_reply = {};
+            if (!rows || rows.length === 0) {
+                c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] = 'Team not found.';
+                c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
+            } else {
+                c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_NON;
+                c_reply.m_data = rows[0];
+            }
+            fn_callback(c_reply);
+        },
+        function (err) {
+            const c_reply = {};
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] = 'Database error.';
+            c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
+            fn_callback(c_reply);
+        });
+}
+
+/**
+ * List all logins belonging to a team.  AccessCode hashes are deliberately
+ * omitted from the result set.
+ */
+function fn_getTeamLogins(p_teamId, fn_callback) {
+    const c_sql = 'SELECT LoginID, LoginName, Permissions, IsAdmin, CreatedAt FROM logins WHERE TeamID = ? ORDER BY LoginName';
+    hlp_db.fn_genericSelect_w_Params(m_db, c_sql, [p_teamId],
+        function (rows) {
+            const c_reply = {};
+            c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_NON;
+            c_reply.m_data = (rows || []).map(function (r) {
+                return {
+                    LoginID: r.LoginID,
+                    LoginName: r.LoginName,
+                    Permissions: r.Permissions,
+                    IsAdmin: (r.IsAdmin === 1 || r.IsAdmin === true),
+                    CreatedAt: r.CreatedAt
+                };
+            });
+            fn_callback(c_reply);
+        },
+        function (err) {
+            const c_reply = {};
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] = 'Database error.';
+            c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
+            fn_callback(c_reply);
+        });
+}
+
+/**
+ * Add a new login to a team.  Access code is hashed before storage.
+ */
+function fn_addTeamLogin(p_teamId, p_loginName, p_accessCode, p_permissions, p_isAdmin, fn_callback) {
+    let finalAccessCode = p_accessCode;
+    if (!finalAccessCode || finalAccessCode.trim() === '') {
+        const { v4: uuidv4 } = require('uuid');
+        finalAccessCode = uuidv4().replaceAll('-', '').substr(0, 12);
+    }
+
+    const c_hashedAccessCode = hlp_password.hash(finalAccessCode);
+    const c_isAdmin = p_isAdmin ? 1 : 0;
+
+    const c_sql = 'INSERT INTO logins (TeamID, LoginName, AccessCode, Permissions, IsAdmin) VALUES (?, ?, ?, ?, ?)';
+    hlp_db.fn_genericInsert_w_Params(m_db, c_sql,
+        [p_teamId, p_loginName, c_hashedAccessCode, p_permissions, c_isAdmin],
+        function (err, res) {
+            const c_reply = {};
+            if (err) {
+                if (err.code === 'SQLITE_CONSTRAINT') {
+                    c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] = 'Duplicate login name or access code.';
+                } else {
+                    c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] = 'Database error.';
+                }
+                c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
+            } else {
+                c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_NON;
+                c_reply[global.c_CONSTANTS.CONST_ACCESS_CODE_PARAMETER.toString()] = finalAccessCode;
+                c_reply[global.c_CONSTANTS.CONST_LOGIN_ID_PARAMETER.toString()] = res ? res.lastID : null;
+            }
+            fn_callback(c_reply);
+        },
+        function (err) {
+            const c_reply = {};
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] = 'Database error.';
+            c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
+            fn_callback(c_reply);
+        });
+}
+
+/**
+ * Update an existing login within a team.  Access code is only changed if
+ * a new plaintext is provided (then hashed).
+ */
+function fn_updateTeamLogin(p_teamId, p_loginName, p_accessCodeOrNull, p_permissions, p_isAdmin, fn_callback) {
+    const c_isAdmin = p_isAdmin ? 1 : 0;
+
+    if (p_accessCodeOrNull && p_accessCodeOrNull.trim() !== '') {
+        const c_hashedAccessCode = hlp_password.hash(p_accessCodeOrNull.trim());
+        const c_sql = 'UPDATE logins SET AccessCode = ?, Permissions = ?, IsAdmin = ? WHERE TeamID = ? AND LoginName = ?';
+        hlp_db.fn_genericInsert_w_Params(m_db, c_sql,
+            [c_hashedAccessCode, p_permissions, c_isAdmin, p_teamId, p_loginName],
+            function (err, res) {
+                const c_reply = {};
+                if (!res || res.changes === 0) {
+                    c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] = 'Login not found in this team.';
+                    c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
+                } else {
+                    c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_NON;
+                    c_reply[global.c_CONSTANTS.CONST_ACCESS_CODE_PARAMETER.toString()] = p_accessCodeOrNull.trim();
+                }
+                fn_callback(c_reply);
+            },
+            function (err) {
+                const c_reply = {};
+                c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] = 'Database error.';
+                c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
+                fn_callback(c_reply);
+            });
+    } else {
+        const c_sql = 'UPDATE logins SET Permissions = ?, IsAdmin = ? WHERE TeamID = ? AND LoginName = ?';
+        hlp_db.fn_genericInsert_w_Params(m_db, c_sql,
+            [p_permissions, c_isAdmin, p_teamId, p_loginName],
+            function (err, res) {
+                const c_reply = {};
+                if (!res || res.changes === 0) {
+                    c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] = 'Login not found in this team.';
+                    c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
+                } else {
+                    c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_NON;
+                }
+                fn_callback(c_reply);
+            },
+            function (err) {
+                const c_reply = {};
+                c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] = 'Database error.';
+                c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
+                fn_callback(c_reply);
+            });
+    }
+}
+
+/**
+ * Delete a login from a team.
+ */
+function fn_deleteTeamLogin(p_teamId, p_loginName, fn_callback) {
+    const c_sql = 'DELETE FROM logins WHERE TeamID = ? AND LoginName = ?';
+    hlp_db.fn_genericInsert_w_Params(m_db, c_sql,
+        [p_teamId, p_loginName],
+        function (err, res) {
+            const c_reply = {};
+            if (!res || res.changes === 0) {
+                c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] = 'Login not found in this team.';
+                c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
+            } else {
+                c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_NON;
+            }
+            fn_callback(c_reply);
+        },
+        function (err) {
+            const c_reply = {};
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] = 'Database error.';
+            c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
+            fn_callback(c_reply);
+        });
+}
+
+/**
+ * Count the number of admin logins in a team.
+ */
+function fn_countTeamAdmins(p_teamId, fn_callback) {
+    const c_sql = 'SELECT COUNT(*) as cnt FROM logins WHERE TeamID = ? AND IsAdmin = 1';
+    hlp_db.fn_genericSelect_w_Params(m_db, c_sql, [p_teamId],
+        function (rows) {
+            const c_reply = {};
+            c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_NON;
+            c_reply.m_count = (rows && rows.length > 0) ? rows[0].cnt : 0;
+            fn_callback(c_reply);
+        },
+        function (err) {
+            const c_reply = {};
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] = 'Database error.';
+            c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
+            fn_callback(c_reply);
+        });
+}
+
 module.exports =
 {
     fn_initialize: fn_initialize,
@@ -554,4 +752,10 @@ module.exports =
     fn_createSubLogin: fn_createSubLogin,
     fn_deleteSubLogins:fn_deleteSubLogins,
     fn_do_getHardwareVerifyByAccountSID: fn_do_getHardwareVerifyByAccountSID,
+    fn_getTeamInfo: fn_getTeamInfo,
+    fn_getTeamLogins: fn_getTeamLogins,
+    fn_addTeamLogin: fn_addTeamLogin,
+    fn_updateTeamLogin: fn_updateTeamLogin,
+    fn_deleteTeamLogin: fn_deleteTeamLogin,
+    fn_countTeamAdmins: fn_countTeamAdmins,
 }

@@ -154,6 +154,11 @@ function fn_newLoginCard(
 
 /**
  * Entrance to all operations with account manager.
+ *
+ * For team-admin sub-commands (ltu/atu/utu/dtu/gti) the caller's session is
+ * the credential: p_sessionID resolves the login card, and the card's TeamID
+ * + isadmin flag gate the operation.  p_targetLoginName and p_isAdmin carry
+ * the target login and admin flag for add/edit.
  */
 function fn_accountOperation(
     p_subCommand,
@@ -162,8 +167,50 @@ function fn_accountOperation(
     p_accessCode,
     fn_callback,
     fn_error,
-    p_sessionID
+    p_sessionID,
+    p_targetLoginName,
+    p_isAdmin
 ) {
+    const C = global.c_CONSTANTS;
+
+    // Team-admin sub-commands use the session as the credential and do not
+    // need the legacy accountName/accessCode validation path.
+    const c_isTeamAdminCmd =
+        p_subCommand === C.CONST_CMD_LIST_TEAM_USERS ||
+        p_subCommand === C.CONST_CMD_ADD_TEAM_USER ||
+        p_subCommand === C.CONST_CMD_UPDATE_TEAM_USER ||
+        p_subCommand === C.CONST_CMD_DELETE_TEAM_USER ||
+        p_subCommand === C.CONST_CMD_GET_TEAM_INFO;
+
+    if (c_isTeamAdminCmd) {
+        // Resolve the caller's login card from the session.
+        const c_loginCard = v_sessionManager.fn_getLoginCardBySessionID(p_sessionID);
+        if (c_loginCard == null) {
+            const c_reply = {};
+            c_reply[C.CONST_ERROR_MSG.toString()] = 'Session not found.';
+            c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_SESSION_NOT_FOUND;
+            c_reply[C.CONST_SUB_COMMAND.toString()] = p_subCommand;
+            fn_callback(c_reply);
+            return;
+        }
+
+        v_account_manager.fn_teamUserOperation(
+            p_subCommand,
+            c_loginCard,
+            {
+                targetLoginName: p_targetLoginName || p_accountName,
+                permission: p_permission,
+                accessCode: p_accessCode,
+                isAdmin: p_isAdmin,
+            },
+            function (p_reply) {
+                p_reply[C.CONST_SUB_COMMAND.toString()] = p_subCommand;
+                fn_callback(p_reply);
+            }
+        );
+        return;
+    }
+
     if (
         !v_inputValidator.validateAccountOperation({
             subCommand: p_subCommand,

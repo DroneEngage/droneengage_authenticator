@@ -84,7 +84,7 @@ function fn_newLoginCard(
     p_group,
     p_app,
     p_extra,
-    p_mustGCS,
+    p_login_as_GCS,
     fn_callback,
     fn_error
 ) {
@@ -113,14 +113,14 @@ function fn_newLoginCard(
                 return;
             }
 
-            if (p_mustGCS === true && !v_sessionManager.fn_isGCS(p_loginCard)) {
+            if (p_login_as_GCS === true && !v_sessionManager.fn_isGCSLogin(p_loginCard)) {
                 fn_callback(
                     buildPermissionError("No enough permission. This is not a GCS account.")
                 );
                 return;
             }
 
-            if (p_mustGCS === false && !v_sessionManager.fn_isAGN(p_loginCard)) {
+            if (p_login_as_GCS === false && !v_sessionManager.fn_isUnitLogin(p_loginCard)) {
                 fn_callback(
                     buildPermissionError("No enough permission. This is not a GCS account.")
                 );

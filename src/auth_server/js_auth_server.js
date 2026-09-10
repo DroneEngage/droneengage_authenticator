@@ -32,6 +32,7 @@ const v_sessionManager = require("./js_session_manager");
 const v_account_manager = require("./js_account_manager");
 const v_database_manager = require("./js_database_manager");
 const v_inputValidator = require("./js_input_validator");
+const hlp_password = require("droneengage_server_common").password;
 
 function invokeError(fn_error) {
     if (fn_error != null) {
@@ -51,6 +52,108 @@ function buildServerUnavailableError() {
     ret[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_SERVER_NOT_AVAILABLE;
     ret[global.c_CONSTANTS.CONST_ERROR_MSG.toString()] = "No available Server";
     return ret;
+}
+
+function buildAccountNotFoundError() {
+    const ret = {};
+    ret[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
+    ret[global.c_CONSTANTS.CONST_ERROR_MSG.toString()] = "Account Not Found.";
+    return ret;
+}
+
+function buildSingleModeError() {
+    const ret = {};
+    ret[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_NOT_SUPPORTED_SINGLE_MODE;
+    ret[global.c_CONSTANTS.CONST_ERROR_MSG.toString()] = "Account create/regenerate is not supported in single-account mode.";
+    return ret;
+}
+
+/**
+ * Normalize a permission value (number or hex string) into a hex string,
+ * so it can be passed back to the storage layer which expects strings.
+ */
+function fn_normalizePermissionToHex(p_permission) {
+    if (p_permission == null) return null;
+    if (typeof p_permission === "number") {
+        return "0x" + (p_permission >>> 0).toString(16);
+    }
+    return String(p_permission);
+}
+
+/**
+ * Verify the caller owns/controls the target account before a credential
+ * rotation. Proof accepted (any one):
+ *  (a) A live session whose login card identifies the same account
+ *      (p_loginCard.m_login_name === p_accountName) — skips the AccessCode
+ *      check.
+ *  (b) The correct current AccessCode for the account, verified against the
+ *      stored hash via the same path the login flow uses.
+ * On success, also returns the account's existing stored permission so the
+ * caller can preserve it (regenerate must not change the grant).
+ *
+ * Callback shape: { proven: bool, existingPermission: string|null, error: obj|null }
+ */
+function fn_verifyAccountOwnership(p_accountName, p_accessCode, p_loginCard, fn_callback) {
+    // (a) Session-based ownership: a live session for the same account is
+    // sufficient proof and skips the AccessCode check.
+    if (p_loginCard != null && p_loginCard.m_login_name === p_accountName) {
+        const c_existingPerm = fn_normalizePermissionToHex(
+            p_loginCard.m_data != null ? p_loginCard.m_data.m_prm : null
+        );
+        fn_callback({ proven: true, existingPermission: c_existingPerm, error: null });
+        return;
+    }
+
+    const c_storageType = (global.m_serverconfig.m_configuration.account_storage_type || "").toLowerCase();
+
+    if (c_storageType === "single") {
+        fn_callback({ proven: false, existingPermission: null, error: buildSingleModeError() });
+        return;
+    }
+
+    if (c_storageType === "file") {
+        const c_record = global.db_users.fn_get_record(p_accountName);
+        if (c_record == null) {
+            fn_callback({ proven: false, existingPermission: null, error: buildAccountNotFoundError() });
+            return;
+        }
+        const c_storedCode = c_record.AccessCode || c_record.pwd;
+        if (!p_accessCode || hlp_password.verify(p_accessCode, c_storedCode) !== true) {
+            fn_callback({
+                proven: false,
+                existingPermission: null,
+                error: buildPermissionError("Wrong or missing access code. Cannot regenerate account credential."),
+            });
+            return;
+        }
+        fn_callback({ proven: true, existingPermission: c_record.prm, error: null });
+        return;
+    }
+
+    if (c_storageType === "db") {
+        if (!p_accessCode) {
+            fn_callback({
+                proven: false,
+                existingPermission: null,
+                error: buildPermissionError("Wrong or missing access code. Cannot regenerate account credential."),
+            });
+            return;
+        }
+        v_database_manager.fn_do_loginAccount(p_accountName, p_accessCode, function (p_reply) {
+            if (p_reply[global.c_CONSTANTS.CONST_ERROR.toString()] !== global.c_CONSTANTS.CONST_ERROR_NON) {
+                fn_callback({ proven: false, existingPermission: null, error: p_reply });
+                return;
+            }
+            fn_callback({ proven: true, existingPermission: p_reply.m_data.m_prm, error: null });
+        });
+        return;
+    }
+
+    fn_callback({
+        proven: false,
+        existingPermission: null,
+        error: buildPermissionError("Unsupported account storage type."),
+    });
 }
 
 
@@ -155,6 +258,22 @@ function fn_newLoginCard(
 /**
  * Entrance to all operations with account manager.
  *
+ * Authorization rules applied here (the single choke point both routers funnel
+ * through):
+ *  - CREATE_ACCESSCODE: anonymous (no-session) self-registration is allowed,
+ *    but the caller's requested permission is ignored and a safe fixed default
+ *    (CONST_DEFAULT_SELF_SERVICE_PERMISSION) is forced instead. An
+ *    authenticated session may still specify a permission.
+ *  - REGENERATE_ACCESSCODE: the caller must prove ownership of the account —
+ *    either a live session for the same account OR the correct current
+ *    AccessCode. The client-supplied permission is ignored and the account's
+ *    existing stored permission is preserved (rotating a credential must not
+ *    silently escalate the grant).
+ *  - GET_ACCOUNT_NAME: unchanged (requires the AccessCode to look up the
+ *    owning account — the credential itself is the proof).
+ *  - single-account mode: create/regenerate return a prompt error (there is
+ *    no team/account model to operate against); get is unaffected.
+ *
  * For team-admin sub-commands (ltu/atu/utu/dtu/gti) the caller's session is
  * the credential: p_sessionID resolves the login card, and the card's TeamID
  * + isadmin flag gate the operation.  p_targetLoginName and p_isAdmin carry
@@ -228,11 +347,26 @@ function fn_accountOperation(
     const trimmedAccessCode = v_inputValidator.trim(p_accessCode);
     const p_loginCard = v_sessionManager.fn_getLoginCardBySessionID(p_sessionID);
 
+    const c_storageType = (global.m_serverconfig.m_configuration.account_storage_type || "").toLowerCase();
+
     switch (p_subCommand) {
-        case global.c_CONSTANTS.CONST_CMD_CREATE_ACCESSCODE:
+        case global.c_CONSTANTS.CONST_CMD_CREATE_ACCESSCODE: {
+            // single-account mode has no team/account model to create against.
+            if (c_storageType === "single") {
+                fn_callback(buildSingleModeError());
+                return;
+            }
+
+            // Anonymous (no-session) self-registration must not be able to choose
+            // its own permission bitmask — force a safe, non-privileged default.
+            let c_effectivePermission = trimmedPermission;
+            if (p_loginCard == null) {
+                c_effectivePermission = global.c_CONSTANTS.CONST_DEFAULT_SELF_SERVICE_PERMISSION;
+            }
+
             v_account_manager.fn_createAccessCode(
                 trimmedAccount,
-                trimmedPermission,
+                c_effectivePermission,
                 function (p_reply) {
                     p_reply[global.c_CONSTANTS.CONST_SUB_COMMAND] =
                         global.c_CONSTANTS.CONST_CMD_CREATE_ACCESSCODE;
@@ -241,18 +375,38 @@ function fn_accountOperation(
                 p_loginCard
             );
             break;
-        case global.c_CONSTANTS.CONST_CMD_REGENERATE_ACCESSCODE:
-            v_account_manager.fn_regenerateAccessCode(
-                trimmedAccount,
-                trimmedPermission,
-                function (p_reply) {
-                    p_reply[global.c_CONSTANTS.CONST_SUB_COMMAND] =
-                        global.c_CONSTANTS.CONST_CMD_REGENERATE_ACCESSCODE;
-                    fn_callback(p_reply);
-                },
-                p_loginCard
-            );
+        }
+        case global.c_CONSTANTS.CONST_CMD_REGENERATE_ACCESSCODE: {
+            // single-account mode has no team/account model to regenerate against.
+            if (c_storageType === "single") {
+                fn_callback(buildSingleModeError());
+                return;
+            }
+
+            // The caller must prove ownership before the credential can be
+            // rotated. Accept a live session for the same account OR the correct
+            // current AccessCode.
+            fn_verifyAccountOwnership(trimmedAccount, trimmedAccessCode, p_loginCard, function (p_result) {
+                if (!p_result.proven) {
+                    fn_callback(p_result.error || buildPermissionError("Ownership verification failed."));
+                    return;
+                }
+
+                // Ignore the client-supplied permission and re-apply the
+                // account's existing stored permission — regenerating a
+                // credential must not silently escalate the grant.
+                v_account_manager.fn_regenerateAccessCode(
+                    trimmedAccount,
+                    p_result.existingPermission,
+                    function (p_reply) {
+                        p_reply[global.c_CONSTANTS.CONST_SUB_COMMAND] =
+                            global.c_CONSTANTS.CONST_CMD_REGENERATE_ACCESSCODE;
+                        fn_callback(p_reply);
+                    }
+                );
+            });
             break;
+        }
         case global.c_CONSTANTS.CONST_CMD_GET_ACCOUNT_NAME:
             v_account_manager.fn_getAccountNameByAccessCode(
                 trimmedAccessCode,
@@ -270,6 +424,13 @@ function fn_accountOperation(
 
 /**
  * Called by agent and calls are forward to fn_accountOperation.
+ *
+ * The agent path has no session parameter today, so it always goes through the
+ * anonymous branch: create is clamped to the safe self-service default, and
+ * regenerate must prove ownership via the current AccessCode. The previously
+ * hardcoded "0xffffffff" is replaced by CONST_DEFAULT_SELF_SERVICE_PERMISSION
+ * (which fn_accountOperation ignores for regenerate in favour of the preserved
+ * existing permission).
  */
 function fn_accountOperationFromAgent(
     p_subCommand,
@@ -285,7 +446,14 @@ function fn_accountOperationFromAgent(
         return;
     }
 
-    fn_accountOperation(p_subCommand, p_accountName, "0xffffffff", p_accessCode, fn_callback, fn_error);
+    fn_accountOperation(
+        p_subCommand,
+        p_accountName,
+        global.c_CONSTANTS.CONST_DEFAULT_SELF_SERVICE_PERMISSION,
+        p_accessCode,
+        fn_callback,
+        fn_error
+    );
 }
 
 

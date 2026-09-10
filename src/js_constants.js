@@ -123,10 +123,17 @@ exports.CONST_ERROR_SESSION_NOT_FOUND           = 7;  // a relogin might be requ
 exports.CONST_ERROR_HARDWARE_NOT_FOUND          = 8;  
 exports.CONST_ERROR_ACCOUNT_DISABLED            = 9;  
 exports.CONST_ERROR_NOT_FOUND                   = 10;  
-exports.CONST_ERROR_UNKNOWN                     = 999;  
-exports.CONST_ERROR_DATA_UNKNOWN_ERROR          = 999;  
+exports.CONST_ERROR_NOT_SUPPORTED_SINGLE_MODE    = 11;  // create/regenerate not supported in single-account mode
+exports.CONST_ERROR_UNKNOWN                     = 999;
+exports.CONST_ERROR_DATA_UNKNOWN_ERROR          = 999;
 
 
+
+// Self-service permission default for anonymous (no-session) account creation.
+// Grants the standard user flags (GCS login + unit login + GCS control + GCS
+// video) but NOT the full 0xffffffff bitmask — an anonymous caller must not
+// be able to self-grant full control.
+exports.CONST_DEFAULT_SELF_SERVICE_PERMISSION   = '0x00001111';
 
 // Validation
 exports.CONST_ACCESSCODE_MAX_LENGTH             = 200;

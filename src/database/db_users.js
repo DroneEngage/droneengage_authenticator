@@ -443,6 +443,194 @@ class db_user {
             console.error('Failed to sync to disk:', err);
         }
     }
+
+
+    // ─── Team user administration (file mode) ──────────────────────────────
+    // All methods below are scoped to a single TeamID.  The caller (account
+    // manager) derives p_teamId from the authenticated session's login card,
+    // so a client can never operate on another team's data.
+
+    /**
+     * Get read-only team info for a given TeamID.
+     */
+    fn_get_team_info(p_teamId) {
+        const team = this.db.data.teams[p_teamId];
+        if (!team) return null;
+        return {
+            TeamID: team.TeamID,
+            TeamName: team.TeamName,
+            Email: team.Email,
+            InstanceLimit: team.InstanceLimit,
+            Enabled: team.Enabled,
+            CreatedAt: team.CreatedAt
+        };
+    }
+
+    /**
+     * List all logins belonging to a team.  AccessCode hashes are deliberately
+     * omitted from the result.
+     */
+    fn_get_team_logins(p_teamId) {
+        const result = [];
+        for (const [email, login] of Object.entries(this.db.data.logins)) {
+            if (login.TeamID === p_teamId) {
+                result.push({
+                    LoginID: login.LoginID,
+                    LoginName: login.LoginName || email,
+                    Permissions: login.Permissions,
+                    IsAdmin: (login.IsAdmin === true),
+                    CreatedAt: login.CreatedAt
+                });
+            }
+        }
+        result.sort((a, b) => (a.LoginName || '').localeCompare(b.LoginName || ''));
+        return result;
+    }
+
+    /**
+     * Add a new login to a team.  Access code is hashed before storage.
+     * Auto-generates an access code if none is provided.
+     */
+    async fn_add_team_login(p_teamId, p_loginName, p_accessCode, p_permissions, p_isAdmin, fn_callback) {
+        const c_reply = {};
+
+        if (!p_loginName || p_loginName === info_field) {
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] = 'Invalid login name.';
+            c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_INVALID_DATA;
+            if (fn_callback) fn_callback(c_reply);
+            return;
+        }
+
+        // Duplicate check
+        if (this.db.data.logins[p_loginName]) {
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] = 'Duplicate login name.';
+            c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
+            if (fn_callback) fn_callback(c_reply);
+            return;
+        }
+
+        // Auto-generate access code if not provided
+        let finalAccessCode = p_accessCode;
+        if (!finalAccessCode || finalAccessCode.trim() === '') {
+            const { v4: uuidv4 } = require('uuid');
+            finalAccessCode = uuidv4().replaceAll('-', '').substr(0, 12);
+        }
+
+        const storedAccessCode = hlp_password.isHashed(finalAccessCode)
+            ? finalAccessCode
+            : hlp_password.hash(finalAccessCode);
+
+        const loginID = this.db.data[info_field].LoginID + 1;
+        this.db.data[info_field].LoginID = loginID;
+
+        this.db.data.logins[p_loginName] = {
+            LoginID: loginID,
+            TeamID: p_teamId,
+            LoginName: p_loginName,
+            AccessCode: storedAccessCode,
+            Permissions: p_permissions,
+            IsAdmin: (p_isAdmin === true)
+        };
+
+        try {
+            await this.db.write();
+        } catch (err) {
+            console.error('Failed to write team login:', err);
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] = 'Storage error.';
+            c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
+            if (fn_callback) fn_callback(c_reply);
+            return;
+        }
+
+        c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_NON;
+        c_reply[global.c_CONSTANTS.CONST_ACCESS_CODE_PARAMETER.toString()] = finalAccessCode;
+        c_reply[global.c_CONSTANTS.CONST_LOGIN_ID_PARAMETER.toString()] = loginID;
+        if (fn_callback) fn_callback(c_reply);
+    }
+
+    /**
+     * Update an existing login within a team.  Access code is only changed
+     * if a new plaintext is provided (then hashed).  Returns the new plaintext
+     * if regenerated, null otherwise.
+     */
+    async fn_update_team_login(p_teamId, p_loginName, p_accessCodeOrNull, p_permissions, p_isAdmin, fn_callback) {
+        const c_reply = {};
+
+        const existing = this.db.data.logins[p_loginName];
+        if (!existing || existing.TeamID !== p_teamId) {
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] = 'Login not found in this team.';
+            c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
+            if (fn_callback) fn_callback(c_reply);
+            return;
+        }
+
+        let returnedAccessCode = null;
+        if (p_accessCodeOrNull && p_accessCodeOrNull.trim() !== '') {
+            const plaintext = p_accessCodeOrNull.trim();
+            returnedAccessCode = plaintext;
+            existing.AccessCode = hlp_password.isHashed(plaintext) ? plaintext : hlp_password.hash(plaintext);
+        }
+        existing.Permissions = p_permissions;
+        existing.IsAdmin = (p_isAdmin === true);
+
+        try {
+            await this.db.write();
+        } catch (err) {
+            console.error('Failed to update team login:', err);
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] = 'Storage error.';
+            c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
+            if (fn_callback) fn_callback(c_reply);
+            return;
+        }
+
+        c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_NON;
+        if (returnedAccessCode) {
+            c_reply[global.c_CONSTANTS.CONST_ACCESS_CODE_PARAMETER.toString()] = returnedAccessCode;
+        }
+        if (fn_callback) fn_callback(c_reply);
+    }
+
+    /**
+     * Delete a login from a team.
+     */
+    async fn_delete_team_login(p_teamId, p_loginName, fn_callback) {
+        const c_reply = {};
+        const existing = this.db.data.logins[p_loginName];
+        if (!existing || existing.TeamID !== p_teamId) {
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] = 'Login not found in this team.';
+            c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
+            if (fn_callback) fn_callback(c_reply);
+            return;
+        }
+
+        delete this.db.data.logins[p_loginName];
+        try {
+            await this.db.write();
+        } catch (err) {
+            console.error('Failed to delete team login:', err);
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] = 'Storage error.';
+            c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
+            if (fn_callback) fn_callback(c_reply);
+            return;
+        }
+
+        c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_NON;
+        if (fn_callback) fn_callback(c_reply);
+    }
+
+    /**
+     * Count the number of admin logins in a team (used to prevent deleting or
+     * demoting the last admin).
+     */
+    fn_count_team_admins(p_teamId) {
+        let count = 0;
+        for (const login of Object.values(this.db.data.logins)) {
+            if (login.TeamID === p_teamId && login.IsAdmin === true) {
+                count++;
+            }
+        }
+        return count;
+    }
 }
 
 module.exports = {

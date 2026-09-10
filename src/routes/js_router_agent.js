@@ -10,7 +10,7 @@ const RATE_LIMIT_MAX_REQUESTS = 10; // Max 10 requests per minute per IP
 
 const accountRateLimitMap = new Map();
 const ACCOUNT_RATE_LIMIT_WINDOW = 60000; // 1 minute
-const ACCOUNT_RATE_LIMIT_MAX_REQUESTS = 3; // Max 3 account-management requests per minute per IP
+const ACCOUNT_RATE_LIMIT_MAX_REQUESTS = 13; // Max 3 account-management requests per minute per IP
 
 function fn_checkRateLimit(ip) {
     const now = Date.now();

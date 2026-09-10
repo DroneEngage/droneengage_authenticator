@@ -11,7 +11,7 @@ const RATE_LIMIT_MAX_REQUESTS = 10; // Max 10 requests per minute per IP
 
 const accountRateLimitMap = new Map();
 const ACCOUNT_RATE_LIMIT_WINDOW = 60000; // 1 minute
-const ACCOUNT_RATE_LIMIT_MAX_REQUESTS = 3; // Max 3 account-management requests per minute per IP
+const ACCOUNT_RATE_LIMIT_MAX_REQUESTS = 30; // Max 30 account-management requests per minute per IP
 
 function fn_checkRateLimit(ip) {
     const now = Date.now();
@@ -159,17 +159,6 @@ v_router.m_Router.post(C.CONST_WEB_FUNCTION + C.CONST_ACCOUNT_MANAGMENT, functio
     try {
         if (global.DEBUG_LOGGING) console.log("debug ... " + C.CONST_ACCOUNT_MANAGMENT + " called");
 
-        // Rate limiting check
-        const clientIp = v_req.ip || v_req.connection.remoteAddress;
-        if (!fn_checkAccountRateLimit(clientIp)) {
-            v_response.status(429).json({
-                [C.CONST_ERROR]: C.CONST_ERROR_UNKNOWN,
-                [C.CONST_ERROR_MSG]: 'Too many requests. Please try again later.',
-                [C.CONST_COMMAND]: C.CONST_ACCOUNT_MANAGMENT
-            });
-            return;
-        }
-
         //https://github.com/expressjs/express/issues/3264
         Object.setPrototypeOf(v_req.body, {});
 
@@ -178,7 +167,38 @@ v_router.m_Router.post(C.CONST_WEB_FUNCTION + C.CONST_ACCOUNT_MANAGMENT, functio
             v_router.fn_errorPage(v_response);
             return;
         }
-        if (v_req.body[C.CONST_ACCOUNT_NAME_PARAMETER.toString()] == null) {
+
+        // Read-only team-admin commands (gti, ltu) are exempt from rate
+        // limiting — the admin page fires them on every load/refresh.
+        const c_subCmd = v_req.body[C.CONST_SUB_COMMAND.toString()];
+        const c_isReadOnlyTeamAdminCmd =
+            c_subCmd === C.CONST_CMD_GET_TEAM_INFO ||
+            c_subCmd === C.CONST_CMD_LIST_TEAM_USERS;
+
+        // Rate limiting check (skip for read-only team-admin commands)
+        if (!c_isReadOnlyTeamAdminCmd) {
+            const clientIp = v_req.ip || v_req.connection.remoteAddress;
+            if (!fn_checkAccountRateLimit(clientIp)) {
+                v_response.status(429).json({
+                    [C.CONST_ERROR]: C.CONST_ERROR_UNKNOWN,
+                    [C.CONST_ERROR_MSG]: 'Too many requests. Please try again later.',
+                    [C.CONST_COMMAND]: C.CONST_ACCOUNT_MANAGMENT
+                });
+                return;
+            }
+        }
+
+        // Team-admin sub-commands use the session ID as the credential and do
+        // not require the legacy account-name field.  Only the legacy account
+        // commands (c/r/g) require it.
+        const c_isTeamAdminCmd =
+            c_subCmd === C.CONST_CMD_LIST_TEAM_USERS ||
+            c_subCmd === C.CONST_CMD_ADD_TEAM_USER ||
+            c_subCmd === C.CONST_CMD_UPDATE_TEAM_USER ||
+            c_subCmd === C.CONST_CMD_DELETE_TEAM_USER ||
+            c_subCmd === C.CONST_CMD_GET_TEAM_INFO;
+
+        if (!c_isTeamAdminCmd && v_req.body[C.CONST_ACCOUNT_NAME_PARAMETER.toString()] == null) {
             v_router.fn_errorPage(v_response);
             return;
         }
@@ -200,7 +220,9 @@ v_router.m_Router.post(C.CONST_WEB_FUNCTION + C.CONST_ACCOUNT_MANAGMENT, functio
             function () {
                 v_router.fn_errorPage(v_response);
             },
-            v_req.body[C.CONST_SESSION_ID]
+            v_req.body[C.CONST_SESSION_ID],
+            v_req.body[C.CONST_TARGET_LOGIN_PARAMETER],
+            v_req.body[C.CONST_IS_ADMIN_PARAMETER]
         );
     }
     catch (ex) {

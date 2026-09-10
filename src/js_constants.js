@@ -37,6 +37,8 @@ exports.CONST_PERMISSION_PARAMETER                  = 'prm';   // verified
 exports.CONST_ACCESS_CODE_PARAMETER                 = 'pwd';   // verified
 exports.CONST_ACCOUNT_ID_PARAMETER                  = 'aid';   // AccountID (TeamID)
 exports.CONST_LOGIN_ID_PARAMETER                    = 'lid';   // LoginID
+exports.CONST_TARGET_LOGIN_PARAMETER                = 'tln';   // target login name (email) for team-admin edit/delete
+exports.CONST_IS_ADMIN_PARAMETER                    = 'isadmin'; // isadmin flag (team-admin)
 exports.CONST_APP_NAME_PARAMETER                    = 'app';   // verified
 exports.CONST_APP_GROUP_PARAMETER                   = 'gr';    // verified
 exports.CONST_APP_VER_PARAMETER                     = 'ver';   // verified
@@ -70,6 +72,13 @@ exports.CONST_CMD_CREATE_ACCESSCODE   		    = 'c';
 exports.CONST_CMD_REGENERATE_ACCESSCODE         = 'r';
 exports.CONST_CMD_GET_ACCOUNT_NAME              = 'g';
 exports.CONST_CMD_VERIFY_HARDWARE_BY_ID         = 'vh';
+
+// Team user administration sub-commands (scoped to caller's team, isadmin-gated)
+exports.CONST_CMD_LIST_TEAM_USERS               = 'ltu'; // list logins in caller's team
+exports.CONST_CMD_ADD_TEAM_USER                 = 'atu'; // add a login to caller's team
+exports.CONST_CMD_UPDATE_TEAM_USER             = 'utu'; // edit a login in caller's team
+exports.CONST_CMD_DELETE_TEAM_USER             = 'dtu'; // delete a login from caller's team
+exports.CONST_CMD_GET_TEAM_INFO                = 'gti'; // get caller's team info (read-only)
 
 // Reply-Fields with COMM-Servers
 

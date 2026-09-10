@@ -140,7 +140,7 @@
                         </div>
                         <div class="mb-3">
                             <label for="sid" class="form-label">TeamID</label>
-                            <input type="number" class="form-control" id="sid" name="sid" required>
+                            <input type="text" class="form-control" id="sid" name="sid" required>
                         </div>
                         <div class="mb-3">
                             <label for="accessCode" class="form-label">AccessCode</label>
@@ -303,7 +303,7 @@
             const formData = new FormData(e.target);
             const accessCode = formData.get('accessCode').trim() || null;
             const userData = {
-                sid: parseInt(formData.get('sid')),
+                sid: formData.get('sid').trim(),
                 prm: formData.get('prm'),
                 isadmin: document.getElementById('isadmin').checked,
                 accessCode: accessCode

@@ -130,9 +130,15 @@ exports.CONST_ERROR_DATA_UNKNOWN_ERROR          = 999;
 
 
 // Self-service permission default for anonymous (no-session) account creation.
-// Grants the standard user flags (GCS login + unit login + GCS control + GCS
-// video) but NOT the full 0xffffffff bitmask — an anonymous caller must not
-// be able to self-grant full control.
+// Used by the agent path (fn_accountOperationFromAgent) so vehicles get a
+// limited bitmask. The web public-registration path (fn_accountOperation CREATE)
+// does NOT use this — it honours the caller's requested permission because
+// CREATE can only mint a brand-new account (both backends reject duplicates)
+// and the caller is the owner.
+// Note: 0x00001111 has the low feature bits (GCS + unit + control + video)
+// but NOT the GCS_LOGIN bit (0x80000000) — accounts created with this
+// permission cannot login as GCS. That is intentional for agent-created
+// accounts, which login as units, not as GCS.
 exports.CONST_DEFAULT_SELF_SERVICE_PERMISSION   = '0x00001111';
 
 // Validation

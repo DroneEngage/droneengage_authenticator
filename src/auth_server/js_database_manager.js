@@ -263,7 +263,7 @@ function fn_do_getAccountNameByAccessCode (p_accessCode, fn_callback)
 }
 
 
-function fn_createSubLogin(p_accountName, p_newAccessCode, p_permission, fn_callback)
+function fn_createSubLogin(p_accountName, p_newAccessCode, p_permission, fn_callback, p_isAdmin)
 {
 
     const c_reply = {};
@@ -305,12 +305,13 @@ function fn_createSubLogin(p_accountName, p_newAccessCode, p_permission, fn_call
             }
 
             const v_teamId = rows[0]['TeamID'];
-            const c_sql = "INSERT INTO `logins`(`TeamID`, `LoginName`, `AccessCode`, `Permissions`) VALUES (?, ?, ?, ?)";
+            const c_isAdmin = p_isAdmin !== false ? 1 : 0;
+            const c_sql = "INSERT INTO `logins`(`TeamID`, `LoginName`, `AccessCode`, `Permissions`, `IsAdmin`) VALUES (?, ?, ?, ?, ?)";
 
             // SECURITY: hash the access code before storing it.
             const c_hashedAccessCode = hlp_password.hash(p_newAccessCode);
 
-            hlp_db.fn_genericInsert_w_Params (m_db, c_sql, [v_teamId, hlp_string.fn_protectedFromInjection(p_accountName), c_hashedAccessCode, hlp_string.fn_protectedFromInjection(p_permission)],
+            hlp_db.fn_genericInsert_w_Params (m_db, c_sql, [v_teamId, hlp_string.fn_protectedFromInjection(p_accountName), c_hashedAccessCode, hlp_string.fn_protectedFromInjection(p_permission), c_isAdmin],
                 function (err,res)
                 {
                     const c_reply = {};
@@ -743,6 +744,34 @@ function fn_countTeamAdmins(p_teamId, fn_callback) {
         });
 }
 
+/**
+ * Look up the stored permission for an account by name (no access code
+ * required). Used by the public regenerate path to preserve the existing
+ * permission without enforcing ownership.
+ * Callback: fn_callback(permissionString) — '0xffffffff' if not found.
+ */
+function fn_getAccountPermission(p_accountName, fn_callback) {
+    if ((p_accountName == null) || (!hlp_string.fn_isValidAccountName(p_accountName))) {
+        fn_callback('0xffffffff');
+        return;
+    }
+
+    const c_sql = "SELECT Permissions FROM logins WHERE LoginName = ? LIMIT 1";
+    hlp_db.fn_genericSelect_w_Params(m_db, c_sql, [hlp_string.fn_protectedFromInjection(p_accountName)],
+        function (rows) {
+            if (!rows || rows.length === 0) {
+                fn_callback('0xffffffff');
+                return;
+            }
+            let perm = rows[0]['Permissions'];
+            if (perm == null || perm === 'D1G1T3R4V5C6') perm = '0xffffffff';
+            fn_callback(perm);
+        },
+        function () {
+            fn_callback('0xffffffff');
+        });
+}
+
 module.exports =
 {
     fn_initialize: fn_initialize,
@@ -758,4 +787,5 @@ module.exports =
     fn_updateTeamLogin: fn_updateTeamLogin,
     fn_deleteTeamLogin: fn_deleteTeamLogin,
     fn_countTeamAdmins: fn_countTeamAdmins,
+    fn_getAccountPermission: fn_getAccountPermission,
 }

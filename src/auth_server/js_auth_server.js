@@ -157,6 +157,36 @@ function fn_verifyAccountOwnership(p_accountName, p_accessCode, p_loginCard, fn_
 }
 
 
+/**
+ * Look up the stored permission for an account WITHOUT requiring the
+ * access code. Used by the public web regenerate path ("forgot my access
+ * code" flow) to preserve the existing permission. Returns '0xffffffff'
+ * as a safe default if the account is not found.
+ */
+function fn_getExistingPermission(p_accountName, fn_callback) {
+    const c_storageType = (global.m_serverconfig.m_configuration.account_storage_type || "").toLowerCase();
+
+    if (c_storageType === "file") {
+        const c_record = global.db_users.fn_get_record(p_accountName);
+        if (c_record == null) {
+            fn_callback('0xffffffff');
+            return;
+        }
+        let perm = c_record.prm;
+        if (perm == null || perm === 'D1G1T3R4V5C6') perm = '0xffffffff';
+        fn_callback(perm);
+        return;
+    }
+
+    if (c_storageType === "db") {
+        v_database_manager.fn_getAccountPermission(p_accountName, fn_callback);
+        return;
+    }
+
+    fn_callback('0xffffffff');
+}
+
+
 
 
 
@@ -260,15 +290,22 @@ function fn_newLoginCard(
  *
  * Authorization rules applied here (the single choke point both routers funnel
  * through):
- *  - CREATE_ACCESSCODE: anonymous (no-session) self-registration is allowed,
- *    but the caller's requested permission is ignored and a safe fixed default
- *    (CONST_DEFAULT_SELF_SERVICE_PERMISSION) is forced instead. An
- *    authenticated session may still specify a permission.
- *  - REGENERATE_ACCESSCODE: the caller must prove ownership of the account —
- *    either a live session for the same account OR the correct current
- *    AccessCode. The client-supplied permission is ignored and the account's
- *    existing stored permission is preserved (rotating a credential must not
- *    silently escalate the grant).
+ *  - CREATE_ACCESSCODE: the caller's requested permission is honoured. This
+ *    is safe because CREATE can only mint a brand-new account — both storage
+ *    backends reject duplicates (db: SQLITE_CONSTRAINT, file: duplicate
+ *    check), so there is no takeover vector. The caller IS the owner of the
+ *    new account and full control (0xffffffff) is appropriate for the public
+ *    registration page. The agent path (fn_accountOperationFromAgent) passes
+ *    CONST_DEFAULT_SELF_SERVICE_PERMISSION explicitly, so vehicles still get
+ *    the limited bitmask.
+ *  - REGENERATE_ACCESSCODE: when p_enforceOwnership is true (agent path),
+ *    the caller must prove ownership — a live session for the same account OR
+ *    the correct current AccessCode. When p_enforceOwnership is falsy (public
+ *    web path), the ownership check is skipped — the "Regenerate" button on
+ *    the public accounts page is the "forgot my access code" flow, gated by
+ *    captcha + rate limiting. In both cases the client-supplied permission
+ *    is ignored and the account's existing stored permission is preserved
+ *    (rotating a credential must not silently escalate the grant).
  *  - GET_ACCOUNT_NAME: unchanged (requires the AccessCode to look up the
  *    owning account — the credential itself is the proof).
  *  - single-account mode: create/regenerate return a prompt error (there is
@@ -288,7 +325,8 @@ function fn_accountOperation(
     fn_error,
     p_sessionID,
     p_targetLoginName,
-    p_isAdmin
+    p_isAdmin,
+    p_enforceOwnership
 ) {
     const C = global.c_CONSTANTS;
 
@@ -357,11 +395,17 @@ function fn_accountOperation(
                 return;
             }
 
-            // Anonymous (no-session) self-registration must not be able to choose
-            // its own permission bitmask — force a safe, non-privileged default.
+            // CREATE always mints a brand-new account — both storage backends
+            // (db: SQLITE_CONSTRAINT on duplicate TeamName, file: duplicate
+            // check in fn_add_record) reject creating over an existing one.
+            // So there is no takeover risk in honouring the caller's requested
+            // permission: the caller IS the owner of the new account.
+            // The agent path (fn_accountOperationFromAgent) passes
+            // CONST_DEFAULT_SELF_SERVICE_PERMISSION explicitly, so vehicles
+            // still get the limited bitmask regardless of this branch.
             let c_effectivePermission = trimmedPermission;
-            if (p_loginCard == null) {
-                c_effectivePermission = global.c_CONSTANTS.CONST_DEFAULT_SELF_SERVICE_PERMISSION;
+            if (!c_effectivePermission) {
+                c_effectivePermission = '0xffffffff';
             }
 
             v_account_manager.fn_createAccessCode(
@@ -383,28 +427,40 @@ function fn_accountOperation(
                 return;
             }
 
-            // The caller must prove ownership before the credential can be
-            // rotated. Accept a live session for the same account OR the correct
-            // current AccessCode.
-            fn_verifyAccountOwnership(trimmedAccount, trimmedAccessCode, p_loginCard, function (p_result) {
-                if (!p_result.proven) {
-                    fn_callback(p_result.error || buildPermissionError("Ownership verification failed."));
-                    return;
-                }
-
-                // Ignore the client-supplied permission and re-apply the
-                // account's existing stored permission — regenerating a
-                // credential must not silently escalate the grant.
+            // The agent path (p_enforceOwnership === true) must prove ownership
+            // before the credential can be rotated — a live session for the
+            // same account OR the correct current AccessCode.
+            // The public web path (p_enforceOwnership !== true) skips the
+            // ownership check: the "Regenerate" button on the public accounts
+            // page is the "forgot my access code" flow, gated by captcha +
+            // rate limiting. The existing stored permission is always
+            // preserved (regenerating must not silently escalate the grant).
+            const c_doRegenerate = function (p_existingPermission) {
                 v_account_manager.fn_regenerateAccessCode(
                     trimmedAccount,
-                    p_result.existingPermission,
+                    p_existingPermission,
                     function (p_reply) {
                         p_reply[global.c_CONSTANTS.CONST_SUB_COMMAND] =
                             global.c_CONSTANTS.CONST_CMD_REGENERATE_ACCESSCODE;
                         fn_callback(p_reply);
                     }
                 );
-            });
+            };
+
+            if (p_enforceOwnership === true) {
+                fn_verifyAccountOwnership(trimmedAccount, trimmedAccessCode, p_loginCard, function (p_result) {
+                    if (!p_result.proven) {
+                        fn_callback(p_result.error || buildPermissionError("Ownership verification failed."));
+                        return;
+                    }
+                    c_doRegenerate(p_result.existingPermission);
+                });
+            } else {
+                // Public web path: look up the existing permission to preserve it.
+                fn_getExistingPermission(trimmedAccount, function (p_perm) {
+                    c_doRegenerate(p_perm);
+                });
+            }
             break;
         }
         case global.c_CONSTANTS.CONST_CMD_GET_ACCOUNT_NAME:
@@ -425,12 +481,12 @@ function fn_accountOperation(
 /**
  * Called by agent and calls are forward to fn_accountOperation.
  *
- * The agent path has no session parameter today, so it always goes through the
- * anonymous branch: create is clamped to the safe self-service default, and
- * regenerate must prove ownership via the current AccessCode. The previously
- * hardcoded "0xffffffff" is replaced by CONST_DEFAULT_SELF_SERVICE_PERMISSION
- * (which fn_accountOperation ignores for regenerate in favour of the preserved
- * existing permission).
+ * The agent path has no session parameter today. It always passes
+ * CONST_DEFAULT_SELF_SERVICE_PERMISSION as the permission, so agent-created
+ * accounts get the limited bitmask (no GCS_LOGIN bit — vehicles login as
+ * units, not as GCS). Regenerate must prove ownership via the current
+ * AccessCode (fn_accountOperation ignores the permission for regenerate in
+ * favour of the preserved existing permission).
  */
 function fn_accountOperationFromAgent(
     p_subCommand,
@@ -452,7 +508,11 @@ function fn_accountOperationFromAgent(
         global.c_CONSTANTS.CONST_DEFAULT_SELF_SERVICE_PERMISSION,
         p_accessCode,
         fn_callback,
-        fn_error
+        fn_error,
+        null,       // p_sessionID — agent path has no session
+        null,       // p_targetLoginName
+        null,       // p_isAdmin
+        true        // p_enforceOwnership — agent must prove ownership for regenerate
     );
 }
 

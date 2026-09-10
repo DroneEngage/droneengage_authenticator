@@ -101,8 +101,10 @@ describe("js_account_operation — file mode", () => {
         global.db_users = db;
     });
 
-    // Case 1: Create, no session, no permission requested → clamped default
-    it("anonymous create clamps to safe default permission", async () => {
+    // Case 1: Create, no session, no permission requested → defaults to full
+    // control. CREATE only mints new accounts (both backends reject duplicates),
+    // so the caller is the owner and full control is appropriate.
+    it("anonymous create defaults to full control permission", async () => {
         const reply = await accountOperation(
             C.CONST_CMD_CREATE_ACCESSCODE,
             "op_create1@x.com",
@@ -113,14 +115,14 @@ describe("js_account_operation — file mode", () => {
         assert.equal(replyError(reply), C.CONST_ERROR_NON);
         const record = db.fn_get_record("op_create1@x.com");
         assert.ok(record, "record should exist");
-        assert.equal(record.prm, C.CONST_DEFAULT_SELF_SERVICE_PERMISSION,
-            "stored permission must be the safe default, not 0xffffffff");
-        assert.notEqual(record.prm, "0xffffffff",
-            "must not grant full control to anonymous self-registration");
+        assert.equal(record.prm, "0xffffffff",
+            "new account should get full control (0xffffffff) — CREATE mints a new account, caller is the owner");
+        assert.equal(record.isadmin, true,
+            "new account should be admin (first account in a new team)");
     });
 
-    // Case 2: Create, no session, permission=0xffffffff requested → still clamped
-    it("anonymous create ignores requested 0xffffffff permission", async () => {
+    // Case 2: Create, no session, permission=0xffffffff requested → honoured
+    it("anonymous create honours requested 0xffffffff permission", async () => {
         const reply = await accountOperation(
             C.CONST_CMD_CREATE_ACCESSCODE,
             "op_create2@x.com",
@@ -130,8 +132,10 @@ describe("js_account_operation — file mode", () => {
         );
         assert.equal(replyError(reply), C.CONST_ERROR_NON);
         const record = db.fn_get_record("op_create2@x.com");
-        assert.equal(record.prm, C.CONST_DEFAULT_SELF_SERVICE_PERMISSION,
-            "requested 0xffffffff must be ignored in favour of safe default");
+        assert.equal(record.prm, "0xffffffff",
+            "requested permission should be honoured for new account creation");
+        assert.equal(record.isadmin, true,
+            "new account should be admin");
     });
 
     // Case 3: Create, duplicate account name → rejected (regression)
@@ -166,44 +170,49 @@ describe("js_account_operation — file mode", () => {
         const record = db.fn_get_record("op_regen4@x.com");
         assert.equal(record.prm, "0x00001111",
             "stored permission must be unchanged after regenerate");
+        assert.equal(record.isadmin, true,
+            "isadmin must be preserved after regenerate");
     });
 
-    // Case 5: Regenerate, wrong/missing AccessCode, no session → rejected,
-    // and the target account's AccessCode + Permissions are provably unchanged
-    it("regenerate with wrong access code is rejected and account unchanged", async () => {
+    // Case 5: Regenerate via web path (no ownership enforcement) with wrong
+    // access code → still succeeds. The public web path skips ownership check;
+    // the "Regenerate" button is the "forgot my access code" flow.
+    it("web regenerate with wrong access code still succeeds (no ownership check)", async () => {
         const accessCode = await createAccountDirect("op_regen5@x.com", "0x00001111");
         const recordBefore = db.fn_get_record("op_regen5@x.com");
-        const storedHashBefore = recordBefore.AccessCode;
         const permBefore = recordBefore.prm;
 
         const reply = await accountOperation(
             C.CONST_CMD_REGENERATE_ACCESSCODE,
             "op_regen5@x.com",
             "0xffffffff",
-            "wrongcode",     // wrong access code
+            "wrongcode",     // wrong access code — ignored on web path
             null
         );
-        assert.equal(replyError(reply), C.CONST_ERROR_NO_PERMISSION,
-            "must be rejected with permission error");
+        assert.equal(replyError(reply), C.CONST_ERROR_NON,
+            "web path regenerate should succeed without ownership check");
+
+        const newCode = reply[C.CONST_ACCESS_CODE_PARAMETER];
+        assert.ok(newCode && newCode !== accessCode, "new access code should differ");
 
         const recordAfter = db.fn_get_record("op_regen5@x.com");
-        assert.equal(recordAfter.AccessCode, storedHashBefore,
-            "AccessCode hash must be unchanged after rejected regenerate");
         assert.equal(recordAfter.prm, permBefore,
-            "Permissions must be unchanged after rejected regenerate");
+            "Permissions must be preserved after web regenerate");
+        assert.equal(recordAfter.isadmin, true,
+            "isadmin must be preserved after web regenerate");
     });
 
-    it("regenerate with missing access code is rejected", async () => {
+    it("web regenerate with missing access code succeeds", async () => {
         await createAccountDirect("op_regen5b@x.com", "0x00001111");
         const reply = await accountOperation(
             C.CONST_CMD_REGENERATE_ACCESSCODE,
             "op_regen5b@x.com",
             "0xffffffff",
-            null,   // missing access code
+            null,   // missing access code — OK on web path
             null
         );
-        assert.equal(replyError(reply), C.CONST_ERROR_NO_PERMISSION,
-            "missing access code must be rejected");
+        assert.equal(replyError(reply), C.CONST_ERROR_NON,
+            "web path regenerate should succeed with no access code");
     });
 
     // Case 6: Regenerate, valid session matching account → succeeds without AccessCode
@@ -225,25 +234,28 @@ describe("js_account_operation — file mode", () => {
             "permission must be preserved, not changed to requested value");
     });
 
-    // Case 7: Regenerate, valid session for a DIFFERENT account → rejected
-    it("regenerate with session for a different account is rejected", async () => {
+    // Case 7: Regenerate via web path for a different account → succeeds
+    // (web path does not enforce ownership; the "forgot access code" flow
+    // works for any account name, gated by captcha + rate limiting).
+    it("web regenerate for a different account succeeds (no ownership check)", async () => {
         const accessCodeA = await createAccountDirect("op_acctA@x.com", "0x00001111");
         await createAccountDirect("op_acctB@x.com", "0x00001111");
         const { sessionID } = await loginSession("op_acctA@x.com", accessCodeA);
 
-        const recordBefore = db.fn_get_record("op_acctB@x.com");
         const reply = await accountOperation(
             C.CONST_CMD_REGENERATE_ACCESSCODE,
             "op_acctB@x.com",   // target B
             "0xffffffff",
             null,
-            sessionID           // session is for A
+            sessionID           // session is for A — ignored on web path
         );
-        assert.equal(replyError(reply), C.CONST_ERROR_NO_PERMISSION,
-            "cross-account session must be rejected");
-        const recordAfter = db.fn_get_record("op_acctB@x.com");
-        assert.equal(recordAfter.AccessCode, recordBefore.AccessCode,
-            "target account must be unchanged after rejected cross-account regenerate");
+        assert.equal(replyError(reply), C.CONST_ERROR_NON,
+            "web path regenerate should succeed for any account");
+        const record = db.fn_get_record("op_acctB@x.com");
+        assert.equal(record.prm, "0x00001111",
+            "permission must be preserved");
+        assert.equal(record.isadmin, true,
+            "isadmin must be preserved");
     });
 
     // Case 10: GET_ACCOUNT_NAME unaffected (regression)

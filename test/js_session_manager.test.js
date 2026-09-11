@@ -84,4 +84,26 @@ describe("js_session_manager", () => {
         assert.equal(sessionManager.fn_isGCSLogin(neitherCard), false);
         assert.equal(sessionManager.fn_isUnitLogin(neitherCard), false);
     });
+
+    it("checks the view-mode bit (fn_isViewMode)", () => {
+        // 0xa0000000 = GCS login + view mode — the canonical view-mode mask.
+        // It is accepted as a GCS login and rejected as a unit login.
+        const viewModeCard = { m_data: { m_prm: 0xa0000000 } };
+        assert.equal(sessionManager.fn_isViewMode(viewModeCard), true);
+        assert.equal(sessionManager.fn_isGCSLogin(viewModeCard), true);
+        assert.equal(sessionManager.fn_isUnitLogin(viewModeCard), false);
+
+        // A plain GCS-login account (0x80000000) is NOT view mode.
+        const gcsOnlyCard = { m_data: { m_prm: 0x80000000 } };
+        assert.equal(sessionManager.fn_isViewMode(gcsOnlyCard), false);
+
+        // Full-control account (0xffffffff) has bit 29 set BUT also has
+        // category/action bits, so it is NOT view-mode.
+        const fullCard = { m_data: { m_prm: 0xffffffff } };
+        assert.equal(sessionManager.fn_isViewMode(fullCard), false);
+
+        // null/missing data is safe.
+        assert.equal(sessionManager.fn_isViewMode(null), false);
+        assert.equal(sessionManager.fn_isViewMode({ m_data: null }), false);
+    });
 });

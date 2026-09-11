@@ -253,6 +253,17 @@ function fn_newLoginCard(
                 return;
             }
 
+            // View-mode normalization: a view-mode GCS account (bit 29 set)
+            // is clamped to exactly 0xa0000000 (GCS login + view mode) so a
+            // misconfigured admin cannot sneak control/category bits into a
+            // read-only account. The comm server's per-bit map already
+            // rejects all mapped actions for a no-category-bit account, and
+            // the WebClient helpers override to false in view mode; this
+            // clamp is defense-in-depth at the source of truth.
+            if (p_login_as_GCS === true && v_sessionManager.fn_isViewMode(p_loginCard)) {
+                p_loginCard.m_data.m_prm = (0x80000000 | 0x20000000) >>> 0;
+            }
+
             if (p_login_as_GCS === false && !v_sessionManager.fn_isUnitLogin(p_loginCard)) {
                 fn_callback(
                     buildPermissionError("No enough permission. This is not a GCS account.")

@@ -76,6 +76,25 @@ function fn_isUnitLogin (p_loginCard)
 }
 
 /**
+ * returns true if the account is in view-only mode (bit 29).
+ * View-mode accounts can observe telemetry/video/map/geofence status and
+ * chat, but cannot issue control/planning/mutation commands. This is NOT a
+ * login gate — view mode is not a login type.
+ */
+function fn_isViewMode (p_loginCard)
+{
+    if ((p_loginCard == null) || ((p_loginCard.m_data == null))) return false;
+
+    // View mode is active only when bit 29 is set AND no category/action
+    // bits (bits 0-25) are set.  This distinguishes a real view-mode account
+    // (0xa0000000) from a full-control account that also has bit 29 (0xffffffff).
+    const perm = c_permission.fn_convertPermissiontoInt(p_loginCard.m_data.m_prm) >>> 0;
+    const viewBit = c_permission.AndruavMessageTypes.CONST_ALLOW_VIEW_MODE >>> 0;
+    const catMask = c_permission.AndruavMessageTypes.CONST_CATEGORY_ACTION_MASK >>> 0;
+    return ((perm & viewBit) === viewBit) && ((perm & catMask) === 0);
+}
+
+/**
  * SessionID used to communicate with Authentication server .
  */
 function fn_generateSessionID() {
@@ -291,6 +310,7 @@ module.exports =
     fn_isAGN: fn_isAGN,
     fn_isGCSLogin: fn_isGCSLogin,
     fn_isUnitLogin: fn_isUnitLogin,
+    fn_isViewMode: fn_isViewMode,
     fn_getLoginCardBySessionID: fn_getLoginCardBySessionID,
     fn_getLoginCardsByAccountId: fn_getLoginCardsByAccountId,
     fn_deleteOldCard: fn_deleteOldCard,

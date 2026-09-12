@@ -115,10 +115,10 @@ describe("js_account_operation — file mode", () => {
         assert.equal(replyError(reply), C.CONST_ERROR_NON);
         const record = db.fn_get_record("op_create1@x.com");
         assert.ok(record, "record should exist");
-        assert.equal(record.prm, "0xffffffff",
+        assert.equal(record.prm, 0xffffffff,
             "new account should get full control (0xffffffff) — CREATE mints a new account, caller is the owner");
         assert.equal(record.isadmin, true,
-            "new account should be admin (first account in a new team)");
+            "web sign-up creates the team admin (sole owner of the new TeamID)");
     });
 
     // Case 2: Create, no session, permission=0xffffffff requested → honoured
@@ -132,10 +132,10 @@ describe("js_account_operation — file mode", () => {
         );
         assert.equal(replyError(reply), C.CONST_ERROR_NON);
         const record = db.fn_get_record("op_create2@x.com");
-        assert.equal(record.prm, "0xffffffff",
+        assert.equal(record.prm, 0xffffffff,
             "requested permission should be honoured for new account creation");
         assert.equal(record.isadmin, true,
-            "new account should be admin");
+            "web sign-up creates the team admin");
     });
 
     // Case 3: Create, duplicate account name → rejected (regression)
@@ -168,9 +168,9 @@ describe("js_account_operation — file mode", () => {
         assert.ok(newCode && newCode !== accessCode, "new access code should differ");
 
         const record = db.fn_get_record("op_regen4@x.com");
-        assert.equal(record.prm, "0x00001111",
+        assert.equal(record.prm, 0x00001111,
             "stored permission must be unchanged after regenerate");
-        assert.equal(record.isadmin, true,
+        assert.equal(record.isadmin, false,
             "isadmin must be preserved after regenerate");
     });
 
@@ -198,7 +198,7 @@ describe("js_account_operation — file mode", () => {
         const recordAfter = db.fn_get_record("op_regen5@x.com");
         assert.equal(recordAfter.prm, permBefore,
             "Permissions must be preserved after web regenerate");
-        assert.equal(recordAfter.isadmin, true,
+        assert.equal(recordAfter.isadmin, false,
             "isadmin must be preserved after web regenerate");
     });
 
@@ -230,7 +230,7 @@ describe("js_account_operation — file mode", () => {
         assert.equal(replyError(reply), C.CONST_ERROR_NON,
             "session-based regenerate should succeed");
         const record = db.fn_get_record("op_regen6@x.com");
-        assert.equal(record.prm, "0xffffffff",
+        assert.equal(record.prm, 0xffffffff,
             "permission must be preserved, not changed to requested value");
     });
 
@@ -252,9 +252,9 @@ describe("js_account_operation — file mode", () => {
         assert.equal(replyError(reply), C.CONST_ERROR_NON,
             "web path regenerate should succeed for any account");
         const record = db.fn_get_record("op_acctB@x.com");
-        assert.equal(record.prm, "0x00001111",
+        assert.equal(record.prm, 0x00001111,
             "permission must be preserved");
-        assert.equal(record.isadmin, true,
+        assert.equal(record.isadmin, false,
             "isadmin must be preserved");
     });
 
@@ -294,8 +294,10 @@ describe("js_account_operation — agent path (file mode)", () => {
         );
         assert.equal(replyError(reply), C.CONST_ERROR_NON);
         const record = db.fn_get_record("agent_create@x.com");
-        assert.equal(record.prm, C.CONST_DEFAULT_SELF_SERVICE_PERMISSION,
+        assert.equal(record.prm, parseInt(C.CONST_DEFAULT_SELF_SERVICE_PERMISSION, 16),
             "agent path must not grant 0xffffffff");
+        assert.equal(record.isadmin, false,
+            "agent path must create a normal user, not a team admin");
     });
 
     // Case 8b: agent regenerate with wrong access code is rejected
@@ -326,7 +328,7 @@ describe("js_account_operation — agent path (file mode)", () => {
         );
         assert.equal(replyError(reply), C.CONST_ERROR_NON, "agent regenerate should succeed");
         const record = db.fn_get_record("agent_regen_ok@x.com");
-        assert.equal(record.prm, "0x00001111",
+        assert.equal(record.prm, 0x00001111,
             "permission must be preserved, not escalated");
     });
 });

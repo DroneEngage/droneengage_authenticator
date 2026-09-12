@@ -306,9 +306,11 @@ function fn_newLoginCard(
  *    backends reject duplicates (db: SQLITE_CONSTRAINT, file: duplicate
  *    check), so there is no takeover vector. The caller IS the owner of the
  *    new account and full control (0xffffffff) is appropriate for the public
- *    registration page. The agent path (fn_accountOperationFromAgent) passes
- *    CONST_DEFAULT_SELF_SERVICE_PERMISSION explicitly, so vehicles still get
- *    the limited bitmask.
+ *    registration page — which also creates the login as team admin (it is
+ *    the sole owner of the new TeamID). The agent path
+ *    (fn_accountOperationFromAgent) passes
+ *    CONST_DEFAULT_SELF_SERVICE_PERMISSION explicitly and stays non-admin,
+ *    so vehicles still get the limited bitmask and no team-admin rights.
  *  - REGENERATE_ACCESSCODE: when p_enforceOwnership is true (agent path),
  *    the caller must prove ownership — a live session for the same account OR
  *    the correct current AccessCode. When p_enforceOwnership is falsy (public
@@ -419,6 +421,12 @@ function fn_accountOperation(
                 c_effectivePermission = '0xffffffff';
             }
 
+            // The public web path (accounts page) creates a new TeamID whose
+            // single login is the team owner — it MUST be an admin or the
+            // team could never be managed. The agent path
+            // (p_enforceOwnership === true) stays non-admin.
+            const c_isAdmin = (p_enforceOwnership !== true);
+
             v_account_manager.fn_createAccessCode(
                 trimmedAccount,
                 c_effectivePermission,
@@ -427,7 +435,8 @@ function fn_accountOperation(
                         global.c_CONSTANTS.CONST_CMD_CREATE_ACCESSCODE;
                     fn_callback(p_reply);
                 },
-                p_loginCard
+                p_loginCard,
+                c_isAdmin
             );
             break;
         }

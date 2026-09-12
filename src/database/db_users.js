@@ -5,6 +5,7 @@ const { JSONFile } = require('lowdb/node');
 const path = require('path');
 const fs = require('fs');
 const hlp_password = require('droneengage_server_common').password;
+const c_permission = require('../auth_server/js_permisson_validator.js');
 
 const info_field = 'db_info';
 
@@ -98,6 +99,7 @@ class db_user {
                 if (permissions === 'D1G1T3R4V5C6') {
                     permissions = '0xffffffff';
                 }
+                permissions = c_permission.fn_convertPermissiontoInt(permissions);
 
                 this.db.data.logins[email] = {
                     LoginID: loginID,
@@ -182,6 +184,7 @@ class db_user {
         if (permissions === 'D1G1T3R4V5C6') {
             permissions = '0xffffffff';
         }
+        permissions = c_permission.fn_convertPermissiontoInt(permissions);
 
         // SECURITY: hash the access code before storing it.
         const storedAccessCode = hlp_password.isHashed(user_data.AccessCode)
@@ -260,6 +263,7 @@ class db_user {
         if (permissions === 'D1G1T3R4V5C6') {
             permissions = '0xffffffff';
         }
+        permissions = c_permission.fn_convertPermissiontoInt(permissions);
 
         // SECURITY: hash the access code before storing it.
         const storedAccessCode = hlp_password.isHashed(user_data.AccessCode)
@@ -419,7 +423,7 @@ class db_user {
     fn_get_users_by_sid(sid) {
         const users = {};
         for (const [email, login] of Object.entries(this.db.data.logins)) {
-            if (login.TeamID === sid) {
+            if (String(login.TeamID) === String(sid)) {
                 // Convert internal structure to public API shape
                 users[email] = {
                     sid: login.TeamID,
@@ -473,7 +477,7 @@ class db_user {
     fn_get_team_logins(p_teamId) {
         const result = [];
         for (const [email, login] of Object.entries(this.db.data.logins)) {
-            if (login.TeamID === p_teamId) {
+            if (String(login.TeamID) === String(p_teamId)) {
                 result.push({
                     LoginID: login.LoginID,
                     LoginName: login.LoginName || email,
@@ -528,7 +532,7 @@ class db_user {
             TeamID: p_teamId,
             LoginName: p_loginName,
             AccessCode: storedAccessCode,
-            Permissions: p_permissions,
+            Permissions: c_permission.fn_convertPermissiontoInt(p_permissions),
             IsAdmin: (p_isAdmin === true)
         };
 
@@ -570,7 +574,7 @@ class db_user {
             returnedAccessCode = plaintext;
             existing.AccessCode = hlp_password.isHashed(plaintext) ? plaintext : hlp_password.hash(plaintext);
         }
-        existing.Permissions = p_permissions;
+        existing.Permissions = c_permission.fn_convertPermissiontoInt(p_permissions);
         existing.IsAdmin = (p_isAdmin === true);
 
         try {

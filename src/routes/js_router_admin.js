@@ -11,6 +11,7 @@ const { isValidAdminUsername, isValidAdminPassword } = require('droneengage_serv
 const { sessionMiddleware } = require('../helpers/js_admin_session');
 const { isBcryptHash } = require('droneengage_server_common').configHandler;
 const bcrypt = require('bcryptjs');
+const c_permission = require('../auth_server/js_permisson_validator.js');
 
 // Configure session (shared store — also used by WebSocket terminal handler)
 router.use(sessionMiddleware);
@@ -717,7 +718,7 @@ router.post('/api/sql/logins', requireAuth, (req, res) => {
         }
 
         db.run('INSERT INTO logins (TeamID, LoginName, AccessCode, Permissions, IsAdmin) VALUES (?, ?, ?, ?, ?)',
-            [teamId, loginName, finalAccessCode, permissions, isAdmin],
+            [teamId, loginName, finalAccessCode, c_permission.fn_convertPermissiontoInt(permissions), isAdmin],
             function(err) {
                 if (err) {
                     console.error('Error creating login:', err);

@@ -19,10 +19,15 @@ function fn_generateAccessCode() {
  * @param {*} p_accountName
  * @param {*} p_permission
  * @param {*} fn_callback
+ * @param {*} p_loginCard
+ * @param {*} p_isAdmin  true when the new login should be the team admin
+ *                       (public web sign-up). The agent self-service path
+ *                       passes false — vehicle accounts stay normal users.
  */
-function fn_createAccessCode(p_accountName, p_permission, fn_callback, p_loginCard) {
+function fn_createAccessCode(p_accountName, p_permission, fn_callback, p_loginCard, p_isAdmin) {
 
     const v_accessCode = fn_generateAccessCode();
+    const c_isAdmin = p_isAdmin === true;
 
     if (p_permission == null) p_permission = '0xffffffff';
 
@@ -32,7 +37,7 @@ function fn_createAccessCode(p_accountName, p_permission, fn_callback, p_loginCa
             sid: fn_generateAccessCode(),
             AccessCode: v_accessCode,
             prm: p_permission,
-            isadmin: true   // the first account in a new team is the team admin
+            isadmin: c_isAdmin
         }, function (p_reply) {
             p_reply[global.c_CONSTANTS.CONST_ACCESS_CODE_PARAMETER.toString()] = v_accessCode;
             fn_callback(p_reply);
@@ -50,15 +55,16 @@ function fn_createAccessCode(p_accountName, p_permission, fn_callback, p_loginCa
                 }
                 else {
                     // Create sub login account that is used by andruav for actual login.
-                    // The first account in a new team is the team admin.
+                    // Web sign-up creates the team admin; the agent path
+                    // passes p_isAdmin=false so vehicles stay normal users.
                     v_database_manager.fn_createSubLogin(p_accountName, v_accessCode, p_permission,
                         function (p_reply) {
                             p_reply[global.c_CONSTANTS.CONST_ACCESS_CODE_PARAMETER.toString()] = v_accessCode;
                             fn_callback(p_reply);
-                        }, true);
+                        }, c_isAdmin);
                 }
             }
-            , p_loginCard);
+            , p_loginCard, c_isAdmin);
     }
 
 }
@@ -79,7 +85,7 @@ function fn_regenerateAccessCode(p_accountName, p_permission, fn_callback) {
         // Preserve the existing IsAdmin flag — fn_update_record overwrites
         // IsAdmin with the value in user_data, so look up the current record.
         const c_existing = global.db_users.fn_get_record(p_accountName);
-        const c_isAdmin = c_existing ? (c_existing.isadmin === true) : true;
+        const c_isAdmin = c_existing ? (c_existing.isadmin === true) : false;
 
         global.db_users.fn_update_record(p_accountName, {
             sid: fn_generateAccessCode(),
@@ -93,24 +99,27 @@ function fn_regenerateAccessCode(p_accountName, p_permission, fn_callback) {
     }
     else if (m_serverconfig.m_configuration.account_storage_type.toLowerCase() === 'db') {
 
-        // Define a new account.
-        v_database_manager.fn_deleteSubLogins(p_accountName, p_permission,
-            function (p_reply) {
+        // Preserve the existing IsAdmin flag across regenerate.
+        v_database_manager.fn_getIsAdmin(p_accountName, function (c_preserveAdmin) {
+            // Define a new account.
+            v_database_manager.fn_deleteSubLogins(p_accountName, p_permission,
+                function (p_reply) {
 
-                if (p_reply[global.c_CONSTANTS.CONST_ERROR.toString()] != global.c_CONSTANTS.CONST_ERROR_NON) {
-                    fn_callback(p_reply);
-                }
-                else {
-                    // Create sub login account that is used by andruav for actual login. 
-                    // The main account is always the team admin.
-                    if (p_permission == null) p_permission = '0xffffffff';
-                    v_database_manager.fn_createSubLogin(p_accountName, v_accessCode, p_permission,
-                        function (p_reply) {
-                            p_reply[global.c_CONSTANTS.CONST_ACCESS_CODE_PARAMETER.toString()] = v_accessCode;
-                            fn_callback(p_reply);
-                        }, true);
-                }
-            });
+                    if (p_reply[global.c_CONSTANTS.CONST_ERROR.toString()] != global.c_CONSTANTS.CONST_ERROR_NON) {
+                        fn_callback(p_reply);
+                    }
+                    else {
+                        // Create sub login account that is used by andruav for actual login.
+                        // Regenerate preserves the existing IsAdmin flag.
+                        if (p_permission == null) p_permission = '0xffffffff';
+                        v_database_manager.fn_createSubLogin(p_accountName, v_accessCode, p_permission,
+                            function (p_reply) {
+                                p_reply[global.c_CONSTANTS.CONST_ACCESS_CODE_PARAMETER.toString()] = v_accessCode;
+                                fn_callback(p_reply);
+                            }, c_preserveAdmin);
+                    }
+                });
+        });
     }
 }
 

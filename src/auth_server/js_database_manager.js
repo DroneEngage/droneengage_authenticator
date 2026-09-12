@@ -6,6 +6,7 @@ const hlp_string = _common.helpers.strings;
 const hlp_validation = _common.helpers.validation;
 const hlp_password = _common.password;
 const v_users = require('../database/db_users');
+const c_permission = require("./js_permisson_validator.js");
 
 
 
@@ -43,7 +44,7 @@ function fn_initialize()
         {
             const sqlite3 = require('sqlite3');
             const rawDbPath = m_serverconfig.m_configuration.dbdatabase || 'database/andruav.db';
-            const dbPath = path.isAbsolute(rawDbPath) ? rawDbPath : path.resolve(__dirname, '..', rawDbPath);
+            const dbPath = path.isAbsolute(rawDbPath) ? rawDbPath : path.resolve(__dirname, '..', '..', rawDbPath);
             
             // Ensure directory exists
             const dbDir = path.dirname(dbPath);
@@ -161,11 +162,12 @@ function fn_do_loginAccount (p_accountName, p_accessCode, fn_callback)
         c_reply.m_data = {};
         c_reply.m_data.m_sid = matchedRow['TeamID'];
         c_reply.m_data.m_permission = 'D1G1T3R4V5C6';
-        c_reply.m_data.m_prm = matchedRow['Permissions'];
-        if (c_reply.m_data.m_prm == 'D1G1T3R4V5C6')
+        let v_prm = matchedRow['Permissions'];
+        if (v_prm == 'D1G1T3R4V5C6')
         { // backward compatibility to be deleted in the next version.
-            c_reply.m_data.m_prm ='0xffffffff';
+            v_prm ='0xffffffff';
         }
+        c_reply.m_data.m_prm = c_permission.fn_convertPermissiontoInt(v_prm);
         c_reply.m_data.m_enabled = matchedRow['Enabled'];
         c_reply.m_data.m_instance_limit = matchedRow['InstanceLimit'];
         c_reply.m_isadmin = (matchedRow['IsAdmin'] === 1 || matchedRow['IsAdmin'] === true);
@@ -311,7 +313,7 @@ function fn_createSubLogin(p_accountName, p_newAccessCode, p_permission, fn_call
             // SECURITY: hash the access code before storing it.
             const c_hashedAccessCode = hlp_password.hash(p_newAccessCode);
 
-            hlp_db.fn_genericInsert_w_Params (m_db, c_sql, [v_teamId, hlp_string.fn_protectedFromInjection(p_accountName), c_hashedAccessCode, hlp_string.fn_protectedFromInjection(p_permission), c_isAdmin],
+            hlp_db.fn_genericInsert_w_Params (m_db, c_sql, [v_teamId, hlp_string.fn_protectedFromInjection(p_accountName), c_hashedAccessCode, c_permission.fn_convertPermissiontoInt(p_permission), c_isAdmin],
                 function (err,res)
                 {
                     const c_reply = {};
@@ -346,7 +348,7 @@ function fn_createSubLogin(p_accountName, p_newAccessCode, p_permission, fn_call
  * @param {*} p_accountName 
  * @param {*} fn_callback 
  */
-function fn_createNewAccessCode (p_accountName, p_newAccessCode, fn_callback, p_loginCard)
+function fn_createNewAccessCode (p_accountName, p_newAccessCode, fn_callback, p_loginCard, p_isAdmin)
 {
     const c_reply = {};
     
@@ -382,7 +384,7 @@ function fn_createNewAccessCode (p_accountName, p_newAccessCode, fn_callback, p_
         const p_reply = {};
         const user_data = {
             'acc':p_accountName,
-            'isadmin': false,
+            'isadmin': p_isAdmin === true,
             'sid': 1
         };
         global.db_users.fn_add_record(p_newAccessCode,user_data);
@@ -435,9 +437,9 @@ function fn_deleteSubLogins (p_accountName, p_permission, fn_callback)
         }
         return ;
     }
-    const c_sql = "DELETE FROM `logins` WHERE `TeamID` in ( select `TeamID` FROM `teams` WHERE `TeamName` LIKE ?) and `Permissions` LIKE ?";
-    
-    hlp_db.fn_genericInsert_w_Params (m_db,c_sql, [hlp_string.fn_protectedFromInjection(p_accountName), hlp_string.fn_protectedFromInjection(p_permission)],
+    const c_sql = "DELETE FROM `logins` WHERE `TeamID` in ( select `TeamID` FROM `teams` WHERE `TeamName` LIKE ?) and `Permissions` = ?";
+
+    hlp_db.fn_genericInsert_w_Params (m_db,c_sql, [hlp_string.fn_protectedFromInjection(p_accountName), c_permission.fn_convertPermissiontoInt(p_permission)],
 		function (err,res) 
 		{
             // if (res.changes == 0)
@@ -592,7 +594,7 @@ function fn_getTeamLogins(p_teamId, fn_callback) {
                 return {
                     LoginID: r.LoginID,
                     LoginName: r.LoginName,
-                    Permissions: r.Permissions,
+                    Permissions: c_permission.fn_convertPermissiontoInt(r.Permissions),
                     IsAdmin: (r.IsAdmin === 1 || r.IsAdmin === true),
                     CreatedAt: r.CreatedAt
                 };
@@ -622,7 +624,7 @@ function fn_addTeamLogin(p_teamId, p_loginName, p_accessCode, p_permissions, p_i
 
     const c_sql = 'INSERT INTO logins (TeamID, LoginName, AccessCode, Permissions, IsAdmin) VALUES (?, ?, ?, ?, ?)';
     hlp_db.fn_genericInsert_w_Params(m_db, c_sql,
-        [p_teamId, p_loginName, c_hashedAccessCode, p_permissions, c_isAdmin],
+        [p_teamId, p_loginName, c_hashedAccessCode, c_permission.fn_convertPermissiontoInt(p_permissions), c_isAdmin],
         function (err, res) {
             const c_reply = {};
             if (err) {
@@ -658,7 +660,7 @@ function fn_updateTeamLogin(p_teamId, p_loginName, p_accessCodeOrNull, p_permiss
         const c_hashedAccessCode = hlp_password.hash(p_accessCodeOrNull.trim());
         const c_sql = 'UPDATE logins SET AccessCode = ?, Permissions = ?, IsAdmin = ? WHERE TeamID = ? AND LoginName = ?';
         hlp_db.fn_genericInsert_w_Params(m_db, c_sql,
-            [c_hashedAccessCode, p_permissions, c_isAdmin, p_teamId, p_loginName],
+            [c_hashedAccessCode, c_permission.fn_convertPermissiontoInt(p_permissions), c_isAdmin, p_teamId, p_loginName],
             function (err, res) {
                 const c_reply = {};
                 if (!res || res.changes === 0) {
@@ -679,7 +681,7 @@ function fn_updateTeamLogin(p_teamId, p_loginName, p_accessCodeOrNull, p_permiss
     } else {
         const c_sql = 'UPDATE logins SET Permissions = ?, IsAdmin = ? WHERE TeamID = ? AND LoginName = ?';
         hlp_db.fn_genericInsert_w_Params(m_db, c_sql,
-            [p_permissions, c_isAdmin, p_teamId, p_loginName],
+            [c_permission.fn_convertPermissiontoInt(p_permissions), c_isAdmin, p_teamId, p_loginName],
             function (err, res) {
                 const c_reply = {};
                 if (!res || res.changes === 0) {
@@ -765,11 +767,29 @@ function fn_getAccountPermission(p_accountName, fn_callback) {
             }
             let perm = rows[0]['Permissions'];
             if (perm == null || perm === 'D1G1T3R4V5C6') perm = '0xffffffff';
-            fn_callback(perm);
+            fn_callback(c_permission.fn_convertPermissiontoInt(perm));
         },
         function () {
             fn_callback('0xffffffff');
         });
+}
+
+/**
+ * Look up the IsAdmin flag for a login by LoginName.
+ * Calls fn_callback(true|false); defaults to false on miss/error.
+ */
+function fn_getIsAdmin(p_accountName, fn_callback) {
+    if ((p_accountName == null) || (!hlp_string.fn_isValidAccountName(p_accountName))) {
+        fn_callback(false);
+        return;
+    }
+    const c_sql = "SELECT IsAdmin FROM logins WHERE LoginName = ? LIMIT 1";
+    hlp_db.fn_genericSelect_w_Params(m_db, c_sql, [hlp_string.fn_protectedFromInjection(p_accountName)],
+        function (rows) {
+            if (!rows || rows.length === 0) { fn_callback(false); return; }
+            fn_callback(rows[0]['IsAdmin'] === 1 || rows[0]['IsAdmin'] === true);
+        },
+        function () { fn_callback(false); });
 }
 
 module.exports =
@@ -788,4 +808,5 @@ module.exports =
     fn_deleteTeamLogin: fn_deleteTeamLogin,
     fn_countTeamAdmins: fn_countTeamAdmins,
     fn_getAccountPermission: fn_getAccountPermission,
+    fn_getIsAdmin: fn_getIsAdmin,
 }

@@ -382,6 +382,12 @@
         let currentSortBy = 'TeamID';
         let currentSortDir = 'asc';
 
+        // Permissions are stored as INTEGER; display as '0x........' hex.
+        function fmtPerm(p) {
+            if (typeof p === 'number' && Number.isFinite(p)) return '0x' + (p >>> 0).toString(16).padStart(8, '0');
+            return p;
+        }
+
         function loadStats() {
             fetch('/admin/api/sql/stats')
                 .then(response => response.json())
@@ -516,7 +522,7 @@
                     <tr class="text-success">
                         <td><strong>${login.LoginName}</strong></td>
                         <td>${login.AccessCode}</td>
-                        <td>${login.Permissions}</td>
+                        <td>${fmtPerm(login.Permissions)}</td>
                         <td>${login.IsAdmin ? '<span class="badge badge-admin">Admin</span>' : '<span class="badge badge-user">User</span>'}</td>
                         <td class="text-end">
                             <button class="btn btn-sm btn-outline-danger" onclick="deleteLogin(${login.LoginID}, ${teamId})">

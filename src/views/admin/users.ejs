@@ -173,6 +173,12 @@
         let users = {};
         let userModal;
 
+        // Permissions are stored as INTEGER; display as '0x........' hex.
+        function fmtPerm(p) {
+            if (typeof p === 'number' && Number.isFinite(p)) return '0x' + (p >>> 0).toString(16).padStart(8, '0');
+            return p;
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             userModal = new bootstrap.Modal(document.getElementById('userModal'));
             loadUsers();
@@ -216,7 +222,7 @@
                     <td>${loginID}</td>
                     <td>${user.sid}</td>
                     <td>${user.AccessCode || user.pwd || 'N/A'}</td>
-                    <td>${user.prm}</td>
+                    <td>${fmtPerm(user.prm)}</td>
                     <td>${user.isadmin ? '<span class="badge bg-success" style="min-width:45px">Yes</span>' : '<span class="badge bg-secondary" style="min-width:45px">No</span>'}</td>
                     <td>
                         <button class="btn btn-sm btn-primary me-1" onclick="editUser('${loginID}')">Edit</button>
@@ -256,7 +262,7 @@
             document.getElementById('accessCode').placeholder = 'Enter new password to change, leave empty to keep current';
             document.getElementById('accessCodeHint').textContent = 'Leave empty to keep the current password unchanged';
             document.getElementById('regenerateBtn').style.display = 'inline-block';
-            document.getElementById('prm').value = users[loginID].prm;
+            document.getElementById('prm').value = fmtPerm(users[loginID].prm);
             document.getElementById('isadmin').checked = users[loginID].isadmin;
             document.getElementById('loginId').disabled = true;
             title.textContent = 'Edit User';

@@ -236,7 +236,7 @@ function fn_displayInfo ()
 
     if (global.m_serverconfig.m_configuration.enableLog!==true)
     {
-        console.log (global.Colors.Log + "logging is " + global.Colors.FgYellow + 'disabled' + global.Colors.Reset);
+        console.log (global.Colors.Log + "logging is " + global.Colors.BFgYellow + 'disabled' + global.Colors.Reset);
     }
     else
     {
@@ -265,7 +265,7 @@ function fn_displayInfo ()
         
         global.m_logger.SetUserOptions(options); 
 
-        console.log ("logging is " + global.Colors.FgYellow + 'enabled' + global.Colors.Reset);
+        console.log ("logging is " + global.Colors.BFgYellow + 'enabled' + global.Colors.Reset);
     }
     console.log ("Datetime: %s", new Date());
     console.log ("==============================================");

@@ -445,18 +445,33 @@ router.get('/api/servers', requireAuth, (req, res) => {
 
             rawAccounts.forEach(accountId => {
                 const loginCards = sessionManager.fn_getLoginCardsByAccountId(accountId);
-                const loginCard = loginCards.length > 0 ? loginCards[0] : null;
-                const loginName = loginCard ? loginCard.m_login_name : 'Unknown';
-                const originalAccountId = (loginCard && loginCard.m_data && loginCard.m_data.m_sid != null)
-                    ? loginCard.m_data.m_sid
-                    : accountId.replace(/xx$/, '');
+
+                // Resolve the login card that owns a given connected unit.
+                // Exact match on the comm-server login request ID when the
+                // server reports it; otherwise fall back to a card with the
+                // same actor type, then to the first card.
+                const fn_resolveLoginCard = (unitInfo) => {
+                    if (loginCards.length === 0) return null;
+                    if ((unitInfo != null) && (unitInfo.requestId != null)) {
+                        const c_byRequest = loginCards.find(card => card.m_request_id === unitInfo.requestId);
+                        if (c_byRequest != null) return c_byRequest;
+                    }
+                    if ((unitInfo != null) && (unitInfo.actorType != null)) {
+                        const c_byActor = loginCards.find(card => card.m_actorType === unitInfo.actorType);
+                        if (c_byActor != null) return c_byActor;
+                    }
+                    return loginCards[0];
+                };
 
                 const unitDetails = accountDetails[accountId] || [];
                 if (unitDetails.length === 0) {
+                    const loginCard = fn_resolveLoginCard(null);
                     accounts.push({
-                        accountId: originalAccountId,
+                        accountId: (loginCard && loginCard.m_data && loginCard.m_data.m_sid != null)
+                            ? loginCard.m_data.m_sid
+                            : accountId.replace(/xx$/, ''),
                         hashedAccountId: accountId,
-                        loginId: loginName,
+                        loginId: loginCard ? loginCard.m_login_name : 'Unknown',
                         unitName: null,
                         actorType: 'a'
                     });
@@ -465,10 +480,13 @@ router.get('/api/servers', requireAuth, (req, res) => {
                         const unitInfo = (typeof unit === 'string')
                             ? { unitName: unit, actorType: 'a' }
                             : unit;
+                        const loginCard = fn_resolveLoginCard(unitInfo);
                         accounts.push({
-                            accountId: originalAccountId,
+                            accountId: (loginCard && loginCard.m_data && loginCard.m_data.m_sid != null)
+                                ? loginCard.m_data.m_sid
+                                : accountId.replace(/xx$/, ''),
                             hashedAccountId: accountId,
-                            loginId: loginName,
+                            loginId: loginCard ? loginCard.m_login_name : 'Unknown',
                             unitName: unitInfo.unitName,
                             actorType: unitInfo.actorType || 'a'
                         });

@@ -534,8 +534,11 @@ function fn_requestCommunicationLogin (p_loginCard, p_server, fn_success, fn_err
         return ;
     }
 
-    c_requestId =   c_uuidv4.v4(); 
-    m_waitingForServerLogin [c_requestId] = 
+    c_requestId =   c_uuidv4.v4();
+    // Remember which comm-server login request this card produced, so the
+    // admin dashboard can map each connected unit back to its own login.
+    p_loginCard.m_request_id = c_requestId;
+    m_waitingForServerLogin [c_requestId] =
         {
             'm_loginCard': p_loginCard,
             'm_client_conn_feedback': c_fn_success,

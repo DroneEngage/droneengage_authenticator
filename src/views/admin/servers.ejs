@@ -92,6 +92,12 @@
             background: #f8f9fa;
             color: #212529;
         }
+        .udp-proxy-row {
+            cursor: pointer;
+        }
+        .row-highlight {
+            background-color: rgba(13, 110, 253, 0.35) !important;
+        }
     </style>
 </head>
 <body>
@@ -124,7 +130,13 @@
                         <div class="card">
                             <div class="card-header d-flex justify-content-between align-items-center">
                                 <h5 class="mb-0" id="udpProxiesPanelTitle">UDP Proxies</h5>
-                                <button class="btn btn-primary btn-sm" id="udpProxiesQueryBtn" style="display:none" onclick="queryUdpProxies()">Query Now</button>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="form-check form-switch mb-0" id="udpProxiesLiveWrap" style="display:none">
+                                        <input class="form-check-input" type="checkbox" id="udpProxiesLiveChk" onchange="toggleUdpProxiesLive(this.checked)">
+                                        <label class="form-check-label small" for="udpProxiesLiveChk">Live</label>
+                                    </div>
+                                    <button class="btn btn-primary btn-sm" id="udpProxiesQueryBtn" style="display:none" onclick="queryUdpProxies()">Query Now</button>
+                                </div>
                             </div>
                             <div class="card-body" id="udpProxiesPanelBody">
                                 <p class="text-muted text-center mb-0">Select a server to view its UDP proxies</p>
@@ -244,6 +256,38 @@
             });
         }
 
+        function attachUdpProxyRowListeners() {
+            document.querySelectorAll('.udp-proxy-row').forEach(row => {
+                row.addEventListener('click', function() {
+                    const unit = decodeURIComponent(this.dataset.unit || '');
+                    highlightUserRowsByUnit(unit);
+                });
+            });
+        }
+
+        function attachUserRowListeners() {
+            document.querySelectorAll('#userPanelBody tr[data-unit]').forEach(row => {
+                row.addEventListener('click', function() {
+                    const unit = decodeURIComponent(this.dataset.unit || '');
+                    highlightUdpProxyRowsByUnit(unit);
+                });
+            });
+        }
+
+        function highlightUserRowsByUnit(unit) {
+            document.querySelectorAll('#userPanelBody tr[data-unit]').forEach(row => {
+                const match = decodeURIComponent(row.dataset.unit || '') === unit;
+                row.classList.toggle('row-highlight', match);
+            });
+        }
+
+        function highlightUdpProxyRowsByUnit(unit) {
+            document.querySelectorAll('.udp-proxy-row').forEach(row => {
+                const match = decodeURIComponent(row.dataset.unit || '') === unit;
+                row.classList.toggle('row-highlight', match);
+            });
+        }
+
         function selectServer(serverId) {
             m_selectedServerId = serverId;
             const server = m_servers.find(s => s.serverId === serverId);
@@ -286,7 +330,7 @@
             }
 
             const rows = users.map(account => `
-                <tr>
+                <tr data-unit="${encodeURIComponent(account.unitName || '')}">
                     <td>${account.loginId || 'Unknown'}</td>
                     <td>
                         ${account.accountId}
@@ -312,25 +356,38 @@
                     </tbody>
                 </table>
             `;
+            attachUserRowListeners();
         }
 
         function formatUdpTime(ms) {
             return ms ? new Date(ms).toLocaleTimeString() : 'N/A';
         }
 
+        function lastAccessColorClass(ms) {
+            if (!ms) return 'text-muted';
+            const elapsed = Date.now() - ms;
+            if (elapsed < 5 * 60 * 1000)  return 'text-danger';
+            if (elapsed < 30 * 60 * 1000) return 'text-warning';
+            return 'text-muted';
+        }
+
         function renderUdpProxiesPanel(server) {
             const title = document.getElementById('udpProxiesPanelTitle');
             const body = document.getElementById('udpProxiesPanelBody');
             const queryBtn = document.getElementById('udpProxiesQueryBtn');
+            const liveWrap = document.getElementById('udpProxiesLiveWrap');
 
             if (!server) {
                 title.textContent = 'UDP Proxies';
                 body.innerHTML = '<p class="text-muted text-center mb-0">Select a server to view its UDP proxies</p>';
                 queryBtn.style.display = 'none';
+                liveWrap.style.display = 'none';
+                stopUdpProxiesLive();
                 return;
             }
 
             queryBtn.style.display = '';
+            liveWrap.style.display = '';
             queryBtn.disabled = !server.isOnline;
 
             const proxies = server.udpProxies || [];
@@ -348,13 +405,13 @@
             }
 
             const rows = proxies.map(proxy => `
-                <tr>
+                <tr class="udp-proxy-row" data-unit="${encodeURIComponent(proxy.name || '')}">
                     <td>${proxy.name || 'Unknown'}</td>
                     <td>${proxy.socket1 ? `${proxy.socket1.address}:${proxy.socket1.port}` : 'N/A'}</td>
                     <td>${proxy.socket2 ? `${proxy.socket2.address}:${proxy.socket2.port}` : 'N/A'}</td>
                     <td><span class="badge ${proxy.ready ? 'bg-success' : 'bg-warning'}">${proxy.ready ? 'ready' : 'not ready'}</span></td>
                     <td>${formatUdpTime(proxy.created)}</td>
-                    <td>${formatUdpTime(proxy.last_access)}</td>
+                    <td class="${lastAccessColorClass(proxy.last_access)}">${formatUdpTime(proxy.last_access)}</td>
                 </tr>
             `).join('');
 
@@ -375,6 +432,7 @@
                     </tbody>
                 </table>
             `;
+            attachUdpProxyRowListeners();
         }
 
         async function queryUdpProxies() {
@@ -406,6 +464,27 @@
                 btn.disabled = !server.isOnline;
                 btn.textContent = originalLabel;
             }
+        }
+
+        let m_udpProxiesLiveTimer = null;
+        const UDP_PROXIES_LIVE_INTERVAL = 10000;
+
+        function toggleUdpProxiesLive(enabled) {
+            if (enabled) {
+                queryUdpProxies();
+                m_udpProxiesLiveTimer = setInterval(queryUdpProxies, UDP_PROXIES_LIVE_INTERVAL);
+            } else {
+                stopUdpProxiesLive();
+            }
+        }
+
+        function stopUdpProxiesLive() {
+            if (m_udpProxiesLiveTimer) {
+                clearInterval(m_udpProxiesLiveTimer);
+                m_udpProxiesLiveTimer = null;
+            }
+            const chk = document.getElementById('udpProxiesLiveChk');
+            if (chk) chk.checked = false;
         }
 
         loadServers();

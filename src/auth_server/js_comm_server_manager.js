@@ -205,12 +205,23 @@ function fn_handleServerInfo (p_cmd)
         {
             // Server is already defined.
             let v_srvInfo = m_communicationServersList[p_server.m_commServerGUID];
-            
+
+            // Preserve per-server state that arrives via separate commands
+            // (storage status, UDP proxy reports) so the periodic INFO
+            // card does not wipe them by replacing m_server.
+            const c_preserved = {
+                m_storageStatus: v_srvInfo.m_server.m_storageStatus || null,
+                m_udpProxies: v_srvInfo.m_server.m_udpProxies || [],
+                m_udpProxiesTimestamp: v_srvInfo.m_server.m_udpProxiesTimestamp || null
+            };
 
             if (v_srvInfo.m_server.m_isOnline != v_msg.m_isOnline)
             {   // isOnline Changed
 
                 v_srvInfo.m_server = p_server;
+                v_srvInfo.m_server.m_storageStatus       = c_preserved.m_storageStatus;
+                v_srvInfo.m_server.m_udpProxies          = c_preserved.m_udpProxies;
+                v_srvInfo.m_server.m_udpProxiesTimestamp = c_preserved.m_udpProxiesTimestamp;
                 if (v_msg.m_isOnline == true)
                 {  // server is online again
                     fn_onServerRestored(v_srvInfo);
@@ -224,6 +235,9 @@ function fn_handleServerInfo (p_cmd)
             else
             {   // no change .. update other parameters if any
                 v_srvInfo.m_server = v_msg;
+                v_srvInfo.m_server.m_storageStatus       = c_preserved.m_storageStatus;
+                v_srvInfo.m_server.m_udpProxies          = c_preserved.m_udpProxies;
+                v_srvInfo.m_server.m_udpProxiesTimestamp = c_preserved.m_udpProxiesTimestamp;
             }
                 
         }

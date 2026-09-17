@@ -27,6 +27,7 @@
     "cookie-parser": "^1.3.5",
     "cors": "^2.8.5",
     "csurf": "^1.11.0",
+    "droneengage_server_common": "git+ssh://git@github.com:DroneEngage/droneengage_server_common.git#v1.0.0",
     "ejs": "^3.1.8",
     "express": "^4.19.2",
     "express-ejs-layouts": "^2.5.0",
@@ -40,11 +41,11 @@
     "marked": "^18.0.9",
     "node-file-logger": "^0.9.5",
     "node-pty": "^1.1.0",
+    "qrcode-generator": "^1.4.4",
     "randomstring": "^1.3.0",
     "sqlite3": "^5.1.7",
     "uuid": "^9.0.0",
     "validator": "^13.9.0",
-    "ws": "^8.16.0",
-    "droneengage_server_common": "git+ssh://git@github.com:DroneEngage/droneengage_server_common.git#v1.0.0"
+    "ws": "^8.16.0"
   }
 }

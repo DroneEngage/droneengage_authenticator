@@ -368,6 +368,46 @@ function fn_teamUserOperation(p_subCommand, p_loginCard, p_params, fn_callback) 
         return;
     }
 
+    // ── VERIFY TEAM USER ACCESS CODE ─────────────────────────────────────
+    // Lightweight credential check used by the QR-code flow: the admin types
+    // the login's plaintext access code and we verify it against the stored
+    // hash.  Never returns the code — only ok/fail.
+    if (p_subCommand === C.CONST_CMD_VERIFY_TEAM_USER) {
+        if (!validLoginName(c_targetLoginName)) {
+            c_reply[C.CONST_ERROR_MSG.toString()] = 'Invalid target login name.';
+            c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_INVALID_DATA;
+            fn_callback(c_reply);
+            return;
+        }
+        if (typeof c_accessCode !== 'string' || c_accessCode.trim() === '') {
+            c_reply[C.CONST_ERROR_MSG.toString()] = 'Access code is required.';
+            c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_INVALID_DATA;
+            fn_callback(c_reply);
+            return;
+        }
+
+        if (c_storageType === 'file') {
+            const record = global.db_users.fn_get_record(c_targetLoginName);
+            if (!record || String(record.sid) !== String(c_teamId)
+                || hlp_password.verify(c_accessCode, record.AccessCode) !== true) {
+                c_reply[C.CONST_ERROR_MSG.toString()] = 'Access code does not match this login.';
+                c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_ACCOUNT_NOT_FOUND;
+            } else {
+                c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_NON;
+            }
+            fn_callback(c_reply);
+            return;
+        }
+        if (c_storageType === 'db') {
+            v_database_manager.fn_verifyTeamLoginPassword(c_teamId, c_targetLoginName, c_accessCode, fn_callback);
+            return;
+        }
+        c_reply[C.CONST_ERROR_MSG.toString()] = 'Unsupported storage type.';
+        c_reply[C.CONST_ERROR.toString()] = C.CONST_ERROR_DATA_DATABASE_ERROR;
+        fn_callback(c_reply);
+        return;
+    }
+
     // ── ADD TEAM USER ──────────────────────────────────────────────────────
     if (p_subCommand === C.CONST_CMD_ADD_TEAM_USER) {
         if (!validLoginName(c_targetLoginName)) {

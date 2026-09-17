@@ -79,6 +79,7 @@ exports.CONST_CMD_ADD_TEAM_USER                 = 'atu'; // add a login to calle
 exports.CONST_CMD_UPDATE_TEAM_USER             = 'utu'; // edit a login in caller's team
 exports.CONST_CMD_DELETE_TEAM_USER             = 'dtu'; // delete a login from caller's team
 exports.CONST_CMD_GET_TEAM_INFO                = 'gti'; // get caller's team info (read-only)
+exports.CONST_CMD_VERIFY_TEAM_USER             = 'vtu'; // verify a login's access code (QR generation aid — never returns the code)
 
 // Reply-Fields with COMM-Servers
 

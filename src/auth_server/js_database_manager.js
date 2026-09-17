@@ -610,6 +610,34 @@ function fn_getTeamLogins(p_teamId, fn_callback) {
 }
 
 /**
+ * Verify a plaintext access code against a team's login without returning the
+ * stored value.  Used by the QR-code flow (CONST_CMD_VERIFY_TEAM_USER).
+ * Replies CONST_ERROR_NON on match, CONST_ERROR_ACCOUNT_NOT_FOUND on a
+ * missing login or a mismatch.
+ */
+function fn_verifyTeamLoginPassword(p_teamId, p_loginName, p_accessCode, fn_callback) {
+    const c_sql = 'SELECT AccessCode FROM logins WHERE TeamID = ? AND LoginName = ?';
+    hlp_db.fn_genericSelect_w_Params(m_db, c_sql, [p_teamId, p_loginName],
+        function (rows) {
+            const c_reply = {};
+            if (!rows || rows.length === 0
+                || hlp_password.verify(p_accessCode, rows[0].AccessCode) !== true) {
+                c_reply[global.c_CONSTANTS.CONST_ERROR_MSG.toString()] = 'Access code does not match this login.';
+                c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
+            } else {
+                c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_NON;
+            }
+            fn_callback(c_reply);
+        },
+        function (err) {
+            const c_reply = {};
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG.toString()] = 'Database error.';
+            c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
+            fn_callback(c_reply);
+        });
+}
+
+/**
  * Add a new login to a team.  Access code is hashed before storage.
  */
 function fn_addTeamLogin(p_teamId, p_loginName, p_accessCode, p_permissions, p_isAdmin, fn_callback) {
@@ -803,6 +831,7 @@ module.exports =
     fn_do_getHardwareVerifyByAccountSID: fn_do_getHardwareVerifyByAccountSID,
     fn_getTeamInfo: fn_getTeamInfo,
     fn_getTeamLogins: fn_getTeamLogins,
+    fn_verifyTeamLoginPassword: fn_verifyTeamLoginPassword,
     fn_addTeamLogin: fn_addTeamLogin,
     fn_updateTeamLogin: fn_updateTeamLogin,
     fn_deleteTeamLogin: fn_deleteTeamLogin,

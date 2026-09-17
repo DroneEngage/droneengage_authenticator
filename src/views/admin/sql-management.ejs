@@ -371,9 +371,48 @@
         </div>
     </div>
 
+    <!-- Login QR Modal -->
+    <div class="modal fade" id="qrModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Login QR — <span id="qrLoginNameLabel"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="qrInputSection">
+                        <p class="text-muted">Enter this login's access code. It is verified against the server before the QR is generated.</p>
+                        <input type="password" class="form-control" id="qrAccessCodeInput" placeholder="Enter access code">
+                        <div id="qrError" class="alert alert-danger mt-3 mb-0" style="display:none"></div>
+                    </div>
+                    <div id="qrResultSection" style="display:none">
+                        <div class="text-center">
+                            <code id="qrPlainCode" class="d-block fs-5 fw-bold text-success mb-2"></code>
+                            <div id="qrImage" class="d-inline-block p-2 rounded" style="background:#fff"></div>
+                        </div>
+                        <p class="text-warning small mt-3 mb-0">
+                            This QR contains a login credential — treat it like a password.
+                        </p>
+                    </div>
+                </div>
+                <div class="modal-footer" id="qrFooterInput">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="qrVerifyBtn" onclick="submitQrVerify()">Verify &amp; Generate</button>
+                </div>
+                <div class="modal-footer" id="qrFooterDone" style="display:none">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Done</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="/public/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="/public/qrcode/qrcode.js"></script>
     <script>
         let teamsData = [];
+        let qrModal;
+        let qrLoginName = '';
+        const AUTH_SERVER_PORT = <%- JSON.stringify(typeof authServerPort !== 'undefined' ? authServerPort : null) %>;
         let currentPage = 1;
         let totalPages = 1;
         let totalTeams = 0;
@@ -525,6 +564,9 @@
                         <td>${fmtPerm(login.Permissions)}</td>
                         <td>${login.IsAdmin ? '<span class="badge badge-admin">Admin</span>' : '<span class="badge badge-user">User</span>'}</td>
                         <td class="text-end">
+                            <button class="btn btn-sm btn-outline-success me-1" onclick="openQrModal('${login.LoginName}')" title="Generate login QR">
+                                QR
+                            </button>
                             <button class="btn btn-sm btn-outline-danger" onclick="deleteLogin(${login.LoginID}, ${teamId})">
                                 Delete
                             </button>
@@ -646,6 +688,9 @@
                 } else {
                     const modal = bootstrap.Modal.getInstance(document.getElementById('createLoginModal'));
                     modal.hide();
+                    if (data.accessCode) {
+                        showQrResult(loginName, data.accessCode);
+                    }
                     loadStats();
                     loadTeams();
                 }
@@ -737,6 +782,83 @@
                 alert('Error creating team: ' + error.message);
             });
         });
+
+        // ── Login QR helpers ──────────────────────────────────────────────
+        // The QR carries a versioned JSON payload scanned by the Android app.
+        // Access codes are stored hashed, so a QR can only embed a code the
+        // admin types (verified server-side) or one just created/rotated.
+
+        function getQrModal() {
+            if (!qrModal) qrModal = new bootstrap.Modal(document.getElementById('qrModal'));
+            return qrModal;
+        }
+
+        function buildLoginQrPayload(loginName, accessCode) {
+            const payload = { v: 1, t: 'de_login', acc: loginName, pwd: accessCode, ah: window.location.hostname };
+            if (AUTH_SERVER_PORT) payload.ap = AUTH_SERVER_PORT;
+            return JSON.stringify(payload);
+        }
+
+        function renderQrInto(el, text) {
+            const qr = qrcode(0, 'M');
+            qr.addData(text);
+            qr.make();
+            el.innerHTML = qr.createImgTag(6, 8);
+        }
+
+        function openQrModal(loginName) {
+            qrLoginName = loginName;
+            document.getElementById('qrLoginNameLabel').textContent = loginName;
+            document.getElementById('qrAccessCodeInput').value = '';
+            document.getElementById('qrError').style.display = 'none';
+            document.getElementById('qrInputSection').style.display = '';
+            document.getElementById('qrResultSection').style.display = 'none';
+            document.getElementById('qrFooterInput').style.display = '';
+            document.getElementById('qrFooterDone').style.display = 'none';
+            getQrModal().show();
+            setTimeout(() => document.getElementById('qrAccessCodeInput').focus(), 300);
+        }
+
+        function showQrResult(loginName, code) {
+            document.getElementById('qrPlainCode').textContent = code;
+            renderQrInto(document.getElementById('qrImage'), buildLoginQrPayload(loginName, code));
+            document.getElementById('qrInputSection').style.display = 'none';
+            document.getElementById('qrResultSection').style.display = '';
+            document.getElementById('qrFooterInput').style.display = 'none';
+            document.getElementById('qrFooterDone').style.display = '';
+            getQrModal().show();
+        }
+
+        async function submitQrVerify() {
+            const code = document.getElementById('qrAccessCodeInput').value.trim();
+            const errEl = document.getElementById('qrError');
+            errEl.style.display = 'none';
+            if (!code) {
+                errEl.textContent = 'Enter the access code.';
+                errEl.style.display = '';
+                return;
+            }
+            const btn = document.getElementById('qrVerifyBtn');
+            btn.disabled = true;
+            try {
+                const response = await fetch('/admin/api/verify-login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ loginId: qrLoginName, accessCode: code })
+                });
+                const data = await response.json();
+                if (data.error === 0) {
+                    showQrResult(qrLoginName, code);
+                } else {
+                    errEl.textContent = data.errorMessage || 'Access code does not match.';
+                    errEl.style.display = '';
+                }
+            } catch (e) {
+                errEl.textContent = 'Verification failed.';
+                errEl.style.display = '';
+            }
+            btn.disabled = false;
+        }
 
         // Load teams on page load
         loadStats();

@@ -21,3 +21,5 @@ build/
 
 # Local config override (merged on top of server.config at runtime)
 server.config.local
+# Devin local config (machine-local)
+.devin/config.local.json

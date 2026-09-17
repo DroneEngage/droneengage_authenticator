@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><%= title %></title>
     <link href="/public/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/public/bootstrap-icons/bootstrap-icons.min.css" rel="stylesheet">
     <style>
         body {
             background: #1a1d21;
@@ -286,7 +287,7 @@
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">Teams <span class="badge bg-secondary" id="teamsTotalBadge"></span></h5>
                         <div class="d-flex align-items-center gap-2">
-                            <input type="text" class="form-control form-control-sm" id="teamSearch" placeholder="Search by TeamID, name, email..." style="width: 220px;">
+                            <input type="text" class="form-control form-control-sm" id="teamSearch" placeholder="Search by TeamID, name, email..." autocomplete="off" style="width: 220px;">
                             <select class="form-select form-select-sm" id="sortBySelect" style="width: auto;" onchange="loadTeams()">
                                 <option value="TeamID">Sort: TeamID</option>
                                 <option value="TeamName">Sort: Name</option>
@@ -517,11 +518,11 @@
                                     </p>
                                 </div>
                                 <div>
-                                    <button class="btn btn-sm btn-primary me-2" onclick="openCreateLoginModal(${team.TeamID}, '${team.TeamName}')">
-                                        + Add Login
+                                    <button class="btn btn-sm btn-primary me-2" onclick="openCreateLoginModal(${team.TeamID}, '${team.TeamName}')" title="Add Login">
+                                        <i class="bi bi-plus-lg"></i> Add Login
                                     </button>
-                                    <button class="btn btn-sm btn-danger" onclick="deleteTeam(${team.TeamID})">
-                                        Delete
+                                    <button class="btn btn-sm btn-danger" onclick="deleteTeam(${team.TeamID})" title="Delete team">
+                                        <i class="bi bi-trash"></i>
                                     </button>
                                 </div>
                             </div>
@@ -551,6 +552,7 @@
                                 <th>Access Code</th>
                                 <th>Permissions</th>
                                 <th>Role</th>
+                                <th>Enabled</th>
                                 <th class="text-end">Action</th>
                             </tr>
                         </thead>
@@ -563,12 +565,17 @@
                         <td>${login.AccessCode}</td>
                         <td>${fmtPerm(login.Permissions)}</td>
                         <td>${login.IsAdmin ? '<span class="badge badge-admin">Admin</span>' : '<span class="badge badge-user">User</span>'}</td>
+                        <td>
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" ${login.Enabled !== 0 && login.Enabled !== false ? 'checked' : ''} onchange="toggleLoginEnabled(${login.LoginID}, this.checked, this)" title="Enable/disable login">
+                            </div>
+                        </td>
                         <td class="text-end">
                             <button class="btn btn-sm btn-outline-success me-1" onclick="openQrModal('${login.LoginName}')" title="Generate login QR">
-                                QR
+                                <i class="bi bi-qr-code"></i>
                             </button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteLogin(${login.LoginID}, ${teamId})">
-                                Delete
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteLogin(${login.LoginID}, ${teamId})" title="Delete login">
+                                <i class="bi bi-trash"></i>
                             </button>
                         </td>
                     </tr>
@@ -724,6 +731,26 @@
             });
         }
 
+        function toggleLoginEnabled(loginId, enabled, inputEl) {
+            fetch(`/admin/api/sql/logins/${loginId}/enabled`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enabled: enabled })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    inputEl.checked = !enabled;
+                    alert('Error updating login: ' + (data.errorMessage || data.error));
+                }
+            })
+            .catch(error => {
+                console.error('Error updating login:', error);
+                inputEl.checked = !enabled;
+                alert('Error updating login: ' + error.message);
+            });
+        }
+
         function deleteLogin(loginId, teamId) {
             if (!confirm('Are you sure you want to delete this login?')) {
                 return;
@@ -860,7 +887,9 @@
             btn.disabled = false;
         }
 
-        // Load teams on page load
+        // Load teams on page load.  Browsers restore form values on soft
+        // reload — clear the search box so a stale term can't hide teams.
+        document.getElementById('teamSearch').value = '';
         loadStats();
         loadTeams();
         setInterval(loadStats, 30000);

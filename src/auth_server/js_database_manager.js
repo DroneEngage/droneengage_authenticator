@@ -64,6 +64,25 @@ function fn_initialize()
                     }
                     console.log (global.Colors.Success + "[OK] SQLite Database is Connected: " + dbPath + global.Colors.Reset);
                 });
+
+                // Ensure logins.Enabled exists — the column was added after the
+                // original schema, and SQLite has no "ADD COLUMN IF NOT EXISTS",
+                // so probe the table definition first.
+                m_db.all("PRAGMA table_info(logins)", [], (tErr, cols) => {
+                    if (tErr || !cols) {
+                        console.log ("[WARN] Failed to inspect logins schema:", tErr ? tErr.message : 'no rows');
+                        return;
+                    }
+                    if (!cols.some(c => c.name === 'Enabled')) {
+                        m_db.run("ALTER TABLE logins ADD COLUMN Enabled INTEGER DEFAULT 1", (aErr) => {
+                            if (aErr) {
+                                console.log ("[WARN] Failed to add logins.Enabled column:", aErr.message);
+                            } else {
+                                console.log (global.Colors.Success + "[OK] Added logins.Enabled column (default 1)" + global.Colors.Reset);
+                            }
+                        });
+                    }
+                });
             });
             
             // Expose database connection globally for admin routes
@@ -118,7 +137,7 @@ function fn_do_loginAccount (p_accountName, p_accessCode, fn_callback)
     // SECURITY: AccessCode is now stored as a bcrypt hash, so we can no longer
     // filter by it in SQL. Select candidate rows by LoginName only, then verify
     // the supplied plaintext with bcrypt.compare in JS.
-    const c_sql = "SELECT logins.LoginID, logins.AccessCode, logins.IsAdmin, teams.TeamID, teams.Enabled, teams.InstanceLimit, logins.Permissions FROM logins JOIN teams ON teams.TeamID = logins.TeamID WHERE logins.LoginName = ?";
+    const c_sql = "SELECT logins.LoginID, logins.AccessCode, logins.IsAdmin, logins.Enabled AS LoginEnabled, teams.TeamID, teams.Enabled, teams.InstanceLimit, logins.Permissions FROM logins JOIN teams ON teams.TeamID = logins.TeamID WHERE logins.LoginName = ?";
 
     hlp_db.fn_genericSelect_w_Params (m_db, c_sql,[hlp_string.fn_protectedFromInjection(p_accountName)],
     function (rows) {
@@ -171,7 +190,8 @@ function fn_do_loginAccount (p_accountName, p_accessCode, fn_callback)
         c_reply.m_data.m_enabled = matchedRow['Enabled'];
         c_reply.m_data.m_instance_limit = matchedRow['InstanceLimit'];
         c_reply.m_isadmin = (matchedRow['IsAdmin'] === 1 || matchedRow['IsAdmin'] === true);
-        if (c_reply.m_data.m_enabled == 0)
+        // Disabled when the team is disabled OR the login itself is disabled.
+        if ((c_reply.m_data.m_enabled == 0) || (matchedRow['LoginEnabled'] == 0))
         {
             c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_ACCOUNT_DISABLED;
             c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Account is Disabled.";

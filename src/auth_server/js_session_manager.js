@@ -173,6 +173,13 @@ function fn_createLoginCard (p_accountName, p_accessCode, p_actorType, p_group, 
                 return ;
             }
 
+            if (account_record.enabled === false) {
+                p_reply[global.c_CONSTANTS.CONST_ERROR_MSG] =  "Account is Disabled.";
+                p_reply[global.c_CONSTANTS.CONST_ERROR] =  global.c_CONSTANTS.CONST_ERROR_ACCOUNT_DISABLED;
+                fn_callback (p_reply);
+                return ;
+            }
+
             // Lazy upgrade: if the stored value was a legacy plaintext code,
             // re-hash it and persist so future logins use bcrypt.compare.
             if (!hlp_password.isHashed(accessCode)) {

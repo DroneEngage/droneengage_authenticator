@@ -427,7 +427,7 @@ function fn_handleUdpProxiesReport (p_cmd)
         {
             const c_pending = m_waitingForUdpProxiesQuery[c_requestId];
             delete m_waitingForUdpProxiesQuery[c_requestId];
-            c_pending.m_callback (c_proxies);
+            c_pending.m_callback (c_proxies, p_cmd.d);
         }
     }
     catch (ex)
@@ -636,6 +636,65 @@ function fn_requestUdpProxies (p_server, fn_success, fn_error)
 
 
 /**
+ * Asks a communication server to block or resume packet forwarding on a named
+ * UDP proxy (in-memory on the comm server; a blocked proxy silently drops
+ * packets so clients cannot tell it apart from packet loss). The comm server
+ * replies with a CONST_CS_CMD_REPORT_UDP_PROXIES report, so the pending-request
+ * map and timeout pattern are shared with fn_requestUdpProxies.
+ * @param {*} p_server comm server entry from m_communicationServersList
+ * @param {string} p_proxyName proxy name (unit name used as the map key)
+ * @param {boolean} p_blocked true to block forwarding, false to resume
+ * @param {function} fn_success called with (proxies array, reply.d) once the comm server replies
+ * @param {function} fn_error called if the server is offline or the request times out
+ */
+function fn_setUdpProxyBlocked (p_server, p_proxyName, p_blocked, fn_success, fn_error)
+{
+    let c_requestId = null;
+    try
+    {
+        if ((p_server == null) || (p_server.m_server.m_isOnline == false))
+        {
+            fn_error ();
+
+            return ;
+        }
+
+        c_requestId = c_uuidv4.v4();
+        m_waitingForUdpProxiesQuery [c_requestId] =
+            {
+                'm_callback': fn_success,
+                'm_timestamp': new Date()
+            };
+
+        const c_cmd = {
+            'c': global.c_CONSTANTS.CONST_CS_CMD_SET_UDP_PROXY_STATE,
+            'd': {}
+        };
+
+        c_cmd.d [global.c_CONSTANTS.CONST_CS_REQUEST_ID.toString()] = c_requestId;
+        c_cmd.d ['name']    = p_proxyName;
+        c_cmd.d ['blocked'] = (p_blocked === true);
+
+        Me.fn_sendMessage (p_server.m_server.m_commServerGUID, JSON.stringify(c_cmd));
+    }
+    finally
+    {
+        setTimeout (function ()
+        {
+            if (c_requestId == null) return ;
+
+            if (m_waitingForUdpProxiesQuery.hasOwnProperty(c_requestId))
+            {
+                delete m_waitingForUdpProxiesQuery [c_requestId];
+                fn_error ();
+            }
+
+        }, CONST_UDP_PROXIES_QUERY_TIMEOUT);
+    }
+}
+
+
+/**
  * @todo NOT IMPLEMENTED
  * @param {server to communicate with.} p_selectedServer
  */
@@ -695,6 +754,7 @@ module.exports = {
     fn_removePartyCommunicationSession: fn_removePartyCommunicationSession,
     fn_requestCommunicationLogin:fn_requestCommunicationLogin,
     fn_requestUdpProxies:fn_requestUdpProxies,
+    fn_setUdpProxyBlocked:fn_setUdpProxyBlocked,
     fn_initialize:fn_initialize,
     getCommunicationServersList: function() {
         return m_communicationServersList;

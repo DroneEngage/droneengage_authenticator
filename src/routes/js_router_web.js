@@ -196,7 +196,8 @@ v_router.m_Router.post(C.CONST_WEB_FUNCTION + C.CONST_ACCOUNT_MANAGMENT, functio
             c_subCmd === C.CONST_CMD_ADD_TEAM_USER ||
             c_subCmd === C.CONST_CMD_UPDATE_TEAM_USER ||
             c_subCmd === C.CONST_CMD_DELETE_TEAM_USER ||
-            c_subCmd === C.CONST_CMD_GET_TEAM_INFO;
+            c_subCmd === C.CONST_CMD_GET_TEAM_INFO ||
+            c_subCmd === C.CONST_CMD_VERIFY_TEAM_USER;
 
         if (!c_isTeamAdminCmd && v_req.body[C.CONST_ACCOUNT_NAME_PARAMETER.toString()] == null) {
             v_router.fn_errorPage(v_response);

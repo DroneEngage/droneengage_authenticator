@@ -350,7 +350,8 @@ function fn_accountOperation(
         p_subCommand === C.CONST_CMD_ADD_TEAM_USER ||
         p_subCommand === C.CONST_CMD_UPDATE_TEAM_USER ||
         p_subCommand === C.CONST_CMD_DELETE_TEAM_USER ||
-        p_subCommand === C.CONST_CMD_GET_TEAM_INFO;
+        p_subCommand === C.CONST_CMD_GET_TEAM_INFO ||
+        p_subCommand === C.CONST_CMD_VERIFY_TEAM_USER;
 
     if (c_isTeamAdminCmd) {
         // Resolve the caller's login card from the session.

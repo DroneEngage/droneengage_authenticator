@@ -10,6 +10,7 @@ const helmet = require('helmet');
 const { isValidAdminUsername, isValidAdminPassword } = require('droneengage_server_common').helpers.validation;
 const { sessionMiddleware } = require('../helpers/js_admin_session');
 const { isBcryptHash } = require('droneengage_server_common').configHandler;
+const hlp_password = require('droneengage_server_common').password;
 const bcrypt = require('bcryptjs');
 const c_permission = require('../auth_server/js_permisson_validator.js');
 
@@ -286,7 +287,8 @@ router.get('/users', requireAuth, (req, res) => {
         title: 'User Management',
         adminUsername: req.session.adminUsername || null,
         accountStorageType: global.m_serverconfig.m_configuration.account_storage_type,
-        serversStatusGuid: global.m_serverconfig.m_configuration.servers_admin_url_guid || null
+        serversStatusGuid: global.m_serverconfig.m_configuration.servers_admin_url_guid || null,
+        authServerPort: global.m_serverconfig.m_configuration.server_port || null
     });
 });
 
@@ -306,7 +308,8 @@ router.get('/sql-management', requireAuth, (req, res) => {
         title: 'Teams & Logins Management',
         adminUsername: req.session.adminUsername || null,
         accountStorageType: global.m_serverconfig.m_configuration.account_storage_type,
-        serversStatusGuid: global.m_serverconfig.m_configuration.servers_admin_url_guid || null
+        serversStatusGuid: global.m_serverconfig.m_configuration.servers_admin_url_guid || null,
+        authServerPort: global.m_serverconfig.m_configuration.server_port || null
     });
 });
 
@@ -320,6 +323,12 @@ router.get('/api/users', requireAuth, async (req, res) => {
         console.log('[DEBUG] Fetching users for admin:', req.session.adminUsername);
         console.log('[DEBUG] Using global.db_users:', !!global.db_users);
         const users = global.db_users.fn_get_all_users_including_admins();
+        // Never send access codes (bcrypt hashes or legacy plaintext) to the browser.
+        for (const email of Object.keys(users)) {
+            delete users[email].AccessCode;
+            delete users[email].pwd;
+            users[email].hasAccessCode = true;
+        }
         console.log('[DEBUG] Users fetched:', Object.keys(users).length);
         res.json({ error: 0, users });
     } catch (error) {
@@ -428,6 +437,46 @@ router.delete('/api/users/:email', requireAuth, async (req, res) => {
     } catch (error) {
         console.error('Error deleting user:', error);
         res.json({ error: 1, errorMessage: 'Failed to delete user' });
+    }
+});
+
+// API: Verify a login's access code (QR generation aid — never returns the code)
+router.post('/api/verify-login', requireAuth, (req, res) => {
+    try {
+        const { loginId, accessCode } = req.body || {};
+        if (typeof loginId !== 'string' || loginId.trim() === ''
+            || typeof accessCode !== 'string' || accessCode.trim() === '') {
+            return res.json({ error: 1, errorMessage: 'Missing required fields' });
+        }
+
+        const storageType = (global.m_serverconfig.m_configuration.account_storage_type || '').toLowerCase();
+
+        if (storageType === 'file') {
+            const record = global.db_users ? global.db_users.fn_get_record(loginId.trim()) : null;
+            const matched = !!record && hlp_password.verify(accessCode.trim(), record.AccessCode) === true;
+            return res.json({ error: matched ? 0 : 1, errorMessage: matched ? undefined : 'Access code does not match this login.' });
+        }
+
+        if (storageType === 'db') {
+            const db = global.m_db;
+            if (!db) {
+                return res.json({ error: 1, errorMessage: 'Database not connected' });
+            }
+            db.get('SELECT AccessCode FROM logins WHERE LoginName = ?', [loginId.trim()], (err, row) => {
+                if (err) {
+                    console.error('Error verifying login:', err);
+                    return res.json({ error: 1, errorMessage: 'Failed to verify login' });
+                }
+                const matched = !!row && hlp_password.verify(accessCode.trim(), row.AccessCode) === true;
+                return res.json({ error: matched ? 0 : 1, errorMessage: matched ? undefined : 'Access code does not match this login.' });
+            });
+            return;
+        }
+
+        return res.json({ error: 1, errorMessage: 'Verification is not supported in this storage mode.' });
+    } catch (error) {
+        console.error('Error in POST /api/verify-login:', error);
+        res.json({ error: 1, errorMessage: 'Failed to verify login' });
     }
 });
 
@@ -728,6 +777,10 @@ router.post('/api/sql/logins', requireAuth, (req, res) => {
             return res.json({ error: 1, errorMessage: 'Database not connected' });
         }
 
+        if (!isValidAdminUsername(loginName)) {
+            return res.json({ error: 1, errorMessage: 'Invalid login name' });
+        }
+
         // Auto-generate access code if not provided
         let finalAccessCode = accessCode;
         if (!finalAccessCode || finalAccessCode.trim() === '') {
@@ -735,8 +788,14 @@ router.post('/api/sql/logins', requireAuth, (req, res) => {
             finalAccessCode = uuidv4().replaceAll('-', '').substr(0, 12);
         }
 
+        // Access codes are stored hashed; the plaintext is only returned once
+        // in this response so the caller can hand it out (e.g. as a QR code).
+        const storedAccessCode = hlp_password.isHashed(finalAccessCode)
+            ? finalAccessCode
+            : hlp_password.hash(finalAccessCode);
+
         db.run('INSERT INTO logins (TeamID, LoginName, AccessCode, Permissions, IsAdmin) VALUES (?, ?, ?, ?, ?)',
-            [teamId, loginName, finalAccessCode, c_permission.fn_convertPermissiontoInt(permissions), isAdmin],
+            [teamId, loginName, storedAccessCode, c_permission.fn_convertPermissiontoInt(permissions), isAdmin],
             function(err) {
                 if (err) {
                     console.error('Error creating login:', err);

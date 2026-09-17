@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS logins (
     AccessCode TEXT NOT NULL UNIQUE,
     Permissions INTEGER NOT NULL DEFAULT 4294967295,
     IsAdmin INTEGER DEFAULT 0,
+    Enabled INTEGER DEFAULT 1,
     CreatedAt TEXT DEFAULT (datetime('now')),
     LastLogin TEXT,
     FOREIGN KEY (TeamID) REFERENCES teams(TeamID) ON DELETE CASCADE
@@ -35,6 +36,7 @@ CREATE TABLE IF NOT EXISTS logins (
 -- Create indexes for logins
 CREATE INDEX IF NOT EXISTS idx_logins_teamid ON logins(TeamID);
 CREATE INDEX IF NOT EXISTS idx_logins_accesscode ON logins(AccessCode);
+CREATE INDEX IF NOT EXISTS idx_logins_enabled ON logins(Enabled);
 
 -- Create team_hardware table
 CREATE TABLE IF NOT EXISTS team_hardware (

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><%= title %></title>
     <link href="/public/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/public/bootstrap-icons/bootstrap-icons.min.css" rel="stylesheet">
     <style>
         body {
             background: #212529;
@@ -101,7 +102,7 @@
             </div>
             <div class="card-body">
                 <div class="mb-3">
-                    <input type="text" class="form-control" id="loginIdFilter" placeholder="Filter by LoginID..." onkeyup="filterUsers()">
+                    <input type="text" class="form-control" id="loginIdFilter" placeholder="Filter by LoginID..." autocomplete="off" onkeyup="filterUsers()">
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover">
@@ -112,11 +113,12 @@
                                 <th>AccessCode</th>
                                 <th>Permissions</th>
                                 <th>Is Admin</th>
+                                <th>Enabled</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="usersBody">
-                            <tr><td colspan="6" class="text-center">Loading...</td></tr>
+                            <tr><td colspan="7" class="text-center">Loading...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -136,7 +138,7 @@
                         <input type="hidden" id="editLoginId" name="editLoginId">
                         <div class="mb-3">
                             <label for="loginId" class="form-label">LoginID</label>
-                            <input type="text" class="form-control" id="loginId" name="loginId" required>
+                            <input type="text" class="form-control text-bg-secondary" id="loginId" name="loginId" required>
                         </div>
                         <div class="mb-3">
                             <label for="sid" class="form-label">TeamID</label>
@@ -221,6 +223,9 @@
         document.addEventListener('DOMContentLoaded', function() {
             userModal = new bootstrap.Modal(document.getElementById('userModal'));
             qrModal = new bootstrap.Modal(document.getElementById('qrModal'));
+            // Browsers restore form values on soft reload — clear the filter so
+            // a stale value can't silently hide users.
+            document.getElementById('loginIdFilter').value = '';
             loadUsers();
         });
 
@@ -232,7 +237,7 @@
                 renderUsers();
             } catch (error) {
                 console.error('Error loading users:', error);
-                document.getElementById('usersBody').innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error loading users</td></tr>';
+                document.getElementById('usersBody').innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error loading users</td></tr>';
             }
         }
 
@@ -250,7 +255,7 @@
             }
 
             if (filteredUsers.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center">No users found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center">No users found</td></tr>';
                 return;
             }
 
@@ -265,9 +270,14 @@
                     <td>${fmtPerm(user.prm)}</td>
                     <td>${user.isadmin ? '<span class="badge bg-success" style="min-width:45px">Yes</span>' : '<span class="badge bg-secondary" style="min-width:45px">No</span>'}</td>
                     <td>
-                        <button class="btn btn-sm btn-success me-1" onclick="openQrModal('${loginID}')" title="Generate login QR">QR</button>
-                        <button class="btn btn-sm btn-primary me-1" onclick="editUser('${loginID}')">Edit</button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteUser('${loginID}')">Delete</button>
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" ${user.enabled !== false ? 'checked' : ''} onchange="toggleUserEnabled('${loginID}', this.checked, this)" title="Enable/disable login">
+                        </div>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-success me-1" onclick="openQrModal('${loginID}')" title="Generate login QR"><i class="bi bi-qr-code"></i></button>
+                        <button class="btn btn-sm btn-primary me-1" onclick="editUser('${loginID}')" title="Edit"><i class="bi bi-pencil-square"></i></button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteUser('${loginID}')" title="Delete"><i class="bi bi-trash"></i></button>
                     </td>
                 </tr>
             `).join('');
@@ -275,6 +285,28 @@
 
         function filterUsers() {
             renderUsers();
+        }
+
+        async function toggleUserEnabled(loginID, enabled, inputEl) {
+            try {
+                const response = await fetch(`/admin/api/users/${encodeURIComponent(loginID)}/enabled`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: enabled })
+                });
+                const data = await response.json();
+
+                if (data.error === 0) {
+                    users[loginID].enabled = enabled;
+                } else {
+                    inputEl.checked = !enabled;
+                    alert('Error updating user: ' + (data.errorMessage || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error updating user:', error);
+                inputEl.checked = !enabled;
+                alert('Error updating user');
+            }
         }
 
         function prepareAddUser() {

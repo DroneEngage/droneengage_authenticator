@@ -319,6 +319,7 @@ CREATE TABLE IF NOT EXISTS logins (
     AccessCode TEXT NOT NULL UNIQUE,
     Permissions INTEGER NOT NULL DEFAULT 4294967295,
     IsAdmin INTEGER DEFAULT 0,
+    Enabled INTEGER DEFAULT 1,
     CreatedAt TEXT DEFAULT (datetime('now')),
     LastLogin TEXT,
     FOREIGN KEY (TeamID) REFERENCES teams(TeamID) ON DELETE CASCADE
@@ -326,6 +327,7 @@ CREATE TABLE IF NOT EXISTS logins (
 
 CREATE INDEX IF NOT EXISTS idx_logins_teamid ON logins(TeamID);
 CREATE INDEX IF NOT EXISTS idx_logins_accesscode ON logins(AccessCode);
+CREATE INDEX IF NOT EXISTS idx_logins_enabled ON logins(Enabled);
 
 CREATE TABLE IF NOT EXISTS team_hardware (
     HardwareSID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -425,8 +427,8 @@ function close() {
             console.log(`[INFO] Inserted ${teamCount} teams`);
 
             const loginInsertSql = `
-                INSERT INTO logins (LoginID, TeamID, LoginName, AccessCode, Permissions, IsAdmin, CreatedAt)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO logins (LoginID, TeamID, LoginName, AccessCode, Permissions, IsAdmin, Enabled, CreatedAt)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             `;
             let loginCount = 0;
             for (const login of loginsMap.values()) {
@@ -438,6 +440,7 @@ function close() {
                         login.AccessCode,
                         parsePermission(login.Permissions),
                         login.IsAdmin ? 1 : 0,
+                        (login.Enabled === undefined) ? 1 : parseEnabled(login.Enabled),
                         parseDateTime(login.CreatedAt) || new Date().toISOString().replace('T', ' ').substring(0, 19)
                     ]);
                     loginCount++;

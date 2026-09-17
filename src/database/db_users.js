@@ -197,7 +197,8 @@ class db_user {
             LoginName: user_email,
             AccessCode: storedAccessCode,
             Permissions: permissions,
-            IsAdmin: user_data.isadmin
+            IsAdmin: user_data.isadmin,
+            Enabled: (user_data.enabled !== false)
         };
 
         try {
@@ -276,7 +277,8 @@ class db_user {
             LoginName: user_email,
             AccessCode: storedAccessCode,
             Permissions: permissions,
-            IsAdmin: user_data.isadmin
+            IsAdmin: user_data.isadmin,
+            Enabled: (user_data.enabled === undefined) ? (existingLogin.Enabled !== false) : (user_data.enabled !== false)
         };
 
         // Ensure team exists
@@ -338,6 +340,38 @@ class db_user {
     }
 
     /**
+     * Enable or disable a login (async). A disabled login is rejected at
+     * login time with CONST_ERROR_ACCOUNT_DISABLED.
+     * @param {string} user_email - Email/login name of the user
+     * @param {boolean} p_enabled - true to enable, false to disable
+     */
+    async fn_set_login_enabled(user_email, p_enabled, fn_callback) {
+        const c_reply = {};
+        const login = this.db.data.logins[user_email];
+        if (!login) {
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] = "Account Not Found.";
+            c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
+            if (fn_callback) fn_callback(c_reply);
+            return;
+        }
+
+        login.Enabled = (p_enabled === true);
+
+        try {
+            await this.db.write();
+        } catch (err) {
+            console.error('Failed to write record:', err);
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] = "Storage Error.";
+            c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
+            if (fn_callback) fn_callback(c_reply);
+            return;
+        }
+
+        c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_NON;
+        if (fn_callback) fn_callback(c_reply);
+    }
+
+    /**
      * Get a user record by email
      * @param {string} key - Email of the user
      * @returns {object|null} - The user record or null if not found
@@ -351,7 +385,8 @@ class db_user {
             sid: login.TeamID,
             AccessCode: login.AccessCode,
             prm: login.Permissions,
-            isadmin: login.IsAdmin
+            isadmin: login.IsAdmin,
+            enabled: (login.Enabled !== false)
         };
     }
 
@@ -368,7 +403,8 @@ class db_user {
                     sid: login.TeamID,
                     AccessCode: login.AccessCode,
                     prm: login.Permissions,
-                    isadmin: login.IsAdmin
+                    isadmin: login.IsAdmin,
+                    enabled: (login.Enabled !== false)
                 };
             }
         }
@@ -387,7 +423,8 @@ class db_user {
                 sid: login.TeamID,
                 AccessCode: login.AccessCode,
                 prm: login.Permissions,
-                isadmin: login.IsAdmin
+                isadmin: login.IsAdmin,
+                enabled: (login.Enabled !== false)
             };
         }
         return users;
@@ -408,6 +445,7 @@ class db_user {
                     AccessCode: login.AccessCode,
                     prm: login.Permissions,
                     isadmin: login.IsAdmin,
+                    enabled: (login.Enabled !== false),
                     acc: email
                 };
             }
@@ -429,7 +467,8 @@ class db_user {
                     sid: login.TeamID,
                     AccessCode: login.AccessCode,
                     prm: login.Permissions,
-                    isadmin: login.IsAdmin
+                    isadmin: login.IsAdmin,
+                    enabled: (login.Enabled !== false)
                 };
             }
         }
@@ -483,6 +522,7 @@ class db_user {
                     LoginName: login.LoginName || email,
                     Permissions: login.Permissions,
                     IsAdmin: (login.IsAdmin === true),
+                    Enabled: (login.Enabled !== false),
                     CreatedAt: login.CreatedAt
                 });
             }
@@ -533,7 +573,8 @@ class db_user {
             LoginName: p_loginName,
             AccessCode: storedAccessCode,
             Permissions: c_permission.fn_convertPermissiontoInt(p_permissions),
-            IsAdmin: (p_isAdmin === true)
+            IsAdmin: (p_isAdmin === true),
+            Enabled: true
         };
 
         try {

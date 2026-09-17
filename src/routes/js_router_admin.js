@@ -440,6 +440,57 @@ router.delete('/api/users/:email', requireAuth, async (req, res) => {
     }
 });
 
+// API: Enable/disable a user login — persisted to file db or SQLite
+// depending on account_storage_type. Disabled logins are rejected at login
+// time with CONST_ERROR_ACCOUNT_DISABLED.
+router.put('/api/users/:email/enabled', requireAuth, async (req, res) => {
+    try {
+        const { email } = req.params;
+        const enabled = req.body ? req.body.enabled : null;
+
+        if (typeof enabled !== 'boolean') {
+            return res.json({ error: 1, errorMessage: 'Missing or invalid field: enabled' });
+        }
+
+        const storageType = (global.m_serverconfig.m_configuration.account_storage_type || '').toLowerCase();
+
+        if (storageType === 'db') {
+            const db = global.m_db;
+            if (!db) {
+                return res.json({ error: 1, errorMessage: 'Database not connected' });
+            }
+            db.run('UPDATE logins SET Enabled = ? WHERE LoginName = ?', [enabled ? 1 : 0, email], function(err) {
+                if (err) {
+                    console.error('Error updating login enabled state:', err);
+                    return res.json({ error: 1, errorMessage: 'Failed to update user' });
+                }
+                if (this.changes === 0) {
+                    return res.json({ error: 1, errorMessage: 'User not found' });
+                }
+                res.json({ error: 0, enabled });
+            });
+            return;
+        }
+
+        const db = global.db_users;
+        if (!db) {
+            return res.json({ error: 1, errorMessage: 'User storage not available' });
+        }
+
+        await db.fn_set_login_enabled(email, enabled, (reply) => {
+            const errorCode = reply[global.c_CONSTANTS.CONST_ERROR.toString()];
+            if (errorCode === global.c_CONSTANTS.CONST_ERROR_NON) {
+                res.json({ error: 0, enabled });
+            } else {
+                res.json({ error: errorCode, errorMessage: reply[global.c_CONSTANTS.CONST_ERROR_MSG.toString()] || 'Failed to update user' });
+            }
+        });
+    } catch (error) {
+        console.error('Error updating user enabled state:', error);
+        res.json({ error: 1, errorMessage: 'Failed to update user' });
+    }
+});
+
 // API: Verify a login's access code (QR generation aid — never returns the code)
 router.post('/api/verify-login', requireAuth, (req, res) => {
     try {
@@ -581,6 +632,40 @@ router.post('/api/servers/:guid/query-udp-proxies', requireAuth, (req, res) => {
     } catch (error) {
         console.error('Error querying UDP proxies:', error);
         res.json({ error: 1, errorMessage: 'Failed to query UDP proxies' });
+    }
+});
+
+// API: Block/resume packet forwarding on a named UDP proxy (in-memory on the
+// comm server — state is lost on restart). A blocked proxy keeps its sockets
+// open but silently drops packets, so clients cannot tell it is blocked.
+router.post('/api/servers/:guid/udp-proxy-state', requireAuth, (req, res) => {
+    try {
+        const commServerManager = require('../auth_server/js_comm_server_manager');
+        const serverInfo = commServerManager.getCommunicationServersList()[req.params.guid];
+
+        if (!serverInfo) {
+            return res.json({ error: 1, errorMessage: 'Server not found' });
+        }
+
+        const proxyName = req.body ? req.body.name : null;
+        const blocked = req.body ? req.body.blocked === true : null;
+
+        if (typeof proxyName !== 'string' || proxyName.trim() === '' || blocked === null) {
+            return res.json({ error: 1, errorMessage: 'Missing or invalid fields (name, blocked)' });
+        }
+
+        commServerManager.fn_setUdpProxyBlocked(serverInfo, proxyName, blocked,
+            (proxies, replyData) => {
+                if (replyData && replyData.applied === false) {
+                    return res.json({ error: 1, errorMessage: 'Proxy not found on server', proxies });
+                }
+                res.json({ error: 0, proxies });
+            },
+            () => res.json({ error: 1, errorMessage: 'Server did not reply (offline or timed out)' })
+        );
+    } catch (error) {
+        console.error('Error setting UDP proxy state:', error);
+        res.json({ error: 1, errorMessage: 'Failed to set UDP proxy state' });
     }
 });
 
@@ -807,6 +892,39 @@ router.post('/api/sql/logins', requireAuth, (req, res) => {
     } catch (error) {
         console.error('Error in POST /api/sql/logins:', error);
         res.json({ error: 1, errorMessage: 'Failed to create login' });
+    }
+});
+
+// API: Enable/disable a login by LoginID (SQL mode)
+router.put('/api/sql/logins/:id/enabled', requireAuth, (req, res) => {
+    try {
+        if (global.m_serverconfig.m_configuration.account_storage_type !== 'db') {
+            return res.json({ error: 1, errorMessage: 'SQL mode not enabled' });
+        }
+
+        const enabled = req.body ? req.body.enabled : null;
+        if (typeof enabled !== 'boolean') {
+            return res.json({ error: 1, errorMessage: 'Missing or invalid field: enabled' });
+        }
+
+        const db = global.m_db;
+        if (!db) {
+            return res.json({ error: 1, errorMessage: 'Database not connected' });
+        }
+
+        db.run('UPDATE logins SET Enabled = ? WHERE LoginID = ?', [enabled ? 1 : 0, req.params.id], function(err) {
+            if (err) {
+                console.error('Error updating login enabled state:', err);
+                return res.json({ error: 1, errorMessage: 'Failed to update login' });
+            }
+            if (this.changes === 0) {
+                return res.json({ error: 1, errorMessage: 'Login not found' });
+            }
+            res.json({ error: 0, enabled });
+        });
+    } catch (error) {
+        console.error('Error in PUT /api/sql/logins/:id/enabled:', error);
+        res.json({ error: 1, errorMessage: 'Failed to update login' });
     }
 });
 

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><%= title %></title>
     <link href="/public/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/public/bootstrap-icons/bootstrap-icons.min.css" rel="stylesheet">
     <style>
         body {
             background: #212529;
@@ -266,6 +267,14 @@
                     highlightUserRowsByUnit(unit);
                 });
             });
+            document.querySelectorAll('.udp-proxy-action').forEach(btn => {
+                btn.addEventListener('click', function(event) {
+                    event.stopPropagation();
+                    const name = decodeURIComponent(this.dataset.name || '');
+                    const blocked = this.dataset.blocked === 'true';
+                    setUdpProxyBlocked(name, !blocked, this);
+                });
+            });
         }
 
         function attachUserRowListeners() {
@@ -412,9 +421,19 @@
                     <td>${proxy.name || 'Unknown'}</td>
                     <td>${proxy.socket1 ? `${proxy.socket1.address}:${proxy.socket1.port}` : 'N/A'}</td>
                     <td>${proxy.socket2 ? `${proxy.socket2.address}:${proxy.socket2.port}` : 'N/A'}</td>
-                    <td><span class="badge ${proxy.ready ? 'bg-success' : 'bg-warning'}">${proxy.ready ? 'ready' : 'not ready'}</span></td>
+                    <td>
+                        <span class="badge ${proxy.ready ? 'bg-success' : 'bg-warning'}">${proxy.ready ? 'ready' : 'not ready'}</span>
+                        ${proxy.blocked ? '<span class="badge bg-danger">blocked</span>' : ''}
+                    </td>
                     <td>${formatUdpTime(proxy.created)}</td>
                     <td class="${lastAccessColorClass(proxy.last_access)}">${formatUdpTime(proxy.last_access)}</td>
+                    <td>
+                        <button class="btn btn-sm ${proxy.blocked ? 'btn-outline-success' : 'btn-outline-danger'} udp-proxy-action"
+                                data-name="${encodeURIComponent(proxy.name || '')}" data-blocked="${proxy.blocked === true}"
+                                title="${proxy.blocked ? 'Resume packet forwarding' : 'Block packet forwarding (packets silently dropped)'}">
+                            <i class="bi ${proxy.blocked ? 'bi-play-circle' : 'bi-sign-stop'}"></i>
+                        </button>
+                    </td>
                 </tr>
             `).join('');
 
@@ -428,6 +447,7 @@
                             <th>Status</th>
                             <th>Created</th>
                             <th>Last Access</th>
+                            <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -436,6 +456,39 @@
                 </table>
             `;
             attachUdpProxyRowListeners();
+        }
+
+        async function setUdpProxyBlocked(proxyName, blocked, btn) {
+            if (!m_selectedServerId) return;
+            const server = m_servers.find(s => s.serverId === m_selectedServerId);
+            if (!server || !server.commServerGUID) return;
+
+            if (btn) btn.disabled = true;
+
+            try {
+                const response = await fetch(`/admin/api/servers/${encodeURIComponent(server.commServerGUID)}/udp-proxy-state`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: proxyName, blocked: blocked })
+                });
+                const data = await response.json();
+
+                if (data.proxies) {
+                    server.udpProxies = data.proxies;
+                    server.udpProxiesTimestamp = Date.now();
+                }
+
+                if (data.error === 0) {
+                    renderUdpProxiesPanel(server);
+                } else {
+                    alert(data.errorMessage || 'Failed to update UDP proxy');
+                    renderUdpProxiesPanel(server);
+                }
+            } catch (error) {
+                console.error('Error setting UDP proxy state:', error);
+                alert('Error setting UDP proxy state');
+                renderUdpProxiesPanel(server);
+            }
         }
 
         async function queryUdpProxies() {

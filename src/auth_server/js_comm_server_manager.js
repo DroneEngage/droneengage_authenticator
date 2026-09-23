@@ -11,6 +11,7 @@ const CONST_UDP_PROXIES_QUERY_TIMEOUT = 5000;
 const m_communicationServersList  = {};
 const m_waitingForServerLogin = {};
 const m_waitingForUdpProxiesQuery = {};
+const m_waitingForBlockedUnitsQuery = {};
 let m_bestServer = null;
 let Me = this;
 const v_sessionManager = require("./js_session_manager");
@@ -212,7 +213,8 @@ function fn_handleServerInfo (p_cmd)
             const c_preserved = {
                 m_storageStatus: v_srvInfo.m_server.m_storageStatus || null,
                 m_udpProxies: v_srvInfo.m_server.m_udpProxies || [],
-                m_udpProxiesTimestamp: v_srvInfo.m_server.m_udpProxiesTimestamp || null
+                m_udpProxiesTimestamp: v_srvInfo.m_server.m_udpProxiesTimestamp || null,
+                m_blockedUnits: v_srvInfo.m_server.m_blockedUnits || []
             };
 
             if (v_srvInfo.m_server.m_isOnline != v_msg.m_isOnline)
@@ -222,6 +224,7 @@ function fn_handleServerInfo (p_cmd)
                 v_srvInfo.m_server.m_storageStatus       = c_preserved.m_storageStatus;
                 v_srvInfo.m_server.m_udpProxies          = c_preserved.m_udpProxies;
                 v_srvInfo.m_server.m_udpProxiesTimestamp = c_preserved.m_udpProxiesTimestamp;
+                v_srvInfo.m_server.m_blockedUnits        = c_preserved.m_blockedUnits;
                 if (v_msg.m_isOnline == true)
                 {  // server is online again
                     fn_onServerRestored(v_srvInfo);
@@ -238,6 +241,7 @@ function fn_handleServerInfo (p_cmd)
                 v_srvInfo.m_server.m_storageStatus       = c_preserved.m_storageStatus;
                 v_srvInfo.m_server.m_udpProxies          = c_preserved.m_udpProxies;
                 v_srvInfo.m_server.m_udpProxiesTimestamp = c_preserved.m_udpProxiesTimestamp;
+                v_srvInfo.m_server.m_blockedUnits        = c_preserved.m_blockedUnits;
             }
                 
         }
@@ -438,6 +442,55 @@ function fn_handleUdpProxiesReport (p_cmd)
 
 
 /**
+ * Handles a comm server's reply to a CONST_CS_CMD_SET_UNIT_TRAFFIC_STATE
+ * request: the full list of currently-blocked unit names. Stores it on the
+ * server card for admin dashboard visibility, reflects it onto the cached
+ * accountDetails unit flags (so the UI does not wait for the next INFO
+ * heartbeat), and resolves any pending request waiting on this request id.
+ * @param {decrypted raw command} p_cmd
+ */
+function fn_handleBlockedUnitsReport (p_cmd)
+{
+    try
+    {
+        const c_commServerGUID = p_cmd.m_commServerGUID;
+        const c_units = (p_cmd.d && p_cmd.d.units) || [];
+
+        if (m_communicationServersList.hasOwnProperty(c_commServerGUID))
+        {
+            const c_server = m_communicationServersList[c_commServerGUID].m_server;
+            c_server.m_blockedUnits = c_units;
+
+            const c_details = c_server.m_accountDetails || c_server.accountDetails || {};
+            for (const c_accountId in c_details)
+            {
+                const c_unitDetails = c_details[c_accountId];
+                if (Array.isArray(c_unitDetails) !== true) continue;
+                c_unitDetails.forEach(function (p_unit) {
+                    if ((p_unit != null) && (typeof p_unit === 'object'))
+                    {
+                        p_unit.blocked = (c_units.indexOf(p_unit.unitName) !== -1);
+                    }
+                });
+            }
+        }
+
+        const c_requestId = p_cmd.d ? p_cmd.d[global.c_CONSTANTS.CONST_CS_REQUEST_ID.toString()] : null;
+        if ((c_requestId != null) && m_waitingForBlockedUnitsQuery.hasOwnProperty(c_requestId))
+        {
+            const c_pending = m_waitingForBlockedUnitsQuery[c_requestId];
+            delete m_waitingForBlockedUnitsQuery[c_requestId];
+            c_pending.m_callback (c_units, p_cmd.d);
+        }
+    }
+    catch (ex)
+    {
+        console.log ("err:fn_handleBlockedUnitsReport:" + ex);
+    }
+}
+
+
+/**
  * Handles communication servers all messages.
  * @param {a GUID identifies connection instance. this refers to websocket client in case of using websockets.} p_conn_GUID 
  * @param {raw encrypted message from communication servers} p_msg 
@@ -473,6 +526,10 @@ function fn_commServerMessageHandler (p_conn_GUID,p_msg)
         else if (p_cmd.c === global.c_CONSTANTS.CONST_CS_CMD_REPORT_UDP_PROXIES)
         {   // reply to CONST_CS_CMD_QUERY_UDP_PROXIES with the comm server's currently-open UDP proxies
             fn_handleUdpProxiesReport (p_cmd);
+        }
+        else if (p_cmd.c === global.c_CONSTANTS.CONST_CS_CMD_REPORT_BLOCKED_UNITS)
+        {   // reply to CONST_CS_CMD_SET_UNIT_TRAFFIC_STATE with the comm server's currently-blocked units
+            fn_handleBlockedUnitsReport (p_cmd);
         }
     }
     catch (ex)
@@ -695,6 +752,66 @@ function fn_setUdpProxyBlocked (p_server, p_proxyName, p_blocked, fn_success, fn
 
 
 /**
+ * Asks a communication server to block or resume inbound traffic for a named
+ * connected unit (in-memory on the comm server; the unit's socket stays open
+ * but its messages are silently dropped, so the client cannot tell it apart
+ * from a dead link). The comm server replies with a
+ * CONST_CS_CMD_REPORT_BLOCKED_UNITS report, resolved via the pending-request
+ * map and timeout pattern shared with fn_setUdpProxyBlocked.
+ * @param {*} p_server comm server entry from m_communicationServersList
+ * @param {string} p_unitName unit name (sender id used as the map key)
+ * @param {boolean} p_blocked true to drop the unit's traffic, false to resume
+ * @param {function} fn_success called with (blocked unit names array, reply.d) once the comm server replies
+ * @param {function} fn_error called if the server is offline or the request times out
+ */
+function fn_setUnitTrafficBlocked (p_server, p_unitName, p_blocked, fn_success, fn_error)
+{
+    let c_requestId = null;
+    try
+    {
+        if ((p_server == null) || (p_server.m_server.m_isOnline == false))
+        {
+            fn_error ();
+
+            return ;
+        }
+
+        c_requestId = c_uuidv4.v4();
+        m_waitingForBlockedUnitsQuery [c_requestId] =
+            {
+                'm_callback': fn_success,
+                'm_timestamp': new Date()
+            };
+
+        const c_cmd = {
+            'c': global.c_CONSTANTS.CONST_CS_CMD_SET_UNIT_TRAFFIC_STATE,
+            'd': {}
+        };
+
+        c_cmd.d [global.c_CONSTANTS.CONST_CS_REQUEST_ID.toString()] = c_requestId;
+        c_cmd.d ['name']    = p_unitName;
+        c_cmd.d ['blocked'] = (p_blocked === true);
+
+        Me.fn_sendMessage (p_server.m_server.m_commServerGUID, JSON.stringify(c_cmd));
+    }
+    finally
+    {
+        setTimeout (function ()
+        {
+            if (c_requestId == null) return ;
+
+            if (m_waitingForBlockedUnitsQuery.hasOwnProperty(c_requestId))
+            {
+                delete m_waitingForBlockedUnitsQuery [c_requestId];
+                fn_error ();
+            }
+
+        }, CONST_UDP_PROXIES_QUERY_TIMEOUT);
+    }
+}
+
+
+/**
  * @todo NOT IMPLEMENTED
  * @param {server to communicate with.} p_selectedServer
  */
@@ -755,6 +872,7 @@ module.exports = {
     fn_requestCommunicationLogin:fn_requestCommunicationLogin,
     fn_requestUdpProxies:fn_requestUdpProxies,
     fn_setUdpProxyBlocked:fn_setUdpProxyBlocked,
+    fn_setUnitTrafficBlocked:fn_setUnitTrafficBlocked,
     fn_initialize:fn_initialize,
     getCommunicationServersList: function() {
         return m_communicationServersList;

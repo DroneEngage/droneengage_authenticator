@@ -588,7 +588,8 @@ router.get('/api/servers', requireAuth, (req, res) => {
                             hashedAccountId: accountId,
                             loginId: loginCard ? loginCard.m_login_name : 'Unknown',
                             unitName: unitInfo.unitName,
-                            actorType: unitInfo.actorType || 'a'
+                            actorType: unitInfo.actorType || 'a',
+                            blocked: unitInfo.blocked === true
                         });
                     });
                 }
@@ -666,6 +667,40 @@ router.post('/api/servers/:guid/udp-proxy-state', requireAuth, (req, res) => {
     } catch (error) {
         console.error('Error setting UDP proxy state:', error);
         res.json({ error: 1, errorMessage: 'Failed to set UDP proxy state' });
+    }
+});
+
+// API: Block/resume inbound traffic for a connected unit (in-memory on the
+// comm server — state is lost on restart). The unit's socket stays open but
+// its messages are silently dropped, so it cannot tell it is blocked.
+router.post('/api/servers/:guid/user-traffic-state', requireAuth, (req, res) => {
+    try {
+        const commServerManager = require('../auth_server/js_comm_server_manager');
+        const serverInfo = commServerManager.getCommunicationServersList()[req.params.guid];
+
+        if (!serverInfo) {
+            return res.json({ error: 1, errorMessage: 'Server not found' });
+        }
+
+        const unitName = req.body ? req.body.name : null;
+        const blocked = req.body ? req.body.blocked === true : null;
+
+        if (typeof unitName !== 'string' || unitName.trim() === '' || blocked === null) {
+            return res.json({ error: 1, errorMessage: 'Missing or invalid fields (name, blocked)' });
+        }
+
+        commServerManager.fn_setUnitTrafficBlocked(serverInfo, unitName, blocked,
+            (units, replyData) => {
+                if (replyData && replyData.applied === false) {
+                    return res.json({ error: 1, errorMessage: 'Unit not found on server', units });
+                }
+                res.json({ error: 0, units });
+            },
+            () => res.json({ error: 1, errorMessage: 'Server did not reply (offline or timed out)' })
+        );
+    } catch (error) {
+        console.error('Error setting user traffic state:', error);
+        res.json({ error: 1, errorMessage: 'Failed to set user traffic state' });
     }
 });
 

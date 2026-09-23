@@ -90,6 +90,8 @@ exports.CONST_CS_CMD_STORAGE_STATUS             = 'd';   // CommServer -> AUTH: 
 exports.CONST_CS_CMD_QUERY_UDP_PROXIES          = 'e';   // AUTH -> CommServer: request list of currently-open UDP proxies
 exports.CONST_CS_CMD_REPORT_UDP_PROXIES         = 'f';   // CommServer -> AUTH: reply with list of currently-open UDP proxies
 exports.CONST_CS_CMD_SET_UDP_PROXY_STATE        = 'g';   // AUTH -> CommServer: block/resume packet forwarding on a named UDP proxy
+exports.CONST_CS_CMD_SET_UNIT_TRAFFIC_STATE     = 'h';   // AUTH -> CommServer: block/resume inbound traffic for a named connected unit
+exports.CONST_CS_CMD_REPORT_BLOCKED_UNITS       = 'i';   // CommServer -> AUTH: reply with list of currently-blocked unit names
 
 // Storage/DB connection state codes (short strings to minimize message size)
 exports.CONST_STORAGE_STATE_DISCONNECTED = 'dc';

@@ -284,6 +284,14 @@
                     highlightUdpProxyRowsByUnit(unit);
                 });
             });
+            document.querySelectorAll('.user-block-action').forEach(btn => {
+                btn.addEventListener('click', function(event) {
+                    event.stopPropagation();
+                    const name = decodeURIComponent(this.dataset.name || '');
+                    const blocked = this.dataset.blocked === 'true';
+                    setUserBlocked(name, !blocked, this);
+                });
+            });
         }
 
         function highlightUserRowsByUnit(unit) {
@@ -348,8 +356,19 @@
                         ${account.accountId}
                         <br><small class="text-muted">${account.hashedAccountId}</small>
                     </td>
-                    <td>${account.unitName || 'N/A'}</td>
+                    <td>
+                        ${account.unitName || 'N/A'}
+                        ${account.blocked ? '<span class="badge bg-danger">blocked</span>' : ''}
+                    </td>
                     <td>${getActorTypeLabel(account.actorType)}</td>
+                    <td>
+                        ${account.unitName ? `
+                        <button class="btn btn-sm ${account.blocked ? 'btn-outline-success' : 'btn-outline-danger'} user-block-action"
+                                data-name="${encodeURIComponent(account.unitName)}" data-blocked="${account.blocked === true}"
+                                title="${account.blocked ? 'Resume inbound traffic' : 'Block inbound traffic (messages silently dropped)'}">
+                            <i class="bi ${account.blocked ? 'bi-play-circle' : 'bi-sign-stop'}"></i>
+                        </button>` : ''}
+                    </td>
                 </tr>
             `).join('');
 
@@ -361,6 +380,7 @@
                             <th>AccountID</th>
                             <th>Unit</th>
                             <th>Type</th>
+                            <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -488,6 +508,40 @@
                 console.error('Error setting UDP proxy state:', error);
                 alert('Error setting UDP proxy state');
                 renderUdpProxiesPanel(server);
+            }
+        }
+
+        async function setUserBlocked(unitName, blocked, btn) {
+            if (!m_selectedServerId) return;
+            const server = m_servers.find(s => s.serverId === m_selectedServerId);
+            if (!server || !server.commServerGUID) return;
+
+            if (btn) btn.disabled = true;
+
+            try {
+                const response = await fetch(`/admin/api/servers/${encodeURIComponent(server.commServerGUID)}/user-traffic-state`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: unitName, blocked: blocked })
+                });
+                const data = await response.json();
+
+                if (Array.isArray(data.units)) {
+                    (server.accounts || []).forEach(account => {
+                        account.blocked = data.units.indexOf(account.unitName) !== -1;
+                    });
+                }
+
+                if (data.error === 0) {
+                    renderUserPanel(server);
+                } else {
+                    alert(data.errorMessage || 'Failed to update user traffic state');
+                    renderUserPanel(server);
+                }
+            } catch (error) {
+                console.error('Error setting user traffic state:', error);
+                alert('Error setting user traffic state');
+                renderUserPanel(server);
             }
         }
 

@@ -23,3 +23,5 @@ build/
 server.config.local
 # Devin local config (machine-local)
 .devin/config.local.json
+
+*.local.sh

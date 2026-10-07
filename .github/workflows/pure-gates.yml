@@ -16,11 +16,11 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: npm
+          node-version: "22"
 
+      # package-lock.json is gitignored in this repo - npm install, not ci
       - name: install
-        run: npm ci --no-audit --no-fund
+        run: npm install --no-audit --no-fund
 
       - name: test
         run: npm test

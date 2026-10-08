@@ -19,13 +19,25 @@ jobs:
           node-version: "22"
 
       # the runner has no ssh key - rewrite the git+ssh server_common
-      # dependency to anonymous https (repo is public)
+      # dependency to https. With a SERVER_COMMON_PAT secret (PAT with
+      # read access) it pulls the private prv_droneengage_server_common;
+      # otherwise it falls back to the public DroneEngage repo (same
+      # v1.0.0 tag today).
       - name: git+ssh -> https for CI
-        run: sed -i 's|git+ssh://git@github.com:|git+https://github.com/|g' package.json
+        run: |
+          if [ -n "${{ secrets.SERVER_COMMON_PAT }}" ]; then
+            sed -i 's|git+ssh://git@github.com:DroneEngage/droneengage_server_common.git|git+https://x-access-token:${{ secrets.SERVER_COMMON_PAT }}@github.com/HefnySco/prv_droneengage_server_common.git|' package.json
+          else
+            sed -i 's|git+ssh://git@github.com:|git+https://github.com/|g' package.json
+          fi
 
       # package-lock.json is gitignored in this repo - npm install, not ci
       - name: install
         run: npm install --no-audit --no-fund
+
+      # lowdb writes test/fixtures/*.db - the dir is not committed
+      - name: fixtures dir
+        run: mkdir -p test/fixtures
 
       - name: test
         run: npm test

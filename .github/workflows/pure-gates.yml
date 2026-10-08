@@ -18,6 +18,11 @@ jobs:
         with:
           node-version: "22"
 
+      # the runner has no ssh key - rewrite the git+ssh server_common
+      # dependency to anonymous https (repo is public)
+      - name: git+ssh -> https for CI
+        run: sed -i 's|git+ssh://git@github.com:|git+https://github.com/|g' package.json
+
       # package-lock.json is gitignored in this repo - npm install, not ci
       - name: install
         run: npm install --no-audit --no-fund

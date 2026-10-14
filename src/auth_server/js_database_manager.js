@@ -83,6 +83,24 @@ function fn_initialize()
                         });
                     }
                 });
+
+                // Ensure teams.RecoveryCode exists — added for the one-time
+                // recovery-code feature; same probe-then-ALTER pattern.
+                m_db.all("PRAGMA table_info(teams)", [], (tErr2, cols2) => {
+                    if (tErr2 || !cols2) {
+                        console.log ("[WARN] Failed to inspect teams schema:", tErr2 ? tErr2.message : 'no rows');
+                        return;
+                    }
+                    if (!cols2.some(c => c.name === 'RecoveryCode')) {
+                        m_db.run("ALTER TABLE teams ADD COLUMN RecoveryCode TEXT", (aErr2) => {
+                            if (aErr2) {
+                                console.log ("[WARN] Failed to add teams.RecoveryCode column:", aErr2.message);
+                            } else {
+                                console.log (global.Colors.Success + "[OK] Added teams.RecoveryCode column" + global.Colors.Reset);
+                            }
+                        });
+                    }
+                });
             });
             
             // Expose database connection globally for admin routes
@@ -840,6 +858,51 @@ function fn_getIsAdmin(p_accountName, fn_callback) {
         function () { fn_callback(false); });
 }
 
+/**
+ * Store the bcrypt hash of an account's one-time recovery code on the owning
+ * team row (RecoveryCode is account-level — it survives login row churn in
+ * regenerate). Only the hash is persisted; the plaintext is shown to the
+ * owner once at issue time.
+ * Callback: fn_callback(reply) — CONST_ERROR_NON, or
+ * CONST_ERROR_ACCOUNT_NOT_FOUND when no team owns the name.
+ */
+function fn_setRecoveryCode(p_accountName, p_recoveryCodeHash, fn_callback) {
+    const c_sql = "UPDATE `teams` SET `RecoveryCode` = ? WHERE `TeamName` = ?";
+    hlp_db.fn_genericInsert_w_Params(m_db, c_sql,
+        [p_recoveryCodeHash, hlp_string.fn_protectedFromInjection(p_accountName)],
+        function (err, res) {
+            const c_reply = {};
+            if (!res || res.changes === 0) {
+                c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] = "Account Not Found.";
+                c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
+            } else {
+                c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_NON;
+            }
+            fn_callback(c_reply);
+        },
+        function (err) {
+            const c_reply = {};
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] = "Database error.";
+            c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
+            fn_callback(c_reply);
+        });
+}
+
+/**
+ * Fetch the stored recovery-code hash for an account (from its team row),
+ * or null when the account does not exist or has no recovery code.
+ * Callback: fn_callback(hashOrNull).
+ */
+function fn_getRecoveryCode(p_accountName, fn_callback) {
+    const c_sql = "SELECT `RecoveryCode` FROM `teams` WHERE `TeamName` = ? LIMIT 1";
+    hlp_db.fn_genericSelect_w_Params(m_db, c_sql, [hlp_string.fn_protectedFromInjection(p_accountName)],
+        function (rows) {
+            if (!rows || rows.length === 0) { fn_callback(null); return; }
+            fn_callback(rows[0]['RecoveryCode'] || null);
+        },
+        function () { fn_callback(null); });
+}
+
 module.exports =
 {
     fn_initialize: fn_initialize,
@@ -858,4 +921,6 @@ module.exports =
     fn_countTeamAdmins: fn_countTeamAdmins,
     fn_getAccountPermission: fn_getAccountPermission,
     fn_getIsAdmin: fn_getIsAdmin,
+    fn_setRecoveryCode: fn_setRecoveryCode,
+    fn_getRecoveryCode: fn_getRecoveryCode,
 }

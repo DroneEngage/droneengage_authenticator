@@ -300,6 +300,30 @@ function fn_getLoginCardsByAccountId (p_accountId)
     return c_cards;
 }
 
+/**
+ * Returns all live login cards whose account name matches p_accountName.
+ * Used to revoke an account's sessions after a credential rotation —
+ * matching is on m_login_name, not the hashed account id, because a
+ * regenerate rotates the stored sid in file mode.
+ */
+function fn_getLoginCardsByAccountName (p_accountName)
+{
+    const c_cards = [];
+    const c_keys = Object.keys(m_loginCardList);
+    const c_len = c_keys.length;
+
+    for (let i=0; i< c_len; ++i)
+    {
+        const c_loginCard = m_loginCardList[c_keys[i]];
+        if (c_loginCard.m_login_name === p_accountName)
+        {
+            c_cards.push(c_loginCard);
+        }
+    }
+
+    return c_cards;
+}
+
 function fn_deleteOldCard (p_sessionID)
 {
     if (p_sessionID in m_loginCardList) {
@@ -320,5 +344,6 @@ module.exports =
     fn_isViewMode: fn_isViewMode,
     fn_getLoginCardBySessionID: fn_getLoginCardBySessionID,
     fn_getLoginCardsByAccountId: fn_getLoginCardsByAccountId,
+    fn_getLoginCardsByAccountName: fn_getLoginCardsByAccountName,
     fn_deleteOldCard: fn_deleteOldCard,
 }

@@ -144,6 +144,7 @@ exports.CONST_ERROR_DATA_UNKNOWN_ERROR          = 999;
 exports.CONST_DEFAULT_SELF_SERVICE_PERMISSION   = '0x00001111';
 
 // Validation
+exports.CONST_ACCOUNT_NAME_MAX_LENGTH           = 255;
 exports.CONST_ACCESSCODE_MAX_LENGTH             = 200;
 exports.CONST_FINGERPRINT_MAX_LENGTH            = 200;
 exports.CONST_SESSION_MAX_LENGTH                = 200;

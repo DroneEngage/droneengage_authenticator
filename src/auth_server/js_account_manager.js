@@ -13,6 +13,44 @@ function fn_generateAccessCode() {
     return uuidv4().replaceAll('-', '').substr(0, 12);
 }
 
+/**
+ * generates a random one-time recovery code. Longer than an access code —
+ * it is a standalone secret that must prove account ownership on its own.
+ */
+function fn_generateRecoveryCode() {
+    return uuidv4().replaceAll('-', '').substr(0, 16);
+}
+
+/**
+ * Issues a fresh one-time recovery code for the account: stores only its
+ * bcrypt hash and attaches the plaintext to p_reply so the caller can show
+ * it to the owner once. Issued at account creation and rotated on every
+ * successful regenerate — a used or rotated code is dead.
+ * Single mode never reaches here (create/regenerate are rejected earlier).
+ */
+function fn_issueRecoveryCode(p_accountName, p_reply, fn_callback) {
+    const v_recoveryCode = fn_generateRecoveryCode();
+    const c_hash = hlp_password.hash(v_recoveryCode);
+
+    const c_onStored = function (p_storeReply) {
+        if ((p_storeReply != null)
+            && (p_storeReply[global.c_CONSTANTS.CONST_ERROR.toString()] !== global.c_CONSTANTS.CONST_ERROR_NON)) {
+            fn_callback(p_storeReply);
+            return;
+        }
+        p_reply[global.c_CONSTANTS.CONST_RECOVERY_CODE_PARAMETER.toString()] = v_recoveryCode;
+        fn_callback(p_reply);
+    };
+
+    if (m_serverconfig.m_configuration.account_storage_type.toLowerCase() === 'file') {
+        global.db_users.fn_set_recovery_code(p_accountName, c_hash, c_onStored);
+        return;
+    }
+
+    // db mode
+    v_database_manager.fn_setRecoveryCode(p_accountName, c_hash, c_onStored);
+}
+
 
 /**
  *
@@ -39,7 +77,11 @@ function fn_createAccessCode(p_accountName, p_permission, fn_callback, p_loginCa
             prm: p_permission,
             isadmin: c_isAdmin
         }, function (p_reply) {
-            p_reply[global.c_CONSTANTS.CONST_ACCESS_CODE_PARAMETER.toString()] = v_accessCode;
+            if (p_reply[global.c_CONSTANTS.CONST_ERROR.toString()] === global.c_CONSTANTS.CONST_ERROR_NON) {
+                p_reply[global.c_CONSTANTS.CONST_ACCESS_CODE_PARAMETER.toString()] = v_accessCode;
+                fn_issueRecoveryCode(p_accountName, p_reply, fn_callback);
+                return;
+            }
             fn_callback(p_reply);
         });
     }
@@ -59,7 +101,11 @@ function fn_createAccessCode(p_accountName, p_permission, fn_callback, p_loginCa
                     // passes p_isAdmin=false so vehicles stay normal users.
                     v_database_manager.fn_createSubLogin(p_accountName, v_accessCode, p_permission,
                         function (p_reply) {
-                            p_reply[global.c_CONSTANTS.CONST_ACCESS_CODE_PARAMETER.toString()] = v_accessCode;
+                            if (p_reply[global.c_CONSTANTS.CONST_ERROR.toString()] === global.c_CONSTANTS.CONST_ERROR_NON) {
+                                p_reply[global.c_CONSTANTS.CONST_ACCESS_CODE_PARAMETER.toString()] = v_accessCode;
+                                fn_issueRecoveryCode(p_accountName, p_reply, fn_callback);
+                                return;
+                            }
                             fn_callback(p_reply);
                         }, c_isAdmin);
                 }
@@ -88,12 +134,16 @@ function fn_regenerateAccessCode(p_accountName, p_permission, fn_callback) {
         const c_isAdmin = c_existing ? (c_existing.isadmin === true) : false;
 
         global.db_users.fn_update_record(p_accountName, {
-            sid: fn_generateAccessCode(),
+            sid: c_existing ? c_existing.sid : fn_generateAccessCode(),
             AccessCode: v_accessCode,
             prm: p_permission,
             isadmin: c_isAdmin
         }, function (p_reply) {
-            p_reply[global.c_CONSTANTS.CONST_ACCESS_CODE_PARAMETER.toString()] = v_accessCode;
+            if (p_reply[global.c_CONSTANTS.CONST_ERROR.toString()] === global.c_CONSTANTS.CONST_ERROR_NON) {
+                p_reply[global.c_CONSTANTS.CONST_ACCESS_CODE_PARAMETER.toString()] = v_accessCode;
+                fn_issueRecoveryCode(p_accountName, p_reply, fn_callback);
+                return;
+            }
             fn_callback(p_reply);
         });
     }
@@ -114,7 +164,11 @@ function fn_regenerateAccessCode(p_accountName, p_permission, fn_callback) {
                         if (p_permission == null) p_permission = '0xffffffff';
                         v_database_manager.fn_createSubLogin(p_accountName, v_accessCode, p_permission,
                             function (p_reply) {
-                                p_reply[global.c_CONSTANTS.CONST_ACCESS_CODE_PARAMETER.toString()] = v_accessCode;
+                                if (p_reply[global.c_CONSTANTS.CONST_ERROR.toString()] === global.c_CONSTANTS.CONST_ERROR_NON) {
+                                    p_reply[global.c_CONSTANTS.CONST_ACCESS_CODE_PARAMETER.toString()] = v_accessCode;
+                                    fn_issueRecoveryCode(p_accountName, p_reply, fn_callback);
+                                    return;
+                                }
                                 fn_callback(p_reply);
                             }, c_preserveAdmin);
                     }

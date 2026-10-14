@@ -391,6 +391,53 @@ class db_user {
     }
 
     /**
+     * Store the bcrypt hash of the account's one-time recovery code on the
+     * login record. The plaintext is only ever returned once to the owner at
+     * issue time; the stored hash is replaced on every rotation so a used
+     * code is dead.
+     * @param {string} user_email - Email/login name of the user
+     * @param {string} p_recoveryCodeHash - bcrypt hash of the recovery code
+     */
+    async fn_set_recovery_code(user_email, p_recoveryCodeHash, fn_callback) {
+        const c_reply = {};
+        const login = this.db.data.logins[user_email];
+        if (!login) {
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] = "Account Not Found.";
+            c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
+            if (fn_callback) fn_callback(c_reply);
+            return;
+        }
+
+        login.RecoveryCode = p_recoveryCodeHash;
+
+        try {
+            await this.db.write();
+        } catch (err) {
+            console.error('Failed to write recovery code:', err);
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG] = "Storage Error.";
+            c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
+            if (fn_callback) fn_callback(c_reply);
+            return;
+        }
+
+        c_reply[global.c_CONSTANTS.CONST_ERROR] = global.c_CONSTANTS.CONST_ERROR_NON;
+        if (fn_callback) fn_callback(c_reply);
+    }
+
+    /**
+     * Returns the stored recovery-code hash for an account, or null when the
+     * account does not exist or has no recovery code (e.g. accounts created
+     * before recovery codes were introduced).
+     * @param {string} user_email - Email/login name of the user
+     * @returns {string|null} - bcrypt hash or null
+     */
+    fn_get_recovery_code(user_email) {
+        const login = this.db.data.logins[user_email];
+        if (!login) return null;
+        return login.RecoveryCode || null;
+    }
+
+    /**
      * Get all non-admin users
      * @returns {object} - Object of non-admin user records keyed by email
      */

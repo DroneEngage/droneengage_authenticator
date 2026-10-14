@@ -59,6 +59,7 @@ function validateAccountOperation({
     accountName,
     permission,
     accessCode,
+    recoveryCode,
 }) {
     if (subCommand == null || subCommand.length > 3) {
         return false;
@@ -79,6 +80,13 @@ function validateAccountOperation({
 
     const trimmedAccessCode = trim(accessCode);
     if (trimmedAccessCode != null && !hlp_string.fn_isAlphanumeric(trimmedAccessCode)) {
+        return false;
+    }
+
+    const trimmedRecoveryCode = trim(recoveryCode);
+    if (trimmedRecoveryCode != null
+        && (!hlp_string.fn_isAlphanumeric(trimmedRecoveryCode)
+            || exceedsMaxLength(trimmedRecoveryCode, c_CONSTANTS.CONST_ACCESSCODE_MAX_LENGTH))) {
         return false;
     }
 

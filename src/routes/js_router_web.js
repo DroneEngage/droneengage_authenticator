@@ -47,6 +47,16 @@ function fn_checkAccountRateLimit(ip) {
     return true;
 }
 
+// API endpoints must answer with JSON — fn_errorPage renders an HTML 404
+// page that clients cannot parse and that hides the real rejection reason.
+function fn_errorJson(v_response, p_command, p_message) {
+    v_response.status(400).json({
+        [C.CONST_ERROR]: C.CONST_ERROR_INVALID_DATA,
+        [C.CONST_ERROR_MSG]: p_message || 'Invalid or malformed request.',
+        [C.CONST_COMMAND]: p_command
+    });
+}
+
 v_router.m_Router.post(C.CONST_WEB_FUNCTION + C.CONST_WEB_LOGIN_COMMAND, function (v_req, v_response, v_next) {
 
     try {
@@ -79,11 +89,11 @@ v_router.m_Router.post(C.CONST_WEB_FUNCTION + C.CONST_WEB_LOGIN_COMMAND, functio
         const c_body = v_req.body;
         // extract parameter values from header... no verification check here.
         if (c_body.hasOwnProperty(C.CONST_ACCOUNT_NAME_PARAMETER) === false) {
-            v_router.fn_errorPage(v_response);
+            fn_errorJson(v_response, C.CONST_WEB_LOGIN_COMMAND);
             return;
         }
         if (c_body.hasOwnProperty(C.CONST_ACCESS_CODE_PARAMETER) === false) {
-            v_router.fn_errorPage(v_response);
+            fn_errorJson(v_response, C.CONST_WEB_LOGIN_COMMAND);
             return;
         }
 
@@ -107,14 +117,14 @@ v_router.m_Router.post(C.CONST_WEB_FUNCTION + C.CONST_WEB_LOGIN_COMMAND, functio
             return;
         }
         if (c_body.hasOwnProperty(C.CONST_APP_GROUP_PARAMETER) === false) {
-            v_router.fn_errorPage(v_response);
+            fn_errorJson(v_response, C.CONST_WEB_LOGIN_COMMAND);
             return;
         }
         if (c_body.hasOwnProperty(C.CONST_APP_NAME_PARAMETER) === false) {
-            v_router.fn_errorPage(v_response);
+            fn_errorJson(v_response, C.CONST_WEB_LOGIN_COMMAND);
             return;
         } if (c_body.hasOwnProperty(C.CONST_EXTRA_PARAMETER) === false) {
-            v_router.fn_errorPage(v_response);
+            fn_errorJson(v_response, C.CONST_WEB_LOGIN_COMMAND);
             return;
         }
 
@@ -144,11 +154,12 @@ v_router.m_Router.post(C.CONST_WEB_FUNCTION + C.CONST_WEB_LOGIN_COMMAND, functio
 
             },
             function () {
-                v_router.fn_errorPage(v_response);
+                fn_errorJson(v_response, C.CONST_WEB_LOGIN_COMMAND,
+                    'Invalid login request. Login name, access code, group and app fields must be alphanumeric.');
             });
     }
     catch (ex) {
-        v_router.fn_errorPage(v_response);
+        fn_errorJson(v_response, C.CONST_WEB_LOGIN_COMMAND);
     }
 
 });
@@ -164,7 +175,7 @@ v_router.m_Router.post(C.CONST_WEB_FUNCTION + C.CONST_ACCOUNT_MANAGMENT, functio
 
         const c_body = v_req.body;
         if (v_req.body[C.CONST_SUB_COMMAND.toString()] == null) {
-            v_router.fn_errorPage(v_response);
+            fn_errorJson(v_response, C.CONST_ACCOUNT_MANAGMENT);
             return;
         }
 
@@ -200,7 +211,7 @@ v_router.m_Router.post(C.CONST_WEB_FUNCTION + C.CONST_ACCOUNT_MANAGMENT, functio
             c_subCmd === C.CONST_CMD_VERIFY_TEAM_USER;
 
         if (!c_isTeamAdminCmd && v_req.body[C.CONST_ACCOUNT_NAME_PARAMETER.toString()] == null) {
-            v_router.fn_errorPage(v_response);
+            fn_errorJson(v_response, C.CONST_ACCOUNT_MANAGMENT);
             return;
         }
 
@@ -219,7 +230,7 @@ v_router.m_Router.post(C.CONST_WEB_FUNCTION + C.CONST_ACCOUNT_MANAGMENT, functio
 
             },
             function () {
-                v_router.fn_errorPage(v_response);
+                fn_errorJson(v_response, C.CONST_ACCOUNT_MANAGMENT);
             },
             v_req.body[C.CONST_SESSION_ID],
             v_req.body[C.CONST_TARGET_LOGIN_PARAMETER],
@@ -227,7 +238,7 @@ v_router.m_Router.post(C.CONST_WEB_FUNCTION + C.CONST_ACCOUNT_MANAGMENT, functio
         );
     }
     catch (ex) {
-        v_router.fn_errorPage(v_response);
+        fn_errorJson(v_response, C.CONST_ACCOUNT_MANAGMENT);
     }
 });
 

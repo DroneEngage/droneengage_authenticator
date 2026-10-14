@@ -8,7 +8,9 @@ function trim(value) {
 }
 
 function isInvalidLoginId(accountName) {
-    return accountName == null || !hlp_string.fn_isValidAccountName(accountName);
+    return accountName == null
+        || exceedsMaxLength(accountName, c_CONSTANTS.CONST_ACCOUNT_NAME_MAX_LENGTH)
+        || !hlp_string.fn_isValidAccountName(accountName);
 }
 
 function exceedsMaxLength(value, maxLength) {
@@ -66,7 +68,9 @@ function validateAccountOperation({
     }
 
     const trimmedAccount = trim(accountName);
-    if (trimmedAccount != null && !hlp_string.fn_isValidAccountName(trimmedAccount)) {
+    if (trimmedAccount != null
+        && (exceedsMaxLength(trimmedAccount, c_CONSTANTS.CONST_ACCOUNT_NAME_MAX_LENGTH)
+            || !hlp_string.fn_isValidAccountName(trimmedAccount))) {
         return false;
     }
     if (permission == null || typeof permission !== "string") {

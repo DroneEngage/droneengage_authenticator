@@ -84,18 +84,22 @@ function fn_normalizePermissionToHex(p_permission) {
  * Verify the caller owns/controls the target account before a credential
  * rotation. Proof accepted (any one):
  *  (a) A live session whose login card identifies the same account
- *      (p_loginCard.m_login_name === p_accountName) — skips the AccessCode
- *      check.
+ *      (p_loginCard.m_login_name === p_accountName) — skips the credential
+ *      checks.
  *  (b) The correct current AccessCode for the account, verified against the
  *      stored hash via the same path the login flow uses.
+ *  (c) The account's one-time recovery code (field 'rc'), issued at account
+ *      creation and rotated on every successful regenerate — the
+ *      "forgot my access code" proof for deployments with no email/OTP
+ *      channel.
  * On success, also returns the account's existing stored permission so the
  * caller can preserve it (regenerate must not change the grant).
  *
  * Callback shape: { proven: bool, existingPermission: string|null, error: obj|null }
  */
-function fn_verifyAccountOwnership(p_accountName, p_accessCode, p_loginCard, fn_callback) {
+function fn_verifyAccountOwnership(p_accountName, p_accessCode, p_recoveryCode, p_loginCard, fn_callback) {
     // (a) Session-based ownership: a live session for the same account is
-    // sufficient proof and skips the AccessCode check.
+    // sufficient proof and skips the credential checks.
     if (p_loginCard != null && p_loginCard.m_login_name === p_accountName) {
         const c_existingPerm = fn_normalizePermissionToHex(
             p_loginCard.m_data != null ? p_loginCard.m_data.m_prm : null
@@ -105,6 +109,14 @@ function fn_verifyAccountOwnership(p_accountName, p_accessCode, p_loginCard, fn_
     }
 
     const c_storageType = (global.m_serverconfig.m_configuration.account_storage_type || "").toLowerCase();
+
+    const c_failOwnership = function () {
+        fn_callback({
+            proven: false,
+            existingPermission: null,
+            error: buildPermissionError("Wrong or missing access code or recovery code. Cannot regenerate account credential."),
+        });
+    };
 
     if (c_storageType === "single") {
         fn_callback({ proven: false, existingPermission: null, error: buildSingleModeError() });
@@ -117,35 +129,55 @@ function fn_verifyAccountOwnership(p_accountName, p_accessCode, p_loginCard, fn_
             fn_callback({ proven: false, existingPermission: null, error: buildAccountNotFoundError() });
             return;
         }
+        // (b) current access code
         const c_storedCode = c_record.AccessCode || c_record.pwd;
-        if (!p_accessCode || hlp_password.verify(p_accessCode, c_storedCode) !== true) {
-            fn_callback({
-                proven: false,
-                existingPermission: null,
-                error: buildPermissionError("Wrong or missing access code. Cannot regenerate account credential."),
-            });
+        if (p_accessCode && hlp_password.verify(p_accessCode, c_storedCode) === true) {
+            fn_callback({ proven: true, existingPermission: c_record.prm, error: null });
             return;
         }
-        fn_callback({ proven: true, existingPermission: c_record.prm, error: null });
+        // (c) recovery code
+        const c_storedRecovery = global.db_users.fn_get_recovery_code(p_accountName);
+        if (p_recoveryCode && c_storedRecovery
+            && hlp_password.verify(p_recoveryCode, c_storedRecovery) === true) {
+            fn_callback({ proven: true, existingPermission: c_record.prm, error: null });
+            return;
+        }
+        c_failOwnership();
         return;
     }
 
     if (c_storageType === "db") {
-        if (!p_accessCode) {
-            fn_callback({
-                proven: false,
-                existingPermission: null,
-                error: buildPermissionError("Wrong or missing access code. Cannot regenerate account credential."),
+        // (c) recovery code — also the fallback when a supplied access code
+        // turned out wrong: any single valid proof is sufficient.
+        const c_tryRecovery = function () {
+            if (!p_recoveryCode) {
+                c_failOwnership();
+                return;
+            }
+            v_database_manager.fn_getRecoveryCode(p_accountName, function (p_storedHash) {
+                if (p_storedHash
+                    && hlp_password.verify(p_recoveryCode, p_storedHash) === true) {
+                    v_database_manager.fn_getAccountPermission(p_accountName, function (p_perm) {
+                        fn_callback({ proven: true, existingPermission: p_perm, error: null });
+                    });
+                    return;
+                }
+                c_failOwnership();
+            });
+        };
+
+        // (b) current access code
+        if (p_accessCode) {
+            v_database_manager.fn_do_loginAccount(p_accountName, p_accessCode, function (p_reply) {
+                if (p_reply[global.c_CONSTANTS.CONST_ERROR.toString()] !== global.c_CONSTANTS.CONST_ERROR_NON) {
+                    c_tryRecovery();
+                    return;
+                }
+                fn_callback({ proven: true, existingPermission: p_reply.m_data.m_prm, error: null });
             });
             return;
         }
-        v_database_manager.fn_do_loginAccount(p_accountName, p_accessCode, function (p_reply) {
-            if (p_reply[global.c_CONSTANTS.CONST_ERROR.toString()] !== global.c_CONSTANTS.CONST_ERROR_NON) {
-                fn_callback({ proven: false, existingPermission: null, error: p_reply });
-                return;
-            }
-            fn_callback({ proven: true, existingPermission: p_reply.m_data.m_prm, error: null });
-        });
+        c_tryRecovery();
         return;
     }
 
@@ -158,32 +190,29 @@ function fn_verifyAccountOwnership(p_accountName, p_accessCode, p_loginCard, fn_
 
 
 /**
- * Look up the stored permission for an account WITHOUT requiring the
- * access code. Used by the public web regenerate path ("forgot my access
- * code" flow) to preserve the existing permission. Returns '0xffffffff'
- * as a safe default if the account is not found.
+ * Revoke every live session owned by p_accountName, optionally keeping one
+ * session (the one that proved ownership for the credential rotation, so
+ * the legitimate owner is not kicked mid-request). Each revoked session is
+ * also signalled to its comm server so the party channel can be dropped —
+ * best effort: the local login-card deletion is the effective action and
+ * subsequent requests get SESSION_NOT_FOUND.
  */
-function fn_getExistingPermission(p_accountName, fn_callback) {
-    const c_storageType = (global.m_serverconfig.m_configuration.account_storage_type || "").toLowerCase();
+function fn_revokeAccountSessions(p_accountName, p_keepSessionID) {
+    const c_cards = v_sessionManager.fn_getLoginCardsByAccountName(p_accountName);
+    let c_revoked = 0;
 
-    if (c_storageType === "file") {
-        const c_record = global.db_users.fn_get_record(p_accountName);
-        if (c_record == null) {
-            fn_callback('0xffffffff');
-            return;
-        }
-        let perm = c_record.prm;
-        if (perm == null || perm === 'D1G1T3R4V5C6') perm = '0xffffffff';
-        fn_callback(perm);
-        return;
+    for (let i = 0; i < c_cards.length; ++i) {
+        const c_card = c_cards[i];
+        if ((c_card == null) || (c_card.m_session_id === p_keepSessionID)) continue;
+        v_commServerManager.fn_removePartyCommunicationSession(c_card);
+        v_sessionManager.fn_deleteOldCard(c_card.m_session_id);
+        ++c_revoked;
     }
 
-    if (c_storageType === "db") {
-        v_database_manager.fn_getAccountPermission(p_accountName, fn_callback);
-        return;
+    if (c_revoked > 0) {
+        console.log("[SECURITY] AccessCode regenerated for account '" + p_accountName
+            + "' — revoked " + c_revoked + " active session(s).");
     }
-
-    fn_callback('0xffffffff');
 }
 
 
@@ -311,14 +340,17 @@ function fn_newLoginCard(
  *    (fn_accountOperationFromAgent) passes
  *    CONST_DEFAULT_SELF_SERVICE_PERMISSION explicitly and stays non-admin,
  *    so vehicles still get the limited bitmask and no team-admin rights.
- *  - REGENERATE_ACCESSCODE: when p_enforceOwnership is true (agent path),
- *    the caller must prove ownership — a live session for the same account OR
- *    the correct current AccessCode. When p_enforceOwnership is falsy (public
- *    web path), the ownership check is skipped — the "Regenerate" button on
- *    the public accounts page is the "forgot my access code" flow, gated by
- *    captcha + rate limiting. In both cases the client-supplied permission
- *    is ignored and the account's existing stored permission is preserved
- *    (rotating a credential must not silently escalate the grant).
+ *  - REGENERATE_ACCESSCODE: ownership proof is mandatory on EVERY path —
+ *    a live session for the same account, the correct current AccessCode,
+ *    or the account's one-time recovery code (p_recoveryCode / field 'rc').
+ *    Anonymous regeneration was removed because the unauthenticated web
+ *    path let anyone rotate a named account's credential and receive the
+ *    new code in the reply — a pre-auth account takeover. The
+ *    client-supplied permission is ignored and the account's existing
+ *    stored permission + IsAdmin flag are preserved (rotating a credential
+ *    must not silently escalate the grant). On success the account's other
+ *    live sessions are revoked so a stolen session cannot outlive the
+ *    rotation.
  *  - GET_ACCOUNT_NAME: unchanged (requires the AccessCode to look up the
  *    owning account — the credential itself is the proof).
  *  - single-account mode: create/regenerate return a prompt error (there is
@@ -328,6 +360,10 @@ function fn_newLoginCard(
  * the credential: p_sessionID resolves the login card, and the card's TeamID
  * + isadmin flag gate the operation.  p_targetLoginName and p_isAdmin carry
  * the target login and admin flag for add/edit.
+ *
+ * p_isAgentPath marks the agent self-service entry point
+ * (fn_accountOperationFromAgent): it only affects CREATE, where agent-made
+ * accounts stay non-admin.
  */
 function fn_accountOperation(
     p_subCommand,
@@ -339,7 +375,8 @@ function fn_accountOperation(
     p_sessionID,
     p_targetLoginName,
     p_isAdmin,
-    p_enforceOwnership
+    p_isAgentPath,
+    p_recoveryCode
 ) {
     const C = global.c_CONSTANTS;
 
@@ -424,9 +461,8 @@ function fn_accountOperation(
 
             // The public web path (accounts page) creates a new TeamID whose
             // single login is the team owner — it MUST be an admin or the
-            // team could never be managed. The agent path
-            // (p_enforceOwnership === true) stays non-admin.
-            const c_isAdmin = (p_enforceOwnership !== true);
+            // team could never be managed. The agent path stays non-admin.
+            const c_isAdmin = (p_isAgentPath !== true);
 
             v_account_manager.fn_createAccessCode(
                 trimmedAccount,
@@ -448,40 +484,39 @@ function fn_accountOperation(
                 return;
             }
 
-            // The agent path (p_enforceOwnership === true) must prove ownership
-            // before the credential can be rotated — a live session for the
-            // same account OR the correct current AccessCode.
-            // The public web path (p_enforceOwnership !== true) skips the
-            // ownership check: the "Regenerate" button on the public accounts
-            // page is the "forgot my access code" flow, gated by captcha +
-            // rate limiting. The existing stored permission is always
-            // preserved (regenerating must not silently escalate the grant).
-            const c_doRegenerate = function (p_existingPermission) {
-                v_account_manager.fn_regenerateAccessCode(
-                    trimmedAccount,
-                    p_existingPermission,
-                    function (p_reply) {
-                        p_reply[global.c_CONSTANTS.CONST_SUB_COMMAND] =
-                            global.c_CONSTANTS.CONST_CMD_REGENERATE_ACCESSCODE;
-                        fn_callback(p_reply);
-                    }
-                );
-            };
-
-            if (p_enforceOwnership === true) {
-                fn_verifyAccountOwnership(trimmedAccount, trimmedAccessCode, p_loginCard, function (p_result) {
+            // Ownership proof is mandatory on EVERY path — a live session
+            // for the same account, the current AccessCode, or the one-time
+            // recovery code ('rc'). Anonymous regeneration was removed:
+            // it allowed pre-auth takeover of any named account. The
+            // existing stored permission is always preserved (regenerating
+            // must not silently escalate the grant).
+            fn_verifyAccountOwnership(trimmedAccount, trimmedAccessCode,
+                v_inputValidator.trim(p_recoveryCode), p_loginCard,
+                function (p_result) {
                     if (!p_result.proven) {
                         fn_callback(p_result.error || buildPermissionError("Ownership verification failed."));
                         return;
                     }
-                    c_doRegenerate(p_result.existingPermission);
+                    v_account_manager.fn_regenerateAccessCode(
+                        trimmedAccount,
+                        p_result.existingPermission,
+                        function (p_reply) {
+                            p_reply[global.c_CONSTANTS.CONST_SUB_COMMAND] =
+                                global.c_CONSTANTS.CONST_CMD_REGENERATE_ACCESSCODE;
+                            if (p_reply[global.c_CONSTANTS.CONST_ERROR] === global.c_CONSTANTS.CONST_ERROR_NON) {
+                                // Credential rotated — revoke the account's
+                                // other live sessions so a stolen session
+                                // cannot outlive the rotation. The proving
+                                // session (if any) is kept so the owner is
+                                // not kicked mid-request.
+                                fn_revokeAccountSessions(trimmedAccount,
+                                    (p_loginCard && p_loginCard.m_login_name === trimmedAccount)
+                                        ? p_loginCard.m_session_id : null);
+                            }
+                            fn_callback(p_reply);
+                        }
+                    );
                 });
-            } else {
-                // Public web path: look up the existing permission to preserve it.
-                fn_getExistingPermission(trimmedAccount, function (p_perm) {
-                    c_doRegenerate(p_perm);
-                });
-            }
             break;
         }
         case global.c_CONSTANTS.CONST_CMD_GET_ACCOUNT_NAME:
@@ -506,8 +541,9 @@ function fn_accountOperation(
  * CONST_DEFAULT_SELF_SERVICE_PERMISSION as the permission, so agent-created
  * accounts get the limited bitmask (no GCS_LOGIN bit — vehicles login as
  * units, not as GCS). Regenerate must prove ownership via the current
- * AccessCode (fn_accountOperation ignores the permission for regenerate in
- * favour of the preserved existing permission).
+ * AccessCode or the account's recovery code (fn_accountOperation ignores
+ * the permission for regenerate in favour of the preserved existing
+ * permission).
  */
 function fn_accountOperationFromAgent(
     p_subCommand,
@@ -515,6 +551,7 @@ function fn_accountOperationFromAgent(
     p_accessCode,
     p_app,
     p_extra,
+    p_recoveryCode,
     fn_callback,
     fn_error
 ) {
@@ -533,7 +570,8 @@ function fn_accountOperationFromAgent(
         null,       // p_sessionID — agent path has no session
         null,       // p_targetLoginName
         null,       // p_isAdmin
-        true        // p_enforceOwnership — agent must prove ownership for regenerate
+        true,       // p_isAgentPath — agent-created accounts stay non-admin
+        p_recoveryCode
     );
 }
 

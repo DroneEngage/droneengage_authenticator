@@ -39,6 +39,7 @@ exports.CONST_ACCOUNT_ID_PARAMETER                  = 'aid';   // AccountID (Tea
 exports.CONST_LOGIN_ID_PARAMETER                    = 'lid';   // LoginID
 exports.CONST_TARGET_LOGIN_PARAMETER                = 'tln';   // target login name (email) for team-admin edit/delete
 exports.CONST_IS_ADMIN_PARAMETER                    = 'isadmin'; // isadmin flag (team-admin)
+exports.CONST_RECOVERY_CODE_PARAMETER               = 'rc';   // one-time recovery code: request proof (regenerate) and reply field (issued code)
 exports.CONST_APP_NAME_PARAMETER                    = 'app';   // verified
 exports.CONST_APP_GROUP_PARAMETER                   = 'gr';    // verified
 exports.CONST_APP_VER_PARAMETER                     = 'ver';   // verified

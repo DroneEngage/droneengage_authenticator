@@ -224,6 +224,7 @@ v_router.m_Router.post(C.CONST_AGENT_FUNCTION + C.CONST_AGENT_ACCOUNT_MANAGMENT,
             v_req.body[C.CONST_ACCESS_CODE_PARAMETER],
             v_req.body[C.CONST_APP_NAME_PARAMETER],
             v_req.body[C.CONST_EXTRA_PARAMETER],
+            v_req.body[C.CONST_RECOVERY_CODE_PARAMETER],
             function (p_data)
             {
                 p_data[C.CONST_COMMAND.toString()]   = C.CONST_ACCOUNT_MANAGMENT;

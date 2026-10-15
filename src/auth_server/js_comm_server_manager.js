@@ -695,25 +695,40 @@ function fn_setUdpProxyBlocked (p_server, p_proxyName, p_blocked, fn_success, fn
 
 
 /**
- * @todo NOT IMPLEMENTED
- * @param {server to communicate with.} p_selectedServer
+ * Asks the party's communication server to drop the session's channel.
+ * p_reason is an optional short tag (e.g. 'access_code_reset' after a
+ * credential rotation); when present a human-readable 'notice' is attached
+ * so the comm server can display it to the party before disconnecting.
+ *
+ * NOTE: the comm server's LOGOUT_REQUEST handler is currently a @todo on
+ * the de_comm/webclient side, so the reason/notice fields are emitted on
+ * the wire but not yet delivered to the client — the local login-card
+ * deletion remains the effective revocation, and subsequent requests from
+ * the revoked session get SESSION_NOT_FOUND.
+ * @param {*} p_loginCard
+ * @param {string|null} p_reason
  */
-function fn_removePartyCommunicationSession (p_loginCard)
+function fn_removePartyCommunicationSession (p_loginCard, p_reason)
 {
     if ((p_loginCard == null) || (p_loginCard.hasOwnProperty('m_commServerGUID')===false))
     {
         // no broadcast yet
         // @todo: you may enable broadcast later if needed.
-        return ; 
+        return ;
     }
 
-    
+
     const c_req = {
-        'c':global.c_CONSTANTS.CONST_CS_CMD_LOGOUT_REQUEST, // request party remove        
+        'c':global.c_CONSTANTS.CONST_CS_CMD_LOGOUT_REQUEST, // request party remove
         'd': {}
     };
 
     c_req.d[global.c_CONSTANTS.CONST_CS_SENDER_ID.toString()] = p_loginCard.m_acc_id_hashed;
+    if (p_reason != null)
+    {
+        c_req.d['reason'] = p_reason;
+        c_req.d['notice'] = 'The access code for this account was reset. Sign in again with the new code.';
+    }
 
     Me.fn_sendMessage (p_loginCard.m_commServerGUID,JSON.stringify(c_req));
 }

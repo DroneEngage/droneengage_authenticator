@@ -71,6 +71,10 @@ const CONST_TYPE_AndruavMessage_ServoChannel        = 6001;
 const CONST_TYPE_AndruavBinaryMessage_ServoOutput   = 6501;
 const CONST_TYPE_AndruavBinaryMessage_Mavlink       = 6502;
 
+// per-frame AI observations (intermodule only; replaces
+// AI_Recognition_TargetLocation 1078)
+const CONST_TYPE_AndruavMessage_AI_OBSERVATIONS     = 6546;
+
 // System Messages
 const CONST_TYPE_AndruavSystem_LoadTasks            = 9001;
 const CONST_TYPE_AndruavSystem_SaveTasks            = 9002;
@@ -100,6 +104,7 @@ let message_names = {
     1071: "UdpProxy_Info",
     6001: "ServoChannel",
     6501: "ServoOutput",
-    6502: "Mavlink"
+    6502: "Mavlink",
+    6546: "AI Observations"
 };
 

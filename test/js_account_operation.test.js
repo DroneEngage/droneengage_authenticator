@@ -1,6 +1,6 @@
 "use strict";
 
-const { describe, it, before, beforeEach } = require("node:test");
+const { describe, it, before, after } = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("path");
 const fs = require("fs");
@@ -12,6 +12,8 @@ const dbUsers = require("../src/database/db_users");
 const sessionManager = require("../src/auth_server/js_session_manager");
 const accountManager = require("../src/auth_server/js_account_manager");
 const authServer = require("../src/auth_server/js_auth_server");
+const dbManager = require("../src/auth_server/js_database_manager");
+const commServerManager = require("../src/auth_server/js_comm_server_manager");
 const c_CONSTANTS = require("../src/js_constants");
 
 const TEST_DB = path.join(__dirname, "fixtures", "db_account_operation.test.db");
@@ -332,11 +334,20 @@ describe("js_account_operation — file mode", () => {
     });
 
     // Case 7b: a successful regenerate revokes the account's OTHER sessions
-    // but keeps the proving one.
+    // but keeps the proving one, and each revoked session's comm server gets
+    // a LOGOUT_REQUEST carrying the 'access_code_reset' notice.
     it("regenerate revokes other sessions but keeps the proving session", async () => {
         const { accessCode } = await createAccountDirect("op_revoke@x.com", "0x00001111");
-        const { sessionID: provingSession } = await loginSession("op_revoke@x.com", accessCode);
-        const { sessionID: otherSession } = await loginSession("op_revoke@x.com", accessCode);
+        const { sessionID: provingSession, loginCard: provingCard } = await loginSession("op_revoke@x.com", accessCode);
+        const { sessionID: otherSession, loginCard: otherCard } = await loginSession("op_revoke@x.com", accessCode);
+
+        // Attach a comm server to both cards so the removal notice is emitted.
+        provingCard.m_commServerGUID = "test-comm-1";
+        otherCard.m_commServerGUID = "test-comm-1";
+
+        const c_sent = [];
+        commServerManager.fn_initialize();
+        commServerManager.fn_sendMessage = function (guid, msg) { c_sent.push(JSON.parse(msg)); };
 
         const reply = await accountOperation(
             C.CONST_CMD_REGENERATE_ACCESSCODE,
@@ -351,6 +362,17 @@ describe("js_account_operation — file mode", () => {
             "the proving session must survive");
         assert.equal(sessionManager.fn_getLoginCardBySessionID(otherSession), undefined,
             "the other session must be revoked");
+
+        assert.equal(c_sent.length, 1,
+            "exactly one logout request is emitted (the proving session is skipped)");
+        assert.equal(c_sent[0].c, C.CONST_CS_CMD_LOGOUT_REQUEST);
+        assert.equal(c_sent[0].d.reason, "access_code_reset",
+            "the revocation notice must name the cause");
+        assert.ok(c_sent[0].d.notice, "a human-readable notice must be attached");
+        assert.equal(c_sent[0].d[C.CONST_CS_SENDER_ID], otherCard.m_acc_id_hashed,
+            "the notice must target the revoked session's account");
+
+        commServerManager.fn_sendMessage = function () {};
     });
 
     // Case 10: GET_ACCOUNT_NAME unaffected (regression)
@@ -493,5 +515,115 @@ describe("js_account_operation — single mode", () => {
         );
         assert.equal(replyError(reply), C.CONST_ERROR_NON);
         assert.equal(reply[C.CONST_ACCOUNT_NAME_PARAMETER], "single@airgap.droneengage.com");
+    });
+});
+
+
+describe("js_account_operation — db mode (SQLite)", () => {
+    const TEST_SQLITE = path.join(__dirname, "fixtures", "db_account_operation_sqlite.test.db");
+    const hlp_password = require("droneengage_server_common").password;
+    let seedDb = null; // direct connection used for seeding and assertions
+
+    function runSql(sql, params) {
+        return new Promise((resolve, reject) =>
+            seedDb.run(sql, params || [], function (err) { err ? reject(err) : resolve(this); }));
+    }
+    function allSql(sql, params) {
+        return new Promise((resolve, reject) =>
+            seedDb.all(sql, params || [], (err, rows) => err ? reject(err) : resolve(rows)));
+    }
+
+    before(async () => {
+        try { fs.unlinkSync(TEST_SQLITE); } catch (e) { /* ok */ }
+        seedDb = new (require("sqlite3").Database)(TEST_SQLITE);
+        const c_schema = fs.readFileSync(
+            path.join(__dirname, "..", "src", "database", "migrations", "002_init_schema.sql"), "utf8");
+        await new Promise((resolve, reject) =>
+            seedDb.exec(c_schema, (err) => err ? reject(err) : resolve()));
+        // teams.RecoveryCode is normally added by fn_initialize's schema
+        // probe — add it upfront so seeded rows can carry a code.
+        await runSql("ALTER TABLE teams ADD COLUMN RecoveryCode TEXT");
+
+        global.m_serverconfig.m_configuration.account_storage_type = "db";
+        global.m_serverconfig.m_configuration.dbdatabase = TEST_SQLITE;
+        // fn_initialize's sqlite open callback logs via global.Colors — the
+        // harness never sets it (server.js does in production).
+        global.Colors = require("droneengage_server_common").helpers.colors.Colors;
+        dbManager.fn_initialize();
+        // Drain one query through the manager so the open (and its schema
+        // probes) settle before the suite ends — a pending native statement
+        // finalizing at process exit otherwise crashes the runner.
+        await new Promise((resolve) => dbManager.fn_getIsAdmin("warmup@x.com", () => resolve()));
+    });
+
+    after(() => {
+        if (seedDb) seedDb.close();
+    });
+
+    // An account whose team row exists but has NO login row (e.g. a prior
+    // partially-failed regenerate) must NOT get a default full-permission
+    // login minted — the regenerate fails closed.
+    it("db mode: regenerate fails closed when no login row carries a grant", async () => {
+        const recoveryPlain = "deadbeefdeadbeef";
+        await runSql("INSERT INTO teams (TeamName) VALUES (?)", ["db_noperm@x.com"]);
+        await runSql("UPDATE teams SET RecoveryCode = ? WHERE TeamName = ?",
+            [hlp_password.hash(recoveryPlain), "db_noperm@x.com"]);
+
+        const reply = await accountOperation(
+            C.CONST_CMD_REGENERATE_ACCESSCODE,
+            "db_noperm@x.com",
+            "0xffffffff",
+            null,           // no access code
+            null,           // no session
+            recoveryPlain   // valid recovery code — proof succeeds
+        );
+        assert.notEqual(replyError(reply), C.CONST_ERROR_NON,
+            "regenerate must fail when the stored grant cannot be determined");
+        assert.equal(reply[C.CONST_ACCESS_CODE_PARAMETER], undefined,
+            "no access code may be disclosed on failure");
+
+        const rows = await allSql(
+            "SELECT LoginID FROM logins WHERE TeamID = (SELECT TeamID FROM teams WHERE TeamName = ?)",
+            ["db_noperm@x.com"]);
+        assert.equal(rows.length, 0, "no login may be minted by the refused regenerate");
+    });
+
+    // A team with logins of different permissions: a regenerate must remove
+    // every non-admin login (plus the account's own login, even though it is
+    // admin — otherwise the old access code survives on that row). Other
+    // admin logins are deliberately kept.
+    it("db mode: regenerate deletes every non-admin login of the team", async () => {
+        const { accessCode } = await createAccountDirect("db_rotate@x.com", "0x00001111");
+        const teamRows = await allSql("SELECT TeamID FROM teams WHERE TeamName = ?", ["db_rotate@x.com"]);
+        const teamId = teamRows[0].TeamID;
+
+        const addLogin = (name, code, perm, isAdmin) => new Promise((resolve, reject) =>
+            dbManager.fn_addTeamLogin(teamId, name, code, perm, isAdmin, (r) =>
+                replyError(r) === C.CONST_ERROR_NON ? resolve(r) : reject(new Error("seed addTeamLogin failed"))));
+        await addLogin("member1@x.com", "membercode1", "0x00002222", false); // non-admin member
+        await addLogin("member2@x.com", "membercode2", "0x00003333", true);  // admin member — kept
+
+        const reply = await accountOperation(
+            C.CONST_CMD_REGENERATE_ACCESSCODE,
+            "db_rotate@x.com",
+            "0xffffffff",   // requested permission must be ignored
+            accessCode,
+            null
+        );
+        assert.equal(replyError(reply), C.CONST_ERROR_NON, "regenerate should succeed");
+
+        const logins = await allSql("SELECT LoginName FROM logins WHERE TeamID = ?", [teamId]);
+        assert.deepEqual(logins.map(r => r.LoginName).sort(), ["db_rotate@x.com", "member2@x.com"],
+            "own login recreated, non-admin member deleted, admin member kept");
+
+        // The rotated-out access code must be dead; the new one must work.
+        const staleLogin = await new Promise((resolve) =>
+            sessionManager.fn_createLoginCard("db_rotate@x.com", accessCode, "g", "g1", resolve));
+        assert.notEqual(replyError(staleLogin), C.CONST_ERROR_NON,
+            "the rotated-out access code must no longer authenticate");
+        const freshLogin = await new Promise((resolve) =>
+            sessionManager.fn_createLoginCard("db_rotate@x.com", reply[C.CONST_ACCESS_CODE_PARAMETER], "g", "g1", resolve));
+        assert.equal(replyError(freshLogin), C.CONST_ERROR_NON,
+            "the new access code must authenticate");
     });
 });

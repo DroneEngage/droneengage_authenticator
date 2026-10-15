@@ -460,10 +460,20 @@ function fn_createNewAccessCode (p_accountName, p_newAccessCode, fn_callback, p_
 }
 
 
-function fn_deleteSubLogins (p_accountName, p_permission, fn_callback)
+/**
+ * Deletes the account's sub-logins ahead of a credential rotation.
+ * Scope: every non-admin login of the owning team, plus the account's own
+ * login (LoginName = TeamName) even when it is admin — otherwise the old
+ * access code would survive on that row and the rotation would be
+ * meaningless. Other ADMIN logins of the team are kept: they are
+ * deliberately-issued management credentials (an admin can re-issue member
+ * logins via team-admin ops), and keeping them avoids locking a team out
+ * of member management when the rotated login is not an admin.
+ */
+function fn_deleteSubLogins (p_accountName, fn_callback)
 {
     const c_reply = {};
-    
+
     if ((p_accountName == null) || (!hlp_string.fn_isValidAccountName(p_accountName)))
     {
         // null or not valid login name
@@ -475,9 +485,9 @@ function fn_deleteSubLogins (p_accountName, p_permission, fn_callback)
         }
         return ;
     }
-    const c_sql = "DELETE FROM `logins` WHERE `TeamID` in ( select `TeamID` FROM `teams` WHERE `TeamName` LIKE ?) and `Permissions` = ?";
+    const c_sql = "DELETE FROM `logins` WHERE `TeamID` in ( select `TeamID` FROM `teams` WHERE `TeamName` LIKE ?) and (`LoginName` = ? or COALESCE(`IsAdmin`,0) <> 1)";
 
-    hlp_db.fn_genericInsert_w_Params (m_db,c_sql, [hlp_string.fn_protectedFromInjection(p_accountName), c_permission.fn_convertPermissiontoInt(p_permission)],
+    hlp_db.fn_genericInsert_w_Params (m_db,c_sql, [hlp_string.fn_protectedFromInjection(p_accountName), hlp_string.fn_protectedFromInjection(p_accountName)],
 		function (err,res) 
 		{
             // if (res.changes == 0)
@@ -816,11 +826,18 @@ function fn_countTeamAdmins(p_teamId, fn_callback) {
  * Look up the stored permission for an account by name (no access code
  * required). Used by the public regenerate path to preserve the existing
  * permission without enforcing ownership.
- * Callback: fn_callback(permissionString) — '0xffffffff' if not found.
+ * Callback: fn_callback(reply) — CONST_ERROR_NON with reply.m_permission
+ * (the stored grant as an int) on success, CONST_ERROR_ACCOUNT_NOT_FOUND
+ * when the account has no login row, CONST_ERROR_DATA_DATABASE_ERROR on a
+ * storage failure. Callers MUST NOT substitute a default permission on
+ * failure — minting '0xffffffff' on a miss is a fail-open escalation.
  */
 function fn_getAccountPermission(p_accountName, fn_callback) {
+    const c_reply = {};
     if ((p_accountName == null) || (!hlp_string.fn_isValidAccountName(p_accountName))) {
-        fn_callback('0xffffffff');
+        c_reply[global.c_CONSTANTS.CONST_ERROR_MSG.toString()] = "Bad LoginName";
+        c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_INVALID_DATA;
+        fn_callback(c_reply);
         return;
     }
 
@@ -828,15 +845,21 @@ function fn_getAccountPermission(p_accountName, fn_callback) {
     hlp_db.fn_genericSelect_w_Params(m_db, c_sql, [hlp_string.fn_protectedFromInjection(p_accountName)],
         function (rows) {
             if (!rows || rows.length === 0) {
-                fn_callback('0xffffffff');
+                c_reply[global.c_CONSTANTS.CONST_ERROR_MSG.toString()] = "Account Not Found.";
+                c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_ACCOUNT_NOT_FOUND;
+                fn_callback(c_reply);
                 return;
             }
             let perm = rows[0]['Permissions'];
             if (perm == null || perm === 'D1G1T3R4V5C6') perm = '0xffffffff';
-            fn_callback(c_permission.fn_convertPermissiontoInt(perm));
+            c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_NON;
+            c_reply.m_permission = c_permission.fn_convertPermissiontoInt(perm);
+            fn_callback(c_reply);
         },
         function () {
-            fn_callback('0xffffffff');
+            c_reply[global.c_CONSTANTS.CONST_ERROR_MSG.toString()] = "Database error.";
+            c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
+            fn_callback(c_reply);
         });
 }
 

@@ -157,8 +157,17 @@ function fn_verifyAccountOwnership(p_accountName, p_accessCode, p_recoveryCode, 
             v_database_manager.fn_getRecoveryCode(p_accountName, function (p_storedHash) {
                 if (p_storedHash
                     && hlp_password.verify(p_recoveryCode, p_storedHash) === true) {
-                    v_database_manager.fn_getAccountPermission(p_accountName, function (p_perm) {
-                        fn_callback({ proven: true, existingPermission: p_perm, error: null });
+                    v_database_manager.fn_getAccountPermission(p_accountName, function (p_reply) {
+                        if (p_reply[global.c_CONSTANTS.CONST_ERROR.toString()] !== global.c_CONSTANTS.CONST_ERROR_NON) {
+                            // Proof was valid but the existing grant cannot be
+                            // determined (e.g. a prior failed regenerate left the
+                            // team with no login row). Fail closed — the
+                            // operator CLI (tools/reset_access.js) is the
+                            // recovery path for this state.
+                            fn_callback({ proven: false, existingPermission: null, error: p_reply });
+                            return;
+                        }
+                        fn_callback({ proven: true, existingPermission: p_reply.m_permission, error: null });
                     });
                     return;
                 }
@@ -193,8 +202,11 @@ function fn_verifyAccountOwnership(p_accountName, p_accessCode, p_recoveryCode, 
  * Revoke every live session owned by p_accountName, optionally keeping one
  * session (the one that proved ownership for the credential rotation, so
  * the legitimate owner is not kicked mid-request). Each revoked session is
- * also signalled to its comm server so the party channel can be dropped —
- * best effort: the local login-card deletion is the effective action and
+ * signalled to its comm server with an 'access_code_reset' reason and a
+ * human-readable notice ("access code was reset") so an online owner sees
+ * the takeover attempt — best effort: the comm server's LOGOUT_REQUEST
+ * handler is a @todo upstream, so the notice is emitted but not yet
+ * delivered; the local login-card deletion is the effective action and
  * subsequent requests get SESSION_NOT_FOUND.
  */
 function fn_revokeAccountSessions(p_accountName, p_keepSessionID) {
@@ -204,7 +216,12 @@ function fn_revokeAccountSessions(p_accountName, p_keepSessionID) {
     for (let i = 0; i < c_cards.length; ++i) {
         const c_card = c_cards[i];
         if ((c_card == null) || (c_card.m_session_id === p_keepSessionID)) continue;
-        v_commServerManager.fn_removePartyCommunicationSession(c_card);
+        // Tell the session's comm server why the channel is being dropped
+        // ('access_code_reset' + a human-readable notice) so an online owner
+        // sees a takeover attempt. Delivery depends on the comm server's
+        // LOGOUT_REQUEST handler, which is a @todo upstream — the card
+        // deletion below is the effective revocation either way.
+        v_commServerManager.fn_removePartyCommunicationSession(c_card, 'access_code_reset');
         v_sessionManager.fn_deleteOldCard(c_card.m_session_id);
         ++c_revoked;
     }

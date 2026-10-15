@@ -119,12 +119,24 @@ function fn_createAccessCode(p_accountName, p_permission, fn_callback, p_loginCa
 /**
  * Generates new access code.
  * This deletes all accout sub-logins, and create a new one.
- * @param {*} p_accountName 
- * @param {*} p_permission
- * @param {*} fn_callback 
+ * @param {*} p_accountName
+ * @param {*} p_permission the account's EXISTING stored permission, preserved
+ *                         across the rotation. Must never be null — a caller
+ *                         that could not determine the grant must not reach
+ *                         here (defaulting would mint a full-permission login).
+ * @param {*} fn_callback
  */
 function fn_regenerateAccessCode(p_accountName, p_permission, fn_callback) {
     const v_accessCode = fn_generateAccessCode();
+
+    if (p_permission == null) {
+        // Fail closed: never default a regenerated login to full permission.
+        const c_reply = {};
+        c_reply[global.c_CONSTANTS.CONST_ERROR_MSG.toString()] = "Cannot determine existing permission — regenerate refused.";
+        c_reply[global.c_CONSTANTS.CONST_ERROR.toString()] = global.c_CONSTANTS.CONST_ERROR_DATA_DATABASE_ERROR;
+        fn_callback(c_reply);
+        return;
+    }
 
     if (m_serverconfig.m_configuration.account_storage_type.toLowerCase() === 'file') {
 
@@ -151,8 +163,9 @@ function fn_regenerateAccessCode(p_accountName, p_permission, fn_callback) {
 
         // Preserve the existing IsAdmin flag across regenerate.
         v_database_manager.fn_getIsAdmin(p_accountName, function (c_preserveAdmin) {
-            // Define a new account.
-            v_database_manager.fn_deleteSubLogins(p_accountName, p_permission,
+            // Delete the account's sub-logins (every non-admin login of the
+            // team plus the account's own login — see fn_deleteSubLogins).
+            v_database_manager.fn_deleteSubLogins(p_accountName,
                 function (p_reply) {
 
                     if (p_reply[global.c_CONSTANTS.CONST_ERROR.toString()] != global.c_CONSTANTS.CONST_ERROR_NON) {
@@ -161,7 +174,6 @@ function fn_regenerateAccessCode(p_accountName, p_permission, fn_callback) {
                     else {
                         // Create sub login account that is used by andruav for actual login.
                         // Regenerate preserves the existing IsAdmin flag.
-                        if (p_permission == null) p_permission = '0xffffffff';
                         v_database_manager.fn_createSubLogin(p_accountName, v_accessCode, p_permission,
                             function (p_reply) {
                                 if (p_reply[global.c_CONSTANTS.CONST_ERROR.toString()] === global.c_CONSTANTS.CONST_ERROR_NON) {

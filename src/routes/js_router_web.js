@@ -2,6 +2,7 @@
 
 
 var v_router = require('./js_router');
+const c_altcha = require('../auth_server/js_altcha_guard');
 const C = global.c_CONSTANTS;
 
 // Simple in-memory rate limiter
@@ -165,7 +166,29 @@ v_router.m_Router.post(C.CONST_WEB_FUNCTION + C.CONST_WEB_LOGIN_COMMAND, functio
 });
 
 
-v_router.m_Router.post(C.CONST_WEB_FUNCTION + C.CONST_ACCOUNT_MANAGMENT, function (v_req, v_response, v_next) {
+// ALTCHA proof-of-work challenge — fetched by the webclient captcha widget.
+v_router.m_Router.get(C.CONST_WEB_FUNCTION + C.CONST_CAPTCHA_CHALLENGE, async function (v_req, v_response, v_next) {
+
+    try {
+        const challenge = await c_altcha.fn_issueChallenge();
+        if (challenge === null) {
+            // Guard disabled — nothing to solve
+            v_response.status(404).json({
+                [C.CONST_ERROR]: C.CONST_ERROR_NOT_FOUND,
+                [C.CONST_ERROR_MSG]: 'Captcha is disabled on this server.',
+                [C.CONST_COMMAND]: C.CONST_CAPTCHA_CHALLENGE
+            });
+            return;
+        }
+        v_response.json(challenge);
+    }
+    catch (ex) {
+        fn_errorJson(v_response, C.CONST_CAPTCHA_CHALLENGE);
+    }
+});
+
+
+v_router.m_Router.post(C.CONST_WEB_FUNCTION + C.CONST_ACCOUNT_MANAGMENT, async function (v_req, v_response, v_next) {
 
     try {
         if (global.DEBUG_LOGGING) console.log("debug ... " + C.CONST_ACCOUNT_MANAGMENT + " called");
@@ -213,6 +236,20 @@ v_router.m_Router.post(C.CONST_WEB_FUNCTION + C.CONST_ACCOUNT_MANAGMENT, functio
         if (!c_isTeamAdminCmd && v_req.body[C.CONST_ACCOUNT_NAME_PARAMETER.toString()] == null) {
             fn_errorJson(v_response, C.CONST_ACCOUNT_MANAGMENT);
             return;
+        }
+
+        // Public commands (create/regenerate access code) require a solved
+        // ALTCHA payload — the only unauthenticated write surface.
+        if (c_subCmd === C.CONST_CMD_CREATE_ACCESSCODE || c_subCmd === C.CONST_CMD_REGENERATE_ACCESSCODE) {
+            const captchaOk = await c_altcha.fn_verifyPayload(v_req.body[C.CONST_CAPTCHA_PAYLOAD_PARAMETER]);
+            if (!captchaOk) {
+                v_response.status(400).json({
+                    [C.CONST_ERROR]: C.CONST_ERROR_INVALID_DATA,
+                    [C.CONST_ERROR_MSG]: 'Captcha verification failed. Please solve the captcha and retry.',
+                    [C.CONST_COMMAND]: C.CONST_ACCOUNT_MANAGMENT
+                });
+                return;
+            }
         }
 
         if (v_req.body[C.CONST_PERMISSION_PARAMETER.toString()] == null) {

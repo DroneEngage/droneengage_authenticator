@@ -215,6 +215,29 @@
                     `;
                 }
 
+                // UDP relay status is only rendered when the comm server
+                // reported it (`j`); servers without a relay show nothing.
+                const udpRelays = server.udpRelayStatus ? Object.values(server.udpRelayStatus) : [];
+                const relayStateMap = {
+                    'cd': { label: 'connected',    color: 'bg-success' },
+                    'dc': { label: 'disconnected', color: 'bg-danger'  },
+                    'cg': { label: 'connecting',   color: 'bg-warning' },
+                    'uh': { label: 'unhealthy',    color: 'bg-warning' },
+                    'er': { label: 'error',        color: 'bg-danger'  }
+                };
+                const udpRelayStatusHtml = udpRelays.map(relay => {
+                    const stateInfo = relayStateMap[relay.status] || { label: relay.status, color: 'bg-warning' };
+                    const pairsText = (relay.pairs != null) ? ` — ${relay.pairs} pair${relay.pairs === 1 ? '' : 's'}` : '';
+                    const errorText = relay.error ? `<br><small class="text-danger">${relay.error}</small>` : '';
+                    return `
+                        <p class="card-text mb-1 text-white">
+                            <strong>Relay ${relay.relay_id || 'unknown'}:</strong>
+                            <span class="badge ${stateInfo.color}">${stateInfo.label}</span>
+                            ${relay.host ? ` (${relay.host}:${relay.port})` : ''}${pairsText}${errorText}
+                        </p>
+                    `;
+                }).join('');
+
                 const udpProxyCount = (server.udpProxies || []).length;
                 const udpProxiesHtml = server.udpProxiesTimestamp
                     ? `
@@ -241,6 +264,7 @@
                             <p class="card-text mb-1 text-primary"><strong>Port:</strong> ${server.serverPort || 'N/A'}</p>
                             <p class="card-text mb-1 text-white"><strong>Version:</strong> ${server.version || 'N/A'}</p>
                             ${storageStatusHtml}
+                            ${udpRelayStatusHtml}
                             ${udpProxiesHtml}
                         </div>
                     </div>
@@ -271,8 +295,9 @@
                 btn.addEventListener('click', function(event) {
                     event.stopPropagation();
                     const name = decodeURIComponent(this.dataset.name || '');
+                    const account = decodeURIComponent(this.dataset.account || '');
                     const blocked = this.dataset.blocked === 'true';
-                    setUdpProxyBlocked(name, !blocked, this);
+                    setUdpProxyBlocked(name, !blocked, account, this);
                 });
             });
         }
@@ -403,6 +428,27 @@
             return 'text-muted';
         }
 
+        // Compact one-line rendering of a relay pair's pinned object
+        // ({gcs: {policy, mode, ip?, port?, allowlist?}, unit: {mode, ip?, port?}}).
+        function formatPinned(pinned) {
+            if (!pinned) return '—';
+            const parts = [];
+            const gcs = pinned.gcs;
+            if (gcs) {
+                let s = 'gcs: ' + (gcs.mode || gcs.policy || 'open');
+                if (gcs.ip) s += ' ' + gcs.ip + (gcs.port ? ':' + gcs.port : '');
+                else if (Array.isArray(gcs.allowlist) && gcs.allowlist.length > 0) s += ' (' + gcs.allowlist.length + ' allowed)';
+                parts.push(s);
+            }
+            const unit = pinned.unit;
+            if (unit && unit.mode && unit.mode !== 'open') {
+                let s = 'unit: ' + unit.mode;
+                if (unit.ip) s += ' ' + unit.ip + (unit.port ? ':' + unit.port : '');
+                parts.push(s);
+            }
+            return parts.length > 0 ? parts.join(' · ') : '—';
+        }
+
         function renderUdpProxiesPanel(server) {
             const title = document.getElementById('udpProxiesPanelTitle');
             const body = document.getElementById('udpProxiesPanelBody');
@@ -436,9 +482,19 @@
                 return;
             }
 
+            // Relay pairs report account/owner (and possibly pinned); the
+            // built-in proxy and older comm servers send neither, so those
+            // columns only appear when the data carries them.
+            const hasRelayCols = proxies.some(proxy => (proxy.account != null) || (proxy.owner != null));
+            const hasPinned = proxies.some(proxy => proxy.pinned != null);
+
             const rows = proxies.map(proxy => `
                 <tr class="udp-proxy-row" data-unit="${encodeURIComponent(proxy.name || '')}">
                     <td>${proxy.name || 'Unknown'}</td>
+                    ${hasRelayCols ? `
+                        <td>${proxy.account || '—'}</td>
+                        <td>${proxy.owner || 'builtin'}${proxy.relay_id ? `<br><small class="text-muted">relay: ${proxy.relay_id}</small>` : ''}</td>
+                    ` : ''}
                     <td>${proxy.socket1 ? `${proxy.socket1.address}:${proxy.socket1.port}` : 'N/A'}</td>
                     <td>${proxy.socket2 ? `${proxy.socket2.address}:${proxy.socket2.port}` : 'N/A'}</td>
                     <td>
@@ -447,9 +503,10 @@
                     </td>
                     <td>${formatUdpTime(proxy.created)}</td>
                     <td class="${lastAccessColorClass(proxy.last_access)}">${formatUdpTime(proxy.last_access)}</td>
+                    ${hasPinned ? `<td><small>${formatPinned(proxy.pinned)}</small></td>` : ''}
                     <td>
                         <button class="btn btn-sm ${proxy.blocked ? 'btn-outline-success' : 'btn-outline-danger'} udp-proxy-action"
-                                data-name="${encodeURIComponent(proxy.name || '')}" data-blocked="${proxy.blocked === true}"
+                                data-name="${encodeURIComponent(proxy.name || '')}" data-account="${encodeURIComponent(proxy.account || '')}" data-blocked="${proxy.blocked === true}"
                                 title="${proxy.blocked ? 'Resume packet forwarding' : 'Block packet forwarding (packets silently dropped)'}">
                             <i class="bi ${proxy.blocked ? 'bi-play-circle' : 'bi-sign-stop'}"></i>
                         </button>
@@ -462,11 +519,13 @@
                     <thead class="table-light">
                         <tr>
                             <th>Unit</th>
+                            ${hasRelayCols ? '<th>Account</th><th>Owner</th>' : ''}
                             <th>Socket 1</th>
                             <th>Socket 2</th>
                             <th>Status</th>
                             <th>Created</th>
                             <th>Last Access</th>
+                            ${hasPinned ? '<th>Pinned</th>' : ''}
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -478,7 +537,7 @@
             attachUdpProxyRowListeners();
         }
 
-        async function setUdpProxyBlocked(proxyName, blocked, btn) {
+        async function setUdpProxyBlocked(proxyName, blocked, account, btn) {
             if (!m_selectedServerId) return;
             const server = m_servers.find(s => s.serverId === m_selectedServerId);
             if (!server || !server.commServerGUID) return;
@@ -486,10 +545,12 @@
             if (btn) btn.disabled = true;
 
             try {
+                const body = { name: proxyName, blocked: blocked };
+                if (account) body.account = account;
                 const response = await fetch(`/admin/api/servers/${encodeURIComponent(server.commServerGUID)}/udp-proxy-state`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: proxyName, blocked: blocked })
+                    body: JSON.stringify(body)
                 });
                 const data = await response.json();
 

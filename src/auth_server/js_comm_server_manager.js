@@ -8,6 +8,9 @@
 const c_uuidv4 = require('uuid');
 const CONST_LOGIN_REQUEST_TIMEOUT = 15000;
 const CONST_UDP_PROXIES_QUERY_TIMEOUT = 5000;
+// CommServer -> AUTH: UDP relay connection status (CONST_CS_CMD_UDP_RELAY_STATUS
+// on the comm server side; same state codes as CONST_CS_CMD_STORAGE_STATUS).
+const CONST_CS_CMD_UDP_RELAY_STATUS = 'j';
 const m_communicationServersList  = {};
 const m_waitingForServerLogin = {};
 const m_waitingForUdpProxiesQuery = {};
@@ -212,6 +215,7 @@ function fn_handleServerInfo (p_cmd)
             // card does not wipe them by replacing m_server.
             const c_preserved = {
                 m_storageStatus: v_srvInfo.m_server.m_storageStatus || null,
+                m_udpRelayStatus: v_srvInfo.m_server.m_udpRelayStatus || null,
                 m_udpProxies: v_srvInfo.m_server.m_udpProxies || [],
                 m_udpProxiesTimestamp: v_srvInfo.m_server.m_udpProxiesTimestamp || null,
                 m_blockedUnits: v_srvInfo.m_server.m_blockedUnits || []
@@ -222,6 +226,7 @@ function fn_handleServerInfo (p_cmd)
 
                 v_srvInfo.m_server = p_server;
                 v_srvInfo.m_server.m_storageStatus       = c_preserved.m_storageStatus;
+                v_srvInfo.m_server.m_udpRelayStatus      = c_preserved.m_udpRelayStatus;
                 v_srvInfo.m_server.m_udpProxies          = c_preserved.m_udpProxies;
                 v_srvInfo.m_server.m_udpProxiesTimestamp = c_preserved.m_udpProxiesTimestamp;
                 v_srvInfo.m_server.m_blockedUnits        = c_preserved.m_blockedUnits;
@@ -239,6 +244,7 @@ function fn_handleServerInfo (p_cmd)
             {   // no change .. update other parameters if any
                 v_srvInfo.m_server = v_msg;
                 v_srvInfo.m_server.m_storageStatus       = c_preserved.m_storageStatus;
+                v_srvInfo.m_server.m_udpRelayStatus      = c_preserved.m_udpRelayStatus;
                 v_srvInfo.m_server.m_udpProxies          = c_preserved.m_udpProxies;
                 v_srvInfo.m_server.m_udpProxiesTimestamp = c_preserved.m_udpProxiesTimestamp;
                 v_srvInfo.m_server.m_blockedUnits        = c_preserved.m_blockedUnits;
@@ -407,6 +413,74 @@ function fn_handleStorageStatus (p_cmd)
 
 
 /**
+ * Handles UDP relay connection status updates from communication servers
+ * (CONST_CS_CMD_UDP_RELAY_STATUS, one `j` per configured relay). Tracks the
+ * status per comm server per relay_id for admin dashboard visibility; a comm
+ * server that never sends `j` simply has no relay status.
+ * @param {decrypted raw command} p_cmd
+ */
+function fn_handleUdpRelayStatus (p_cmd)
+{
+    try
+    {
+        const c_commServerGUID = p_cmd.m_commServerGUID;
+        const c_statusData = p_cmd.d;
+
+        if (!m_communicationServersList.hasOwnProperty(c_commServerGUID))
+        {
+            console.log ("[INFO] UDP relay status from unknown comm server: " + c_commServerGUID);
+            return;
+        }
+
+        const c_server = m_communicationServersList[c_commServerGUID].m_server;
+
+        // Initialize the per-relay status map on first report.
+        if (c_server.m_udpRelayStatus == null)
+        {
+            c_server.m_udpRelayStatus = {};
+        }
+
+        const c_relayId = (c_statusData.relay_id != null) ? String(c_statusData.relay_id) : 'default';
+
+        // Capture previous status before overwriting so we only log on change.
+        const prevStatus = (c_server.m_udpRelayStatus[c_relayId] != null)
+            ? c_server.m_udpRelayStatus[c_relayId].status
+            : null;
+
+        c_server.m_udpRelayStatus[c_relayId] = {
+            relay_id: c_statusData.relay_id,
+            host: c_statusData.host,
+            port: c_statusData.port,
+            status: c_statusData.status,
+            pairs: c_statusData.pairs,
+            timestamp: c_statusData.timestamp,
+            error: c_statusData.error || null
+        };
+
+        // Convert status code to readable string
+        const statusMap = {
+            'dc': 'DISCONNECTED',
+            'cg': 'CONNECTING',
+            'cd': 'CONNECTED',
+            'uh': 'UNHEALTHY',
+            'er': 'ERROR'
+        };
+        const readableStatus = statusMap[c_statusData.status] || c_statusData.status;
+
+        // Only log when the status actually changes to avoid log spam on every poll.
+        if (prevStatus !== c_statusData.status)
+        {
+            console.log (`[INFO] Comm server ${c_server.m_serverId} UDP relay ${c_relayId} status: ${readableStatus}`);
+        }
+    }
+    catch (ex)
+    {
+        console.log ("err:fn_handleUdpRelayStatus:" + ex);
+    }
+}
+
+
+/**
  * Handles a comm server's reply to a CONST_CS_CMD_QUERY_UDP_PROXIES request
  * (or an unsolicited push, should a comm server ever send one unprompted).
  * Stores the latest known proxy list for admin dashboard visibility, and
@@ -522,6 +596,10 @@ function fn_commServerMessageHandler (p_conn_GUID,p_msg)
         else if (p_cmd.c === global.c_CONSTANTS.CONST_CS_CMD_STORAGE_STATUS)
         {   // handle storage server connection status from commServer
             fn_handleStorageStatus (p_cmd);
+        }
+        else if (p_cmd.c === CONST_CS_CMD_UDP_RELAY_STATUS)
+        {   // handle UDP relay connection status from commServer
+            fn_handleUdpRelayStatus (p_cmd);
         }
         else if (p_cmd.c === global.c_CONSTANTS.CONST_CS_CMD_REPORT_UDP_PROXIES)
         {   // reply to CONST_CS_CMD_QUERY_UDP_PROXIES with the comm server's currently-open UDP proxies
@@ -701,10 +779,11 @@ function fn_requestUdpProxies (p_server, fn_success, fn_error)
  * @param {*} p_server comm server entry from m_communicationServersList
  * @param {string} p_proxyName proxy name (unit name used as the map key)
  * @param {boolean} p_blocked true to block forwarding, false to resume
+ * @param {string|null} p_account account id when the pair is keyed by (account, unit) on a relay; null for the built-in proxy
  * @param {function} fn_success called with (proxies array, reply.d) once the comm server replies
  * @param {function} fn_error called if the server is offline or the request times out
  */
-function fn_setUdpProxyBlocked (p_server, p_proxyName, p_blocked, fn_success, fn_error)
+function fn_setUdpProxyBlocked (p_server, p_proxyName, p_blocked, p_account, fn_success, fn_error)
 {
     let c_requestId = null;
     try
@@ -731,6 +810,10 @@ function fn_setUdpProxyBlocked (p_server, p_proxyName, p_blocked, fn_success, fn
         c_cmd.d [global.c_CONSTANTS.CONST_CS_REQUEST_ID.toString()] = c_requestId;
         c_cmd.d ['name']    = p_proxyName;
         c_cmd.d ['blocked'] = (p_blocked === true);
+        if ((p_account != null) && (p_account !== ''))
+        {
+            c_cmd.d ['account'] = String(p_account);
+        }
 
         Me.fn_sendMessage (p_server.m_server.m_commServerGUID, JSON.stringify(c_cmd));
     }

@@ -604,6 +604,7 @@ router.get('/api/servers', requireAuth, (req, res) => {
                 version: serverInfo.m_server.m_version,
                 accounts: accounts,
                 storageStatus: serverInfo.m_server.m_storageStatus || null,
+                udpRelayStatus: serverInfo.m_server.m_udpRelayStatus || null,
                 udpProxies: serverInfo.m_server.m_udpProxies || [],
                 udpProxiesTimestamp: serverInfo.m_server.m_udpProxiesTimestamp || null
             };
@@ -650,12 +651,15 @@ router.post('/api/servers/:guid/udp-proxy-state', requireAuth, (req, res) => {
 
         const proxyName = req.body ? req.body.name : null;
         const blocked = req.body ? req.body.blocked === true : null;
+        const account = (req.body && typeof req.body.account === 'string' && req.body.account.trim() !== '')
+            ? req.body.account
+            : null;
 
         if (typeof proxyName !== 'string' || proxyName.trim() === '' || blocked === null) {
             return res.json({ error: 1, errorMessage: 'Missing or invalid fields (name, blocked)' });
         }
 
-        commServerManager.fn_setUdpProxyBlocked(serverInfo, proxyName, blocked,
+        commServerManager.fn_setUdpProxyBlocked(serverInfo, proxyName, blocked, account,
             (proxies, replyData) => {
                 if (replyData && replyData.applied === false) {
                     return res.json({ error: 1, errorMessage: 'Proxy not found on server', proxies });

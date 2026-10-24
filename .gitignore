@@ -25,3 +25,4 @@ server.config.local
 .devin/config.local.json
 
 *.local.sh
+.playwright-mcp/

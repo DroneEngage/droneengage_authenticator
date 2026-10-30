@@ -4,13 +4,14 @@
 DroneEngage Authenticator is the central authentication and authorization server for the DroneEngage/Andruav drone management ecosystem. It handles user registration, vehicle registration, authentication token generation, and assigns users/vehicles to communication servers using Ed25519 cryptographic authentication for server-to-server communication. It also provides a secured admin web interface (with optional web terminal) for managing users, communication servers, and SQL storage.
 
 ## Tech Stack
-- **Runtime**: Node.js >= 18
-- **Web Framework**: Express.js
-- **Database**: SQLite3 with migration support (file-based LowDB and single-account modes also supported)
-- **Authentication**: Custom token-based + Ed25519 S2S authentication + bcrypt-hashed admin passwords
-- **Real-time**: WebSocket (ws library) for S2S, xterm.js over WebSocket for web terminal
-- **Templates**: EJS with express-ejs-layouts
-- **Security**: Helmet, CORS, CSRF protection (csurf), express-rate-limit, bcryptjs, session secrets
+- **Language**: Rust (ported from Node.js/Express; replies, pages and console output are kept identical)
+- **Runtime**: tokio; HTTP/1.1 written by the server itself (Node-compatible header order and case)
+- **Database**: SQLite via rusqlite (bundled), the file (JSON) store, or the single account
+- **Authentication**: login cards + Ed25519 S2S authentication + bcrypt-hashed access codes and admin passwords
+- **Real-time**: tokio-tungstenite WebSockets for S2S and the web terminal (portable-pty)
+- **Templates**: minijinja (views/*.html), with the `template` layout on the views server
+- **Security**: helmet-3-compatible headers, CORS, CSRF (csurf cookie mode), rate limits, sessions, ALTCHA
+- **Shared crate**: droneengage_server_common (config, hashing, S2S, web sessions/CSRF/limiter)
 
 ## Architecture
 Three independent servers running simultaneously:
@@ -22,86 +23,44 @@ Three independent servers running simultaneously:
 ```
 andruav_authenticator/
 ├── server.config          # JSON configuration (supports --config override, C-style comments allowed)
-├── package.json           # Dependencies and scripts
-├── checks.json            # Build/check metadata
-├── src/                   # Application source code
-│   ├── server.js          # Main entry point, spawns all three servers
-│   ├── js_constants.js    # API endpoints, error codes, message types
-│   ├── js_serverConfig.js # Config loader (with $$HASH$$ + env override handling)
-│   ├── dumperror.js       # Error helper
-│   ├── auth_server/       # Auth core modules
-│   ├── database/          # Storage modules (LowDB, SQLite migrations, CSV import)
-│   ├── helpers/           # Utility helpers (args, db, string, validation, session, colors, config handler, json comment stripper)
-│   ├── routes/            # Express route handlers (incl. web terminal)
-│   ├── views/             # EJS view templates (admin, common, pages)
-│   └── public/            # Static assets (bootstrap, xterm)
+├── Cargo.toml
+├── src/
+│   ├── main.rs            # andruavauth binary
+│   ├── cli.rs             # arguments, banner, store, listeners (S2S, API, views)
+│   ├── auth.rs            # fn_newLoginCard / fn_accountOperation / hardware / logout
+│   ├── accounts.rs        # database + account manager (file and SQLite), team admin
+│   ├── sessions.rs        # login cards
+│   ├── comm.rs            # comm server manager (selection, login requests, reports)
+│   ├── s2s.rs             # S2S WebSocket listener with the Ed25519 handshake
+│   ├── filedb.rs          # lowdb-compatible JSON store
+│   ├── sqldb.rs           # node-sqlite3-compatible binding and errors
+│   ├── altcha.rs          # ALTCHA challenges and verification
+│   ├── validator.rs perm.rs constants.rs config.rs jsv.rs
+│   ├── web/               # mod (routing), api (web+agent), admin, server (HTTP/1.1), headers, terminal, wiki
+│   └── bin/               # reset_access, migrate_file_db
+├── views/                 # admin, common, pages templates
+├── public/                # Static assets (bootstrap, xterm, qrcode)
+├── database/              # migrations/*.sql, README
 ├── ssl_local/             # SSL certificates & S2S keys
-├── scripts/               # S2S key generation + build script
-├── test/                  # Unit tests (unit/, fixtures/, helpers/)
+├── scripts/               # S2S key generation + release build
+├── tests/                 # cargo integration tests
 ├── resources/             # Diagrams and static resources
 └── wiki/                  # Documentation
 ```
 
 ## Key Files
-- `src/server.js` - Main entry point, spawns all three servers
-- `server.config` - JSON configuration (supports --config override)
-- `package.json` - Dependencies and scripts
-- `src/auth_server/js_auth_server.js` - Main auth server controller
-- `src/auth_server/js_account_manager.js` - User account CRUD operations
-- `src/auth_server/js_comm_server_manager.js` - Communication server management
-- `src/auth_server/js_comm_server_manager_server.js` - Per comm-server instance handling
-- `src/auth_server/js_session_manager.js` - Session/token management
-- `src/auth_server/js_s2s_auth.js` - Server-to-Server Ed25519 authentication
-- `src/auth_server/js_database_manager.js` - Database operations layer
-- `src/auth_server/js_input_validator.js` - Input validation for all requests
-- `src/auth_server/js_permisson_validator.js` - Permission/authorization checks
-- `src/auth_server/js_andruavMessages.js` - Andruav message definitions
-- `src/auth_server/js_config.js` - Auth server runtime config
-- `src/routes/js_router.js` - Main router setup
-- `src/routes/js_router_admin.js` - Admin interface routes
-- `src/routes/js_router_agent.js` - Agent/drone routes
-- `src/routes/js_router_web.js` - Web client routes
-- `src/routes/js_web_terminal.js` - Web terminal (shell over WebSocket via node-pty)
-- `src/database/db_users.js` - User database operations
-- `src/database/migrate_file_db.js` - Migrate file-based DB to SQLite (CSV import)
-- `src/database/migrations/` - SQL migration files
-- `src/helpers/js_config_handler.js` - $$HASH$$ directive processing + persistence
-- `src/helpers/js_admin_session.js` - Admin session helpers
-- `src/helpers/hlp_args.js` - CLI argument helpers
-- `src/helpers/hlp_db.js` - DB helpers
-- `src/helpers/hlp_string.js` - String helpers
-- `src/helpers/hlp_validation.js` - Validation helpers
-- `src/js_constants.js` - API endpoints, error codes, message types
-- `src/js_serverConfig.js` - Config loader with env var overrides
+- `src/cli.rs` - startup: config, banner, store, the three servers
+- `src/auth.rs` - login and account operations (authorization rules)
+- `src/accounts.rs` - storage operations for file and SQLite modes
+- `src/comm.rs` / `src/s2s.rs` - comm servers and their WebSocket channel
+- `src/web/api.rs` - /w and /agent routes; `src/web/admin.rs` - admin router
+- `src/validator.rs` / `src/perm.rs` - input validation and permission bits
+- `server.config` - JSON configuration
 
-## Configuration
-Configuration is centralized in `server.config` (JSON format with C-style comments). Key sections:
-- Server identity (server_id, server_ip, server_port, health_utl)
-- Account storage (single/file/db modes) + skip_hardware_validation
-- S2S authentication (trusted Ed25519 public keys, s2s_ws_listening_ip/port)
-- SSL/TLS certificates (enable_SSL, ssl_key_file, ssl_cert_file)
-- Admin interface (webadmin_enable, admin_username, admin_password, session_secret, webadmin_port, webadmin_listening_ip)
-- `servers_admin_url_guid` - When set, the default /admin/* routes return 404 and the admin login is only reachable via the secret `/admin/<guid>/login` URL
-- `webadmin_terminal_enabled` - Enables/disables the remote web terminal (runs with server process privileges)
-- `andruavSecurityEx` - Whitelist of allowed client application names
-
-### Sensitive Value Hashing
-The `$$HASH$$('plaintext')` directive in `admin_password` is automatically replaced with a bcrypt hash on first startup and persisted back to the config file. Plaintext passwords are still accepted as a fallback (a warning is logged).
-
-### Environment Variable Overrides
-- `de_auth_servers_status_guid` overrides `servers_admin_url_guid`
-- `de_auth_webadmin_terminal_enabled` overrides `webadmin_terminal_enabled`
-- Server and webadmin ports can also be overridden via environment variables.
-
-## Coding Standards
-- Use `global.m_logger` for logging (if enabled)
-- All inputs must pass `src/auth_server/js_input_validator.js`
-- All permissions checked via `src/auth_server/js_permisson_validator.js`
-- Use `src/auth_server/js_database_manager.js` for all DB operations
-- Use `src/auth_server/js_session_manager.js` for token operations
-- Reuse utilities in `src/helpers/` directory
-- Several modules attached to `global` for easy access
-- Error handling: check `global.m_logger` existence before use
+## Coding Conventions
+- Each module names the JavaScript module it replaced and keeps its behaviour
+- Values from requests are serde_json::Value and follow JavaScript semantics (truthiness, ==, key order)
+- A thrown JavaScript exception is an `Err(String)` the router's catch answers
 
 ## Authentication Flow
 1. User registration → access code generation → email (unless ignoreEmail)
@@ -120,7 +79,7 @@ SQLite database with tables:
 - `users` (id, username, email, password_hash, access_code, created_at)
 - `comm_servers` (id, server_id, ip_address, port, public_key, registered_at)
 
-A migration tool (`src/database/migrate_file_db.js`) imports legacy file-based (CSV) accounts into SQLite.
+A migration tool (`migrate_file_db`) imports file-mode JSON and legacy CSV accounts into SQLite.
 
 ## Security Features
 - Helmet.js for HTTP security headers
@@ -136,22 +95,17 @@ A migration tool (`src/database/migrate_file_db.js`) imports legacy file-based (
 
 ## Development
 ```bash
-npm install
+cargo build --release
 cp server.config server.config.local
 # Edit server.config.local
-mkdir -p ssl
-openssl req -x509 -newkey rsa:4096 -keyout ssl/domain.key -out ssl/domain.crt -days 365 -nodes
-npm start
+./target/release/andruavauth
 ```
 
 ## Testing
 ```bash
-npm test
-node --test test/unit/s2s_auth.test.js
-node --test test/unit/router_security.test.js
-node --test test/js_session_manager.test.js
-node --test test/js_input_validator.test.js
-node --test test/js_permisson_validator.test.js
+cargo test
+cargo fmt --check
+cargo clippy --all-targets -- -D warnings
 ```
 
 ## S2S Key Generation
@@ -162,7 +116,7 @@ cd scripts
 
 ## Build
 ```bash
-npm run build   # runs scripts/build.js
+scripts/build.sh   # cargo build --release, binaries + runtime files in build/
 ```
 
 ## Related Projects
@@ -177,4 +131,4 @@ npm run build   # runs scripts/build.js
 - wiki/ - Detailed documentation (AuthenticationFlow, DatabaseSchema, APIEndpoints, Configuration, S2SAuthentication, AdminWebInterface, Architecture)
 
 ## Version
-7.4.0
+7.7.0

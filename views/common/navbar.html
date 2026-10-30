@@ -1,0 +1,73 @@
+{# Common admin navbar partial.
+   Expects: activePage ('dashboard' | 'users' | 'sql-management' | 'servers' | 'terminal' | 'wiki'),
+   navbarFixed (true adds Bootstrap 'fixed-top'), serversStatusGuid (GUID prefix for admin URLs or none),
+   accountStorageType ('single' | 'file' | 'db'), adminUsername (the logged-in admin or none).
+   All nav items are shown on every page; the active page is highlighted and the brand matches it. #}{% set guidPrefix = '/' ~ serversStatusGuid if serversStatusGuid else '' %}{% set brandMap = {'dashboard': {'text': 'Admin Dashboard', 'link': '/dashboard'}, 'users': {'text': 'User Management', 'link': '/users'}, 'sql-management': {'text': 'Teams & Logins', 'link': '/sql-management'}, 'servers': {'text': 'Server Status', 'link': '/servers'}, 'terminal': {'text': 'Web Terminal', 'link': '/terminal'}, 'wiki': {'text': 'Wiki / Help', 'link': '/wiki'}} %}{% set brand = brandMap[activePage] if activePage in brandMap else brandMap['dashboard'] %}{% set navClass = 'navbar navbar-expand-lg navbar-custom fixed-top' if navbarFixed else 'navbar navbar-expand-lg navbar-custom' %}
+<nav class="{{ navClass }}">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/admin{{ guidPrefix }}{{ brand.link }}">{{ brand.text }}</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link{{ ' active' if activePage == 'dashboard' else '' }}" href="/admin{{ guidPrefix }}/dashboard">Dashboard</a>
+                </li>
+                {% if accountStorageType == 'file' or accountStorageType == 'single' %}
+                <li class="nav-item">
+                    <a class="nav-link{{ ' active' if activePage == 'users' else '' }}" href="/admin{{ guidPrefix }}/users">Users</a>
+                </li>
+                {% elif accountStorageType == 'db' %}
+                <li class="nav-item">
+                    <a class="nav-link{{ ' active' if activePage == 'sql-management' else '' }}" href="/admin{{ guidPrefix }}/sql-management">Teams & Logins</a>
+                </li>
+                {% endif %}
+                <li class="nav-item">
+                    <a class="nav-link{{ ' active' if activePage == 'servers' else '' }}" href="/admin{{ guidPrefix }}/servers">Servers</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link{{ ' active' if activePage == 'terminal' else '' }}" href="/admin{{ guidPrefix }}/terminal">Terminal</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link{{ ' active' if activePage == 'wiki' else '' }}" href="/admin{{ guidPrefix }}/wiki">Help</a>
+                </li>
+            </ul>
+            {% if adminUsername %}
+            <span class="navbar-text me-3 text-white">Welcome, {{ adminUsername }}</span>
+            <form method="POST" action="/admin/logout" class="d-inline">
+                <input type="hidden" name="_csrf" value="{{ csrfToken if csrfToken is defined else '' }}">
+                <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+</nav>
+
+{% if csrfToken is defined and csrfToken %}
+<script>
+    // Expose CSRF token to client-side JS and auto-inject it into all
+    // state-changing fetch() calls via the X-CSRF-Token header.
+    window.CSRF_TOKEN = {{ csrfToken|json_stringify }};
+    (function() {
+        const originalFetch = window.fetch;
+        window.fetch = function(input, init) {
+            init = init || {};
+            const method = (init.method || 'GET').toUpperCase();
+            if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method) && window.CSRF_TOKEN) {
+                init.headers = init.headers || {};
+                if (init.headers instanceof Headers) {
+                    if (!init.headers.has('X-CSRF-Token')) {
+                        init.headers.set('X-CSRF-Token', window.CSRF_TOKEN);
+                    }
+                } else {
+                    if (!init.headers['X-CSRF-Token']) {
+                        init.headers['X-CSRF-Token'] = window.CSRF_TOKEN;
+                    }
+                }
+            }
+            return originalFetch(input, init);
+        };
+    })();
+</script>
+{% endif %}

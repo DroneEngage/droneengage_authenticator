@@ -1,0 +1,58 @@
+[package]
+name = "de_auth_server"
+version = "7.7.0"
+edition = "2021"
+description = "DroneEngage authentication server: account login and management for GCS and agents, comm server selection over an S2S WebSocket, and the admin web interface."
+authors = ["Mohammad Said Hefny <mohammad.hefny@gmail.com>"]
+license = "UNLICENSED"
+publish = false
+
+[lib]
+name = "de_auth_server"
+path = "src/lib.rs"
+
+[[bin]]
+name = "andruavauth"
+path = "src/main.rs"
+
+[[bin]]
+name = "reset_access"
+path = "src/bin/reset_access.rs"
+
+[[bin]]
+name = "migrate_file_db"
+path = "src/bin/migrate_file_db.rs"
+
+[dependencies]
+droneengage_server_common = { git = "https://github.com/HefnySco/prv_droneengage_server_common", branch = "pr_rust" }
+base64 = "0.22"
+bcrypt = "0.17"
+bytes = "1"
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+hex = "0.4"
+hmac = "0.12"
+http-body-util = "0.1"
+httparse = "1"
+hyper = { version = "1", features = ["http1", "server"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
+indexmap = "2"
+minijinja = { version = "2", features = ["loader"] }
+portable-pty = "0.9"
+pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
+rand = "0.8"
+regex = "1"
+rusqlite = { version = "0.37", features = ["bundled"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+sha2 = "0.10"
+tokio = { version = "1", features = ["full"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12", "logging"] }
+tokio-tungstenite = "0.30"
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+ed25519-dalek = { version = "2", features = ["pkcs8", "pem", "rand_core"] }
+tempfile = "3"
+
+[profile.release]
+lto = true
+codegen-units = 1

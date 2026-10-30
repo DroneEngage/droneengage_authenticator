@@ -51,15 +51,15 @@ The central authority for user identity and session management.
 **Key files:**
 | File | Purpose |
 |------|---------|
-| `src/server.js` | Entry point — starts API server and admin views server |
-| `src/auth_server/js_auth_server.js` | Main authentication orchestration |
-| `src/auth_server/js_session_manager.js` | Session and login card management |
-| `src/auth_server/js_account_manager.js` | Account and access code operations |
-| `src/auth_server/js_comm_server_manager.js` | Comm server selection and monitoring |
-| `src/auth_server/js_s2s_auth.js` | S2S Ed25519 authentication |
-| `src/routes/js_router_admin.js` | Admin web routes (dashboard, users, terminal, wiki) |
-| `src/routes/js_router_web.js` | GCS (web client) API routes |
-| `src/routes/js_router_agent.js` | Agent (drone) API routes |
+| `src/cli.rs` | Entry point — starts the S2S listener, API server and admin views server |
+| `src/auth.rs` | Main authentication orchestration |
+| `src/sessions.rs` | Session and login card management |
+| `src/accounts.rs` | Account and access code operations |
+| `src/comm.rs` | Comm server selection and monitoring |
+| `src/s2s.rs` | S2S listener and Ed25519 authentication |
+| `src/web/admin.rs` | Admin web routes (dashboard, users, terminal, wiki) |
+| `src/web/api.rs` | GCS (web client) and agent API routes |
+| `src/web/terminal.rs` | Web terminal (PTY over WebSocket) |
 
 **Ports:**
 | Port | Purpose | Config |

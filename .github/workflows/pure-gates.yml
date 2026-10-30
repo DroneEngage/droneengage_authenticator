@@ -1,43 +1,40 @@
-# pure-gates - every push, pure logic only.
+# pure-gates - every push.
 #
-#   tests    `node --test test/*.test.js` - the account/permission/
-#            session/input-validator suites, in-process, no DB or
-#            network bring-up.
+#   fmt      cargo fmt --check
+#   clippy   cargo clippy --all-targets, warnings are errors
+#   tests    cargo test - validation, permissions, the file and SQLite
+#            account stores, account / team operations, the comm server
+#            manager, S2S verification and the web app in-process.
 #
-# No servers, no SITL, no sim bring-up.
+# No comm server, no SITL, no sim bring-up.
 name: pure-gates
 on: [push, pull_request]
 
 jobs:
   tests:
     runs-on: ubuntu-latest
+    env:
+      SERVER_COMMON_PAT: ${{ secrets.SERVER_COMMON_PAT }}
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
+      - name: toolchain
+        run: rustup update stable && rustup default stable && rustup component add rustfmt clippy
 
-      # the runner has no ssh key - rewrite the git+ssh server_common
-      # dependency to https. With a SERVER_COMMON_PAT secret (PAT with
-      # read access) it pulls the private prv_droneengage_server_common;
-      # otherwise it falls back to the public DroneEngage repo (same
-      # v1.0.0 tag today).
-      - name: git+ssh -> https for CI
+      # droneengage_server_common is a private git dependency: with a
+      # SERVER_COMMON_PAT secret (a token with read access) cargo fetches it
+      # over https with the git CLI.
+      - name: private dependency access
+        if: env.SERVER_COMMON_PAT != ''
         run: |
-          if [ -n "${{ secrets.SERVER_COMMON_PAT }}" ]; then
-            sed -i 's|git+ssh://git@github.com:DroneEngage/droneengage_server_common.git|git+https://x-access-token:${{ secrets.SERVER_COMMON_PAT }}@github.com/HefnySco/prv_droneengage_server_common.git|' package.json
-          else
-            sed -i 's|git+ssh://git@github.com:|git+https://github.com/|g' package.json
-          fi
+          git config --global url."https://x-access-token:${SERVER_COMMON_PAT}@github.com/".insteadOf "https://github.com/"
+          echo "CARGO_NET_GIT_FETCH_WITH_CLI=true" >> "$GITHUB_ENV"
 
-      # package-lock.json is gitignored in this repo - npm install, not ci
-      - name: install
-        run: npm install --no-audit --no-fund
+      - name: fmt
+        run: cargo fmt --check
 
-      # lowdb writes test/fixtures/*.db - the dir is not committed
-      - name: fixtures dir
-        run: mkdir -p test/fixtures
+      - name: clippy
+        run: cargo clippy --all-targets -- -D warnings
 
-      - name: test
-        run: npm test
+      - name: tests
+        run: cargo test

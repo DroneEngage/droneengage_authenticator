@@ -2,6 +2,19 @@
 
 Major changes to the DroneEngage Authenticator server, newest first.
 
+## [7.7.0] - 2026-10-30
+
+- The server is now written in Rust (`cargo build --release`, binary
+  `andruavauth`); the Node.js sources are gone. Endpoints, replies, status
+  codes, headers, cookies, rate limits, admin pages and console output are
+  unchanged — the README lists the few differences (error pages without
+  stack traces, wiki Markdown parser, no Range requests for static files).
+- `tools/reset_access.js` and `src/database/migrate_file_db.js` are now the
+  `reset_access` and `migrate_file_db` binaries.
+- The views moved to `views/` (Jinja syntax), static files to `public/` and
+  the SQL migrations to `database/migrations/`.
+- Tests run with `cargo test`; CI checks formatting and clippy too.
+
 ## [7.6.8] - 2026-09-16
 
 - Added QR-code login verification so users can confirm logins by scanning a code.

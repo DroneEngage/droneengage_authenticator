@@ -160,7 +160,7 @@ The server is configured via `server.config` (JSON format). You can create envir
 
 ## Sensitive Value Hashing
 
-The config handler (`src/helpers/js_config_handler.js`) automatically detects the `$$HASH$$('plaintext')` directive in string config values and replaces it with a bcrypt hash.
+The config handler (`config_handler` module of droneengage_server_common) automatically detects the `$$HASH$$('plaintext')` directive in string config values and replaces it with a bcrypt hash.
 
 ### How It Works
 

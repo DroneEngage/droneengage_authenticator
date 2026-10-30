@@ -17,27 +17,40 @@ The authenticator server provides:
 
 ### Project Structure
 
+The server is written in Rust (it was ported from Node.js; the API,
+replies, pages and configuration are unchanged — see
+[Differences from the Node.js server](#differences-from-the-nodejs-server)).
+
 ```
 andruav_authenticator/
-├── server.config          # Server configuration (JSON)
-├── package.json
-├── Dockerfile
-├── src/                   # Application source code
-│   ├── server.js          # Entry point
-│   ├── js_constants.js    # Shared constants
-│   ├── js_serverConfig.js # Config loader
-│   ├── dumperror.js       # Error helper
-│   ├── auth_server/       # Auth core modules
-│   ├── database/          # Storage modules (LowDB, SQLite migrations)
-│   ├── helpers/           # Utility helpers (config handler, validation, session, colors)
-│   ├── routes/            # Express route handlers
-│   ├── views/             # EJS view templates
-│   └── public/            # Static assets
+├── server.config          # Server configuration (JSON with comments)
+├── Cargo.toml
+├── src/
+│   ├── main.rs            # andruavauth: the server binary
+│   ├── cli.rs             # arguments, banner, startup of the three listeners
+│   ├── auth.rs            # login / account / hardware / logout operations
+│   ├── accounts.rs        # account store operations (file + SQLite) and team administration
+│   ├── sessions.rs        # login cards
+│   ├── comm.rs            # comm server list, selection, login requests
+│   ├── s2s.rs             # the S2S WebSocket listener (Ed25519 handshake)
+│   ├── filedb.rs          # file (JSON) account store
+│   ├── sqldb.rs           # SQLite access
+│   ├── altcha.rs          # proof-of-work captcha
+│   ├── validator.rs, perm.rs, constants.rs, config.rs, jsv.rs
+│   ├── web/               # HTTP servers, API + agent routes, admin router, terminal, wiki
+│   └── bin/               # reset_access, migrate_file_db
+├── views/                 # Admin page templates (Jinja syntax)
+├── public/                # Static assets
+├── database/              # SQL migrations and the database tools' README
 ├── ssl_local/             # SSL certificates & S2S keys
-├── scripts/               # S2S key generation script
-├── test/                  # Unit tests
-└── wiki/                  # Documentation
+├── scripts/               # S2S key generation, release build
+├── tests/                 # Integration tests (cargo test)
+└── wiki/                  # Documentation (also served at /admin/wiki)
 ```
+
+Shared code (configuration loading, `$$HASH$$` handling, password hashing,
+S2S helpers, Express-compatible sessions/CSRF/rate limits) comes from the
+`droneengage_server_common` crate.
 
 The following diagram shows the main function of this module:
 
@@ -47,8 +60,8 @@ The following diagram shows the main function of this module:
 
 ### Prerequisites
 
-- Node.js >= 18
-- SQLite (if using database storage, bundled with Node.js)
+- Rust (stable, via [rustup](https://rustup.rs)) to build; the binary has no runtime dependencies (SQLite is bundled)
+- Git access to `HefnySco/prv_droneengage_server_common` (a Cargo git dependency)
 - OpenSSL (for SSL certificates)
 
 ### Setup
@@ -58,8 +71,8 @@ The following diagram shows the main function of this module:
 git clone https://github.com/HefnySco/andruav_authenticator.git
 cd andruav_authenticator
 
-# Install dependencies
-npm install
+# Build (the binaries are in target/release)
+cargo build --release
 
 # Copy configuration
 cp server.config server.config.local
@@ -161,22 +174,29 @@ See [wiki/S2SAuthentication.md](wiki/S2SAuthentication.md) for detailed setup.
 
 ## Running the Server
 
-### Development
+Run the server from the repository directory (configuration, `views/`,
+`public/`, `wiki/` and relative paths in the configuration are resolved
+against the current directory):
 
 ```bash
-npm start
+./target/release/andruavauth                       # server.config
+./target/release/andruavauth --config=my.config    # another configuration file
 ```
 
-### Production
+`-h` prints the help and `-v` the version. `scripts/build.sh` builds a
+release and copies the binaries and runtime files into `build/`.
+
+### Tools
 
 ```bash
-# Using Docker
-./dockercreate.sh
-./dockerrun.sh
+# last-resort access code reset for an account (stop the server first in file mode)
+./target/release/reset_access <account-name>
 
-# Or directly
-NODE_ENV=production npm start
+# build the SQLite account database from a file-mode JSON db and/or CSV files
+./target/release/migrate_file_db [json_db_file] [--csv-dir <dir>] [--output <sqlite_file>]
 ```
+
+See [database/README.md](database/README.md) for the migration tool.
 
 ## API Endpoints
 
@@ -234,11 +254,9 @@ See [wiki/DatabaseSchema.md](wiki/DatabaseSchema.md) for complete schema.
 ## Testing
 
 ```bash
-# Run all tests
-npm test
-
-# Run specific test file
-node --test test/unit/s2s_auth.test.js
+cargo test                      # unit and integration tests
+cargo test --test web_app       # one integration test file
+cargo fmt --check && cargo clippy --all-targets -- -D warnings
 ```
 
 ## S2S Key Generation
@@ -270,7 +288,7 @@ See [wiki/S2SAuthentication.md](wiki/S2SAuthentication.md) for complete guide.
 ## Troubleshooting
 
 ### Connection Refused
-- Check server is running: `npm start`
+- Check server is running: `./target/release/andruavauth`
 - Verify port is not in use
 - Check firewall settings
 
@@ -283,6 +301,24 @@ See [wiki/S2SAuthentication.md](wiki/S2SAuthentication.md) for complete guide.
 - Verify SQLite database file is accessible
 - Check `dbdatabase` path in config
 - Ensure database directory exists and is writable
+
+## Differences from the Node.js server
+
+The Rust server answers like the Node.js one: the same endpoints, JSON
+replies (key order included), status codes, headers (helmet 3 with its
+per-browser CSP header names, CORS), cookies, rate limits, admin pages and
+console messages. Where it differs:
+
+- The default error page (a malformed JSON body, a bad route parameter, a
+  missing wiki image) shows the error message without the Node.js stack
+  trace, and JSON parse errors are worded by the Rust JSON parser.
+- Static files ignore Range requests (the whole file is sent).
+- Wiki pages are parsed by pulldown-cmark and written in marked's HTML
+  format; Markdown the two parsers read differently can render differently.
+  A wiki page name is resolved strictly inside `wiki/`.
+- A request whose reply the Node.js server would send twice (an agent login
+  answered by the comm server with an error, then timed out) gets one reply.
+- A plain HTTP request on a TLS port gets a TLS alert instead of a silent close.
 
 ## Documentation
 

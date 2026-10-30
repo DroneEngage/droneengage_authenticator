@@ -61,7 +61,7 @@ The JSON file uses LowDB with the following structure:
 
 ### Database Operations
 
-The `src/database/db_users.js` module provides:
+The `src/filedb.rs` module provides:
 
 - `fn_add_record(user_email, user_data)` - Add new user
 - `fn_update_record(user_email, user_data)` - Update existing user
@@ -86,7 +86,7 @@ The `src/database/db_users.js` module provides:
 
 ### Database Schema
 
-The schema is initialized via `src/database/migrations/002_init_schema.sql`.
+The schema is initialized via `database/migrations/002_init_schema.sql`.
 
 #### teams Table
 
@@ -297,11 +297,11 @@ permission (telemetry/status/view). Comm-server-originated messages
 ### Migration
 
 To migrate from file to SQLite:
-1. Run the migration script: `node src/database/migrate_file_db.js`
+1. Run the migration script: `./target/release/migrate_file_db`
 2. Update `account_storage_type` to `db`
 3. Restart server
 
-The SQLite schema is initialized via SQL migration files in `src/database/migrations/`. The main schema definition is in `src/database/migrations/002_init_schema.sql`, which creates the `teams`, `logins`, and `team_hardware` tables. These migrations run automatically when the database is first created or when the server starts with `account_storage_type` set to `db`.
+The SQLite schema is initialized via SQL migration files in `src/database/migrations/`. The main schema definition is in `database/migrations/002_init_schema.sql`, which creates the `teams`, `logins`, and `team_hardware` tables. These migrations run automatically when the database is first created or when the server starts with `account_storage_type` set to `db`.
 
 ## Related Documentation
 

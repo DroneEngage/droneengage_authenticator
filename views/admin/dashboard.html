@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link href="/public/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: #212529;
+            color: #f8f9fa;
+        }
+        .navbar-custom {
+            background: #343a40;
+        }
+        .navbar-custom .navbar-brand,
+        .navbar-custom .nav-link {
+            color: #f8f9fa !important;
+        }
+        .card {
+            background: #2c3034;
+            border: 1px solid #495057;
+        }
+        .card-title {
+            color: #e9ecef;
+        }
+        .card-body strong {
+            color: #f8f9fa;
+        }
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #0d6efd;
+        }
+        .text-muted {
+            color: #adb5bd !important;
+        }
+        .btn-primary {
+            background: #0d6efd;
+            border: none;
+        }
+        .btn-primary:hover {
+            background: #0b5ed7;
+        }
+        .btn-outline-light {
+            border-color: #f8f9fa;
+            color: #f8f9fa;
+        }
+        .btn-outline-light:hover {
+            background: #f8f9fa;
+            color: #212529;
+        }
+    </style>
+</head>
+<body>
+    {% with activePage = "dashboard", navbarFixed = false %}{% include "common/navbar.html" %}{% endwith %}
+
+    <div class="container mt-4">
+        <div class="row mb-4">
+            <div class="col-12">
+                {% if accountStorageType == 'file' %}
+                <a href="/admin{{ '/' ~ serversStatusGuid if serversStatusGuid else '' }}/users" class="btn btn-primary me-2">Manage Users</a>
+                {% elif accountStorageType == 'db' %}
+                <a href="/admin{{ '/' ~ serversStatusGuid if serversStatusGuid else '' }}/sql-management" class="btn btn-primary me-2">Manage Teams & Logins</a>
+                {% endif %}
+                <a href="/admin{{ '/' ~ serversStatusGuid if serversStatusGuid else '' }}/servers" class="btn btn-primary">Server Status</a>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Server Information</h5>
+                        <p class="mb-0">
+                            <strong>Authenticator Version:</strong>
+                            <span class="badge bg-info">
+                                v{{ serverVersion if serverVersion is defined else 'N/A' }}
+                            </span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Database Configuration</h5>
+                        <p class="mb-0">
+                            <strong>Storage Type:</strong> 
+                            <span class="badge bg-{{ 'success' if accountStorageType == 'file' else ('primary' if accountStorageType == 'db' else 'warning') }}">
+                                {{ accountStorageType }}
+                            </span>
+                            {% if accountStorageType == 'file' %}
+                                <span class="text-muted ms-2">(JSON File Storage)</span>
+                            {% elif accountStorageType == 'db' %}
+                                <span class="text-muted ms-2">(SQLite Database)</span>
+                            {% elif accountStorageType == 'single' %}
+                                <span class="text-muted ms-2">(Single Account Mode)</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-3 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Users</h5>
+                        <div class="stat-value" id="totalUsers">-</div>
+                        <p class="text-muted">Registered users</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Online Servers</h5>
+                        <div class="stat-value" id="onlineServers">-</div>
+                        <p class="text-muted">Active communication servers</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Connected Users</h5>
+                        <div class="stat-value" id="connectedUsers">-</div>
+                        <p class="text-muted">Users currently connected</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Storage Connection Status</h5>
+                        <p class="text-muted">Storage server connections are managed per comm server</p>
+                        <a href="/admin{{ '/' ~ serversStatusGuid if serversStatusGuid else '' }}/servers" class="btn btn-primary btn-sm">View Details</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/public/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script>
+        async function loadStats() {
+            try {
+                // Load users based on storage type
+                if ('{{ accountStorageType }}' === 'file') {
+                    const usersResponse = await fetch('/admin/api/users');
+                    const usersData = await usersResponse.json();
+                    document.getElementById('totalUsers').textContent = usersData.users ? Object.keys(usersData.users).length : 0;
+                } else if ('{{ accountStorageType }}' === 'db') {
+                    const statsResponse = await fetch('/admin/api/sql/stats');
+                    const statsData = await statsResponse.json();
+                    document.getElementById('totalUsers').textContent = statsData.totalLogins || 0;
+                } else {
+                    document.getElementById('totalUsers').textContent = 'N/A';
+                }
+
+                const serversResponse = await fetch('/admin/api/servers');
+                const serversData = await serversResponse.json();
+                const onlineCount = serversData.servers ? serversData.servers.filter(s => s.isOnline).length : 0;
+                const connectedCount = serversData.servers ? serversData.servers.reduce((sum, s) => sum + (s.accounts ? s.accounts.length : 0), 0) : 0;
+
+                document.getElementById('onlineServers').textContent = onlineCount;
+                document.getElementById('connectedUsers').textContent = connectedCount;
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        loadStats();
+        setInterval(loadStats, 30000);
+    </script>
+</body>
+</html>

@@ -2,9 +2,9 @@
 name = "de_auth_server"
 version = "7.7.0"
 edition = "2021"
-description = "DroneEngage authentication server: account login and management for GCS and agents, comm server selection over an S2S WebSocket, and the admin web interface."
+description = "DroneEngage Authentication Server: account login and management for GCS and agents, comm server selection over an S2S WebSocket, and the admin web interface."
 authors = ["Mohammad Said Hefny <mohammad.hefny@gmail.com>"]
-license = "UNLICENSED"
+license = "MIT"
 publish = false
 
 [lib]
@@ -24,7 +24,7 @@ name = "migrate_file_db"
 path = "src/bin/migrate_file_db.rs"
 
 [dependencies]
-droneengage_server_common = { git = "https://github.com/HefnySco/prv_droneengage_server_common", branch = "pr_rust" }
+droneengage_server_common = { git = "https://github.com/HefnySco/prv_droneengage_server_common", branch = "master" }
 base64 = "0.22"
 bcrypt = "0.17"
 bytes = "1"

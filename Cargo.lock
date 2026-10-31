@@ -305,7 +305,7 @@ checksum = "75b325c5dbd37f80359721ad39aca5a29fb04c89279657cffdda8736d0c0b9d2"
 [[package]]
 name = "droneengage_server_common"
 version = "2.0.0"
-source = "git+https://github.com/HefnySco/prv_droneengage_server_common?branch=pr_rust#922ad0a2e8c4a5b779fdb80f10b1534b78829c27"
+source = "git+https://github.com/HefnySco/prv_droneengage_server_common?branch=master#922ad0a2e8c4a5b779fdb80f10b1534b78829c27"
 dependencies = [
  "base64",
  "bcrypt",

@@ -6,6 +6,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/build"
 cd "$ROOT"
+scripts/local_server_common.sh
 cargo build --release
 rm -rf "$OUT"
 mkdir -p "$OUT"

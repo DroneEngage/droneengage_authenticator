@@ -25,3 +25,6 @@ server.config.local
 
 *.local.sh
 .playwright-mcp/
+
+# machine-local cargo config (scripts/local_server_common.sh)
+.cargo/

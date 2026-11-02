@@ -53,7 +53,7 @@ async fn proxy_state_command_carries_the_account() {
     let (v_sink, _v_wait) = tokio::sync::oneshot::channel();
     m.set_udp_proxy_blocked(&v_server, &json!("u1"), false, None, v_sink);
     let v_cmd: Value = serde_json::from_str(&v_rx.recv().await.unwrap()).unwrap();
-    assert!(v_cmd["d"].get("account").is_none(), "no account for the built-in proxy");
+    assert!(v_cmd["d"].get("account").is_none(), "no account when none was given");
     // the reply resolves the pending request
     let (v_sink, v_wait) = tokio::sync::oneshot::channel();
     m.request_udp_proxies(&v_server, v_sink);

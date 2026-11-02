@@ -482,9 +482,9 @@
                 return;
             }
 
-            // Relay pairs report account/owner (and possibly pinned); the
-            // built-in proxy and older comm servers send neither, so those
-            // columns only appear when the data carries them.
+            // Relay pairs report account/owner (and possibly pinned); older
+            // comm servers send neither, so those columns only appear when
+            // the data carries them.
             const hasRelayCols = proxies.some(proxy => (proxy.account != null) || (proxy.owner != null));
             const hasPinned = proxies.some(proxy => proxy.pinned != null);
 
@@ -493,7 +493,7 @@
                     <td>${proxy.name || 'Unknown'}</td>
                     ${hasRelayCols ? `
                         <td>${proxy.account || '—'}</td>
-                        <td>${proxy.owner || 'builtin'}${proxy.relay_id ? `<br><small class="text-muted">relay: ${proxy.relay_id}</small>` : ''}</td>
+                        <td>${proxy.owner || '-'}${proxy.relay_id ? `<br><small class="text-muted">relay: ${proxy.relay_id}</small>` : ''}</td>
                     ` : ''}
                     <td>${proxy.socket1 ? `${proxy.socket1.address}:${proxy.socket1.port}` : 'N/A'}</td>
                     <td>${proxy.socket2 ? `${proxy.socket2.address}:${proxy.socket2.port}` : 'N/A'}</td>

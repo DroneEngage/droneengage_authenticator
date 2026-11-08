@@ -28,3 +28,6 @@ server.config.local
 
 # machine-local cargo config (scripts/local_server_common.sh)
 .cargo/
+
+# Node deps (rust port keeps a few js tools)
+node_modules/

@@ -213,7 +213,7 @@ pub async fn handle(p_ctx: &Ctx<'_>, p_path: &str) -> Outcome {
         let r = Response::error_page(&p_ctx.response().headers, 500, "Error", "secret option required for sessions");
         return Outcome::Done(Reply::Full(r));
     };
-    let v_session = v_state.sessions.load(p_ctx.req.cookie(session::COOKIE_NAME).as_deref(), &v_secret);
+    let v_session = v_state.sessions.load(p_ctx.req.cookie(session::cookie_name()).as_deref(), &v_secret);
     let mut v_res = p_ctx.response();
     headers::admin_csp(&mut v_res.headers, v_ua);
     let mut a = A { c: p_ctx, session: v_session, res: v_res, csrf_secret: String::new(), query: p_ctx.req.query() };
@@ -267,11 +267,11 @@ async fn route(a: &mut A<'_, '_>, p_path: &str) -> Option<bool> {
     }
 
     // csurf (cookie mode): the secret cookie, then the token check
-    a.csrf_secret = match a.req().cookie(csrf::COOKIE_NAME) {
+    a.csrf_secret = match a.req().cookie(csrf::cookie_name()) {
         Some(v) if !v.is_empty() => v,
         _ => {
             let v = csrf::new_secret();
-            a.res.append("set-cookie", format!("{}={}; Path=/", csrf::COOKIE_NAME, super::http::encode_component(&v)));
+            a.res.append("set-cookie", format!("{}={}; Path=/", csrf::cookie_name(), super::http::encode_component(&v)));
             v
         }
     };

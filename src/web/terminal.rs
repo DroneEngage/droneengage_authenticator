@@ -79,7 +79,7 @@ pub async fn upgrade(p_web: Arc<Web>, mut p_conn: Conn<BoxIo>, p_head: Head) -> 
         return refuse(p_conn, "403 Forbidden").await;
     }
     let v_state = &p_web.admin;
-    let v_cookie = cookie(&p_head, session::COOKIE_NAME);
+    let v_cookie = cookie(&p_head, session::cookie_name());
     let v_session = match (&v_state.secret, v_cookie) {
         (Some(s), Some(v)) if v.starts_with("s:") => Some(v_state.sessions.load(Some(&v), s)),
         _ => None,

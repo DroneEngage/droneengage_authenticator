@@ -233,7 +233,7 @@ checksum = "4583a4551df46e2792f82ceeac45e850d2e2d5debba0b91f102385cda5b11f06"
 
 [[package]]
 name = "de_auth_server"
-version = "7.7.0"
+version = "7.7.1"
 dependencies = [
  "base64",
  "bcrypt",
@@ -304,8 +304,8 @@ checksum = "75b325c5dbd37f80359721ad39aca5a29fb04c89279657cffdda8736d0c0b9d2"
 
 [[package]]
 name = "droneengage_server_common"
-version = "2.0.0"
-source = "git+https://github.com/HefnySco/prv_droneengage_server_common?branch=master#922ad0a2e8c4a5b779fdb80f10b1534b78829c27"
+version = "2.0.1"
+source = "git+https://github.com/HefnySco/prv_droneengage_server_common?branch=master#3f4f6c332005ac4a6e0806878cc7b25f76d9b2a7"
 dependencies = [
  "base64",
  "bcrypt",

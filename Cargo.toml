@@ -1,6 +1,6 @@
 [package]
 name = "de_auth_server"
-version = "7.7.0"
+version = "7.7.1"
 edition = "2021"
 description = "DroneEngage Authentication Server: account login and management for GCS and agents, comm server selection over an S2S WebSocket, and the admin web interface."
 authors = ["Mohammad Said Hefny <mohammad.hefny@gmail.com>"]

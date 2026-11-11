@@ -8,12 +8,14 @@ use crate::jsv::{num, parse_int16, to_int32, to_uint32};
 use droneengage_server_common::util::{js_to_string, json_number_f64};
 
 /// fn_convertPermissiontoInt: null/undefined -> 0xffffffff, a string as hex,
-/// a number as is; anything else is undefined (None).
+/// a number as u32 (`>>> 0`) - modules validate `p` as unsigned, so a
+/// stored int32 pattern must go out non-negative; anything else is
+/// undefined (None).
 pub fn to_int(p_permission: Option<&Value>) -> Option<Value> {
     match p_permission {
         None | Some(Value::Null) => Some(Value::from(0xffffffffu32)),
         Some(Value::String(s)) => Some(num(parse_int16(s))),
-        Some(Value::Number(n)) => Some(Value::Number(n.clone())),
+        Some(Value::Number(n)) => Some(Value::from(to_uint32(json_number_f64(n)))),
         Some(_) => None,
     }
 }
@@ -60,6 +62,7 @@ mod tests {
     fn bits_like_javascript() {
         assert_eq!(to_int(Some(&json!("0xffffffff"))), Some(json!(4294967295u32)));
         assert_eq!(to_int(None), Some(json!(4294967295u32)));
+        assert_eq!(to_int(Some(&json!(-2080374785i64))), Some(json!(2214592511u32)));
         assert_eq!(to_int(Some(&json!(true))), None);
         assert!(to_int(Some(&json!("zz"))).unwrap().is_null(), "NaN");
         assert!(validate(Some(&json!(4294967295u32)), ALLOW_GCS_LOGIN));

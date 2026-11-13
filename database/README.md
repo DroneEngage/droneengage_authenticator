@@ -186,7 +186,7 @@ Regenerate the DB from your CSVs (this creates the schema and imports the
 data in one step):
 
 ```bash
-cd /path/to/de_server/droneengage_authenticator
+cd /path/to/droneengage_authenticator
 
 # Verify your CSVs are present
 ls ./migrate.tmp/   # should list account.csv and account_details.csv

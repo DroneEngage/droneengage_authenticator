@@ -31,3 +31,9 @@ server.config.local
 
 # Node deps (rust port keeps a few js tools)
 node_modules/
+
+# never publish: private keys, per-machine config, shared secrets
+*.key
+*_private.pem
+s2s_shared_secret.key*
+.env.local

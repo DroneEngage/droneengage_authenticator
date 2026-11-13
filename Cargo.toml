@@ -24,7 +24,7 @@ name = "migrate_file_db"
 path = "src/bin/migrate_file_db.rs"
 
 [dependencies]
-droneengage_server_common = { git = "https://github.com/HefnySco/prv_droneengage_server_common", branch = "master" }
+droneengage_server_common = { git = "https://github.com/DroneEngage/droneengage_server_common", branch = "master" }
 base64 = "0.22"
 bcrypt = "0.17"
 bytes = "1"

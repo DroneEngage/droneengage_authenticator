@@ -2,7 +2,7 @@
 
 # Andruav Authenticator
 
-Andruav Authenticator is the authentication server responsible for registering users and vehicles and assigning them to [communication servers](https://github.com/HefnySco/andruav_server).
+Andruav Authenticator is the authentication server responsible for registering users and vehicles and assigning them to [communication servers](https://github.com/DroneEngage/droneengage_server).
 
 [Andruav and Drone-Engage](https://cloud.ardupilot.org).
 
@@ -61,14 +61,14 @@ The following diagram shows the main function of this module:
 ### Prerequisites
 
 - Rust (stable, via [rustup](https://rustup.rs)) to build; the binary has no runtime dependencies (SQLite is bundled)
-- Git access to `HefnySco/prv_droneengage_server_common` (a Cargo git dependency)
+- Git access to `DroneEngage/droneengage_server_common` (a Cargo git dependency)
 - OpenSSL (for SSL certificates)
 
 ### Setup
 
 ```bash
 # Clone the repository
-git clone https://github.com/HefnySco/andruav_authenticator.git
+git clone https://github.com/DroneEngage/droneengage_authenticator.git
 cd andruav_authenticator
 
 # Build (the binaries are in target/release)

@@ -37,3 +37,7 @@ node_modules/
 *_private.pem
 s2s_shared_secret.key*
 .env.local
+
+# prod-only cutover scripts (production paths, pm2 app names)
+/scripts/de_cutover.sh
+/scripts/de_switch_db.sh
